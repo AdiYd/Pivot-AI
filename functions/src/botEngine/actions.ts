@@ -108,7 +108,7 @@ export async function processActions(actions: BotAction[], phone?: string): Prom
         try {
           await sendWhatsAppMessage(
             phone,
-            "⚠️ Something went wrong. Please try again or contact support."
+            "⚠️ משהו השתבש בעת עיבוד הבקשה שלך. אנא נסה שוב מאוחר יותר או צור קשר עם התמיכה."
           );
         } catch (notificationError) {
           console.error("[BotActions] Failed to send error notification:", notificationError);

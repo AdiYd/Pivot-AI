@@ -1,4 +1,5 @@
 import { ConversationState, IncomingMessage, StateTransition, BotAction } from '../types';
+import { BOT_MESSAGES, formatTimeHebrew, formatDaysHebrew, interpolateMessage } from './botMessages';
 
 /**
  * Main conversation state machine reducer
@@ -31,7 +32,7 @@ export function conversationStateReducer(
         type: "SEND_MESSAGE",
         payload: {
           to: message.from,
-          body: "🍽️ Welcome to Restaurant Inventory Bot!\n\nLet's get you set up in just a few minutes.\n\nWhat's the name of your restaurant?"
+          body: BOT_MESSAGES.onboarding.welcome
         }
       });
       newState.currentState = "ONBOARDING_NAME";
@@ -44,7 +45,7 @@ export function conversationStateReducer(
           type: "SEND_MESSAGE",
           payload: {
             to: message.from,
-            body: "❌ Please enter a valid restaurant name (at least 2 characters)."
+            body: BOT_MESSAGES.validation.invalidRestaurantName
           }
         });
         // Stay in same state
@@ -59,7 +60,9 @@ export function conversationStateReducer(
         type: "SEND_MESSAGE",
         payload: {
           to: message.from,
-          body: `Great! "${message.body.trim()}" sounds wonderful.\n\nNow I need your contact details. What's your full name?`
+          body: interpolateMessage(BOT_MESSAGES.onboarding.askContactName, {
+            restaurantName: newState.context.restaurantName
+          })
         }
       });
       newState.currentState = "ONBOARDING_CONTACT";
@@ -71,7 +74,7 @@ export function conversationStateReducer(
           type: "SEND_MESSAGE",
           payload: {
             to: message.from,
-            body: "❌ Please enter your full name (at least 2 characters)."
+            body: BOT_MESSAGES.validation.invalidContactName
           }
         });
         // Stay in same state
@@ -98,7 +101,11 @@ export function conversationStateReducer(
         type: "SEND_MESSAGE",
         payload: {
           to: message.from,
-          body: `Perfect! ${newState.context.contactName}, your restaurant "${newState.context.restaurantName}" has been registered.\n\n💳 To activate your account, please complete payment:\nhttps://payment.example.com/restaurant/${currentState.restaurantId}\n\nOnce payment is confirmed, you can start adding suppliers by typing "supplier".`
+          body: interpolateMessage(BOT_MESSAGES.onboarding.registrationComplete, {
+            contactName: newState.context.contactName,
+            restaurantName: newState.context.restaurantName,
+            paymentLink: `https://payment.example.com/restaurant/${currentState.restaurantId}`
+          })
         }
       });
       newState.currentState = "IDLE";
@@ -108,12 +115,12 @@ export function conversationStateReducer(
     case "IDLE":
       const command = message.body?.toLowerCase().trim() || "";
       
-      if (command.includes("supplier") || command.includes("add supplier")) {
+      if (command.includes("supplier") || command.includes("add supplier") || command.includes("ספק")) {
         actions.push({
           type: "SEND_MESSAGE",
           payload: {
             to: message.from,
-            body: "📋 Let's add a new supplier!\n\nWhat's the supplier's name?"
+            body: BOT_MESSAGES.supplier.startAdding
           }
         });
         newState.currentState = "SUPPLIER_NAME";
@@ -124,12 +131,12 @@ export function conversationStateReducer(
           supplierWhatsapp: undefined,
           supplierDays: undefined
         };
-      } else if (command.includes("help") || command === "?") {
+      } else if (command.includes("help") || command === "?" || command.includes("עזרה")) {
         actions.push({
           type: "SEND_MESSAGE",
           payload: {
             to: message.from,
-            body: "🤖 Available commands:\n• 'supplier' - Add a new supplier\n• 'inventory' - Update stock levels\n• 'orders' - View recent orders\n• 'help' - Show this menu"
+            body: BOT_MESSAGES.general.helpMenu
           }
         });
         // Stay in IDLE state
@@ -138,7 +145,7 @@ export function conversationStateReducer(
           type: "SEND_MESSAGE",
           payload: {
             to: message.from,
-            body: "👋 Hi! I can help you manage suppliers and inventory.\n\nType 'supplier' to add a new supplier, or 'help' for more options."
+            body: BOT_MESSAGES.general.welcomeBack
           }
         });
         // Stay in IDLE state
@@ -151,7 +158,7 @@ export function conversationStateReducer(
           type: "SEND_MESSAGE",
           payload: {
             to: message.from,
-            body: "❌ Please enter a valid supplier name (at least 2 characters)."
+            body: BOT_MESSAGES.validation.invalidSupplierName
           }
         });
         // Stay in same state
@@ -166,7 +173,9 @@ export function conversationStateReducer(
         type: "SEND_MESSAGE",
         payload: {
           to: message.from,
-          body: `Adding supplier: "${message.body.trim()}"\n\nWhat's their WhatsApp number?\n(Include country code, e.g., +972501234567)`
+          body: interpolateMessage(BOT_MESSAGES.supplier.askWhatsapp, {
+            supplierName: newState.context.supplierName
+          })
         }
       });
       newState.currentState = "SUPPLIER_WHATSAPP";
@@ -181,7 +190,7 @@ export function conversationStateReducer(
           type: "SEND_MESSAGE",
           payload: {
             to: message.from,
-            body: "❌ Please enter a valid WhatsApp number with country code (e.g., +972501234567)"
+            body: BOT_MESSAGES.validation.invalidWhatsappNumber
           }
         });
         // Stay in same state
@@ -196,7 +205,7 @@ export function conversationStateReducer(
         type: "SEND_MESSAGE",
         payload: {
           to: message.from,
-          body: "📅 What days of the week do they deliver?\n\nSend day numbers separated by commas:\n0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday\n\nExample: 1,3,5 for Mon/Wed/Fri"
+          body: BOT_MESSAGES.supplier.askDeliveryDays
         }
       });
       newState.currentState = "SUPPLIER_DAYS";
@@ -217,15 +226,13 @@ export function conversationStateReducer(
         newState.context.supplierDays = days;
         console.log(`[BotEngine] Stored supplier days: ${newState.context.supplierDays}`);
         
-        // Convert day numbers to day names for confirmation
-        const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-        const selectedDays = days.map(d => dayNames[d]).join(", ");
+        const selectedDays = formatDaysHebrew(days);
         
         actions.push({
           type: "SEND_MESSAGE",
           payload: {
             to: message.from,
-            body: `✅ Delivery days: ${selectedDays}\n\n⏰ What's the order cutoff time?\n(24-hour format, e.g., 15 for 3:00 PM)`
+            body: interpolateMessage(BOT_MESSAGES.supplier.askCutoffTime, { selectedDays })
           }
         });
         newState.currentState = "SUPPLIER_CUTOFF";
@@ -234,7 +241,7 @@ export function conversationStateReducer(
           type: "SEND_MESSAGE",
           payload: {
             to: message.from,
-            body: "❌ Invalid format. Please send delivery days as numbers separated by commas.\nExample: 1,3,5 for Monday, Wednesday, Friday"
+            body: BOT_MESSAGES.validation.invalidDeliveryDays
           }
         });
         // Stay in same state
@@ -271,16 +278,17 @@ export function conversationStateReducer(
           }
         });
         
-        const timeString = cutoffHour === 0 ? "12:00 AM" : 
-                          cutoffHour < 12 ? `${cutoffHour}:00 AM` :
-                          cutoffHour === 12 ? "12:00 PM" :
-                          `${cutoffHour - 12}:00 PM`;
+        const timeString = formatTimeHebrew(cutoffHour);
                           
         actions.push({
           type: "SEND_MESSAGE",
           payload: {
             to: message.from,
-            body: `✅ Supplier "${newState.context.supplierName}" added successfully!\n📞 ${newState.context.supplierWhatsapp}\n⏰ Cutoff: ${timeString}\n\nType 'supplier' to add another one, or 'help' for more options.`
+            body: interpolateMessage(BOT_MESSAGES.supplier.addedSuccessfully, {
+              supplierName: newState.context.supplierName,
+              whatsapp: newState.context.supplierWhatsapp,
+              timeString
+            })
           }
         });
         
@@ -295,7 +303,7 @@ export function conversationStateReducer(
           type: "SEND_MESSAGE",
           payload: {
             to: message.from,
-            body: "❌ Please enter a valid hour (0-23).\nExample: 15 for 3:00 PM"
+            body: BOT_MESSAGES.validation.invalidCutoffHour
           }
         });
         // Stay in same state
@@ -306,12 +314,12 @@ export function conversationStateReducer(
       // Handle payment confirmation or move to next step
       const paymentCommand = message.body?.toLowerCase().trim() || "";
       
-      if (paymentCommand.includes("paid") || paymentCommand.includes("done") || paymentCommand.includes("complete")) {
+      if (paymentCommand.includes("paid") || paymentCommand.includes("done") || paymentCommand.includes("complete") || paymentCommand.includes("שילמתי") || paymentCommand.includes("סיימתי")) {
         actions.push({
           type: "SEND_MESSAGE",
           payload: {
             to: message.from,
-            body: "Great! Once payment is processed, you'll be able to add suppliers.\n\nFor now, type 'supplier' to start adding your first supplier."
+            body: BOT_MESSAGES.onboarding.paymentConfirmed
           }
         });
         newState.currentState = "IDLE";
@@ -320,7 +328,9 @@ export function conversationStateReducer(
           type: "SEND_MESSAGE",
           payload: {
             to: message.from,
-            body: "Please complete your payment first, then let me know when it's done.\n\nPayment link: https://payment.example.com/restaurant/" + currentState.restaurantId
+            body: interpolateMessage(BOT_MESSAGES.onboarding.paymentPending, {
+              paymentLink: `https://payment.example.com/restaurant/${currentState.restaurantId}`
+            })
           }
         });
       }
@@ -332,7 +342,7 @@ export function conversationStateReducer(
         type: "SEND_MESSAGE",
         payload: {
           to: message.from,
-          body: "🤔 Something went wrong. Let me reset...\n\nType 'supplier' to add a supplier or 'help' for options."
+          body: BOT_MESSAGES.general.systemError
         }
       });
       newState.currentState = "IDLE";

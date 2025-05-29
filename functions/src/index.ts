@@ -89,7 +89,9 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
         conversationState = {
           restaurantId,
           currentState: "INIT",
-          context: {},
+          context: {
+            contactNumber: phoneNumber,
+          },
           lastMessageTimestamp: Timestamp.now(),
         };
         console.log(`[WhatsApp] New user starting onboarding - phone: ${phoneNumber}, restaurantId: ${restaurantId}`);
@@ -104,7 +106,7 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
           currentState: "IDLE",
           context: {
             restaurantName: restaurantData.name,
-            contactName: restaurantData.primaryContact.name
+            contactName: restaurantData.primaryContact.name,
           },
           lastMessageTimestamp: Timestamp.now(),
         };
