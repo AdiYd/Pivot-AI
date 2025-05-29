@@ -1,0 +1,116 @@
+import { Timestamp } from 'firebase-admin/firestore';
+
+export interface Contact {
+  name: string;
+  role: "Owner" | "Manager" | "Shift" | "Other";
+  phone: string;
+  email?: string;
+}
+
+export interface PaymentMeta {
+  provider: "Stripe" | "Paylink";
+  customerId: string;
+  status: "pending" | "active";
+}
+
+export interface Restaurant {
+  id: string;
+  name: string;
+  legalId: string;
+  businessName: string;
+  yearsActive: number;
+  createdAt: Timestamp;
+  isActivated: boolean;
+  primaryContact: Contact;
+  payment: PaymentMeta;
+  settings: {
+    timezone: string;
+    locale: string;
+  };
+}
+
+export interface Supplier {
+  id: string;
+  name: string;
+  whatsapp: string;
+  deliveryDays: number[];
+  cutoffHour: number;
+  category: SupplierCategory;
+  createdAt: Timestamp;
+  rating: number;
+}
+
+export type SupplierCategory =
+  | "vegetables" | "fruits" | "fish" | "meat" | "alcohol"
+  | "oliveOil" | "disposables" | "dessert" | "juices" | "eggs" | string;
+
+export interface Product {
+  id: string;
+  supplierId: string;
+  name: string;
+  emoji: string;
+  unit: "kg" | "gram" | "liter" | "pcs" | "box" | "bottle" | string;
+  parMidweek: number;
+  parWeekend: number;
+  createdAt: Timestamp;
+}
+
+export interface ItemLine {
+  productId: string;
+  qty: number;
+}
+
+export interface ItemShortage extends ItemLine {
+  received: number;
+}
+
+export interface StockLine {
+  productId: string;
+  currentQty: number;
+}
+
+export interface Order {
+  id: string;
+  supplierId: string;
+  status: "pending" | "sent" | "delivered";
+  items: ItemLine[];
+  midweek: boolean;
+  createdAt: Timestamp;
+  sentAt?: Timestamp;
+  receivedAt?: Timestamp;
+  invoiceUrl?: string;
+  shortages: ItemShortage[];
+}
+
+export interface InventorySnapshot {
+  id: string;
+  supplierId: string;
+  lines: StockLine[];
+  createdAt: Timestamp;
+}
+
+// Conversation state types for the WhatsApp bot
+export interface ConversationState {
+  restaurantId: string;
+  currentState: BotState;
+  context: Record<string, any>;
+  lastMessageTimestamp: Timestamp;
+}
+
+export type BotState =
+  | "INIT"
+  | "ONBOARDING_NAME"
+  | "ONBOARDING_CONTACT"
+  | "ONBOARDING_PAYMENT"
+  | "SUPPLIER_NAME"
+  | "SUPPLIER_WHATSAPP"
+  | "SUPPLIER_DAYS"
+  | "SUPPLIER_CUTOFF"
+  | "PRODUCT_NAME"
+  | "PRODUCT_UNIT"
+  | "PRODUCT_PAR_MIDWEEK"
+  | "PRODUCT_PAR_WEEKEND"
+  | "INVENTORY_COUNT"
+  | "ORDER_CONFIRMATION"
+  | "DELIVERY_CHECK"
+  | "IDLE";
