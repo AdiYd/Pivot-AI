@@ -114,3 +114,20 @@ export type BotState =
   | "ORDER_CONFIRMATION"
   | "DELIVERY_CHECK"
   | "IDLE";
+
+// Bot engine types
+export interface IncomingMessage {
+  from: string;
+  body: string;
+  mediaUrl?: string;
+}
+
+export interface BotAction {
+  type: "SEND_MESSAGE" | "CREATE_RESTAURANT" | "UPDATE_SUPPLIER" | "UPDATE_PRODUCT";
+  payload: Record<string, any>;
+}
+
+export interface StateTransition {
+  newState: ConversationState;
+  actions: BotAction[];
+}

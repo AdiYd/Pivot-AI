@@ -6,12 +6,26 @@
     "outDir": "lib",
     "sourceMap": true,
     "strict": true,
-    "target": "es2017",
+    "target": "es2018",
+    "skipLibCheck": true,
     "esModuleInterop": true,
-    "skipLibCheck": true
+    "declaration": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "@whatsapp-inventory-bot/schema": ["../packages/schema"],
+      "@whatsapp-inventory-bot/botEngine": ["../packages/botEngine"],
+      "@/types": ["./src/types"],
+      "@/botEngine": ["./src/botEngine"],
+      "@/utils": ["./src/utils"]
+    }
   },
   "compileOnSave": true,
   "include": [
-    "src"
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "lib"
   ]
 }
