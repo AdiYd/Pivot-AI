@@ -12,7 +12,7 @@
     "build": "npm run build:functions",
     "build:functions": "cd functions && npm run build",
     "watch:functions": "cd functions && npm run watch",
-    "serve:emulators": "firebase emulators:start --only functions,firestore",
+    "serve:emulators": "firebase emulators:start --only functions",
     "deploy": "npm run build && firebase deploy --only functions",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\""

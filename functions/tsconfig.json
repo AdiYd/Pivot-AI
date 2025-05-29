@@ -13,8 +13,6 @@
     "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
     "paths": {
-      "@whatsapp-inventory-bot/schema": ["../packages/schema"],
-      "@whatsapp-inventory-bot/botEngine": ["../packages/botEngine"],
       "@/types": ["./src/types"],
       "@/botEngine": ["./src/botEngine"],
       "@/utils": ["./src/utils"]

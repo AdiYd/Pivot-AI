@@ -4,185 +4,294 @@ export function conversationStateReducer(
   currentState: ConversationState,
   message: IncomingMessage
 ): StateTransition {
+  console.log(`[BotEngine] Processing message in state: ${currentState.currentState}`, {
+    from: message.from,
+    bodyLength: message.body?.length || 0,
+    hasMedia: !!message.mediaUrl
+  });
+
   const actions: BotAction[] = [];
   let newState = { ...currentState };
 
   switch (currentState.currentState) {
     case "INIT":
-      // Welcome new user and start onboarding
       actions.push({
         type: "SEND_MESSAGE",
         payload: {
           to: message.from,
-          message: "Welcome! Let's set up your restaurant. What's your restaurant name?"
+          body: "🍽️ Welcome to Restaurant Inventory Bot!\n\nLet's get you set up in just a few minutes.\n\nWhat's the name of your restaurant?"
         }
       });
       newState.currentState = "ONBOARDING_NAME";
+      newState.context = {}; // Clear any existing context
       break;
 
     case "ONBOARDING_NAME":
-      // Store restaurant name and ask for contact
-      newState.context.restaurantName = message.body;
+      if (!message.body || message.body.trim().length < 2) {
+        actions.push({
+          type: "SEND_MESSAGE",
+          payload: {
+            to: message.from,
+            body: "❌ Please enter a valid restaurant name (at least 2 characters)."
+          }
+        });
+        break;
+      }
+      
+      newState.context.restaurantName = message.body.trim();
       actions.push({
         type: "SEND_MESSAGE",
         payload: {
           to: message.from,
-          message: `Great! Now, what's your name and role at ${message.body}?`
+          body: `Great! "${message.body.trim()}" sounds wonderful.\n\nNow I need your contact details. What's your full name?`
         }
       });
       newState.currentState = "ONBOARDING_CONTACT";
       break;
 
     case "ONBOARDING_CONTACT":
-      // Store contact info and create restaurant
-      newState.context.contactName = message.body;
+      if (!message.body || message.body.trim().length < 2) {
+        actions.push({
+          type: "SEND_MESSAGE",
+          payload: {
+            to: message.from,
+            body: "❌ Please enter your full name (at least 2 characters)."
+          }
+        });
+        break;
+      }
+
+      newState.context.contactName = message.body.trim();
+      
+      // Create restaurant first
       actions.push({
         type: "CREATE_RESTAURANT",
         payload: {
-          restaurantId: newState.restaurantId,
+          restaurantId: currentState.restaurantId,
           name: newState.context.restaurantName,
-          contactName: message.body,
+          contactName: message.body.trim(),
           phone: message.from.replace("whatsapp:", "")
         }
       });
+      
+      // Then send payment message
       actions.push({
         type: "SEND_MESSAGE",
         payload: {
           to: message.from,
-          message: "Perfect! Please complete payment to activate your account: [PAYMENT_LINK]"
+          body: `Perfect! ${message.body.trim()}, your restaurant "${newState.context.restaurantName}" has been registered.\n\n💳 To activate your account, please complete payment:\nhttps://payment.example.com/restaurant/${currentState.restaurantId}\n\nOnce payment is confirmed, you can start adding suppliers by typing "supplier".`
         }
       });
-      newState.currentState = "ONBOARDING_PAYMENT";
+      newState.currentState = "IDLE"; // Go directly to IDLE after registration
       break;
 
     case "IDLE":
-      // Handle various commands when idle
-      const command = message.body.toLowerCase().trim();
+      const command = message.body?.toLowerCase().trim() || "";
+      
       if (command.includes("supplier") || command.includes("add supplier")) {
         actions.push({
           type: "SEND_MESSAGE",
           payload: {
             to: message.from,
-            message: "Let's add a new supplier! What's the supplier's name?"
+            body: "📋 Let's add a new supplier!\n\nWhat's the supplier's name?"
           }
         });
         newState.currentState = "SUPPLIER_NAME";
-      } else if (command.includes("inventory") || command.includes("stock")) {
+        newState.context = {}; // Clear context for new supplier
+      } else if (command.includes("help") || command === "?") {
         actions.push({
           type: "SEND_MESSAGE",
           payload: {
             to: message.from,
-            message: "Let's update your inventory. Which supplier's products do you want to count?"
+            body: "🤖 Available commands:\n• 'supplier' - Add a new supplier\n• 'inventory' - Update stock levels\n• 'orders' - View recent orders\n• 'help' - Show this menu"
           }
         });
-        newState.currentState = "INVENTORY_COUNT";
       } else {
         actions.push({
           type: "SEND_MESSAGE",
           payload: {
             to: message.from,
-            message: "I can help you with:\n• Add supplier\n• Update inventory\n• View orders\n\nWhat would you like to do?"
+            body: "👋 Hi! I can help you manage suppliers and inventory.\n\nType 'supplier' to add a new supplier, or 'help' for more options."
           }
         });
       }
       break;
 
     case "SUPPLIER_NAME":
-      // Store supplier name and ask for WhatsApp
-      newState.context.supplierName = message.body;
+      if (!message.body || message.body.trim().length < 2) {
+        actions.push({
+          type: "SEND_MESSAGE",
+          payload: {
+            to: message.from,
+            body: "❌ Please enter a valid supplier name (at least 2 characters)."
+          }
+        });
+        break;
+      }
+
+      newState.context.supplierName = message.body.trim();
       actions.push({
         type: "SEND_MESSAGE",
         payload: {
           to: message.from,
-          message: `What's ${message.body}'s WhatsApp number?`
+          body: `Adding supplier: "${message.body.trim()}"\n\nWhat's their WhatsApp number?\n(Include country code, e.g., +972501234567)`
         }
       });
       newState.currentState = "SUPPLIER_WHATSAPP";
       break;
 
     case "SUPPLIER_WHATSAPP":
-      // Store WhatsApp and ask for delivery days
-      newState.context.supplierWhatsapp = message.body;
+      const whatsappNumber = message.body?.trim() || "";
+      
+      // Basic WhatsApp number validation
+      if (!whatsappNumber || !whatsappNumber.match(/^\+?[1-9]\d{1,14}$/)) {
+        actions.push({
+          type: "SEND_MESSAGE",
+          payload: {
+            to: message.from,
+            body: "❌ Please enter a valid WhatsApp number with country code (e.g., +972501234567)"
+          }
+        });
+        break;
+      }
+
+      newState.context.supplierWhatsapp = whatsappNumber;
       actions.push({
         type: "SEND_MESSAGE",
         payload: {
           to: message.from,
-          message: "Which days do they deliver? (e.g., Sunday, Tuesday, Thursday)"
+          body: "📅 What days of the week do they deliver?\n\nSend day numbers separated by commas:\n0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday\n\nExample: 1,3,5 for Mon/Wed/Fri"
         }
       });
       newState.currentState = "SUPPLIER_DAYS";
       break;
 
     case "SUPPLIER_DAYS":
-      // Store delivery days and ask for cutoff
-      newState.context.deliveryDays = parseDays(message.body);
-      actions.push({
-        type: "SEND_MESSAGE",
-        payload: {
-          to: message.from,
-          message: "What time is the order cutoff? (e.g., 14 for 2 PM)"
+      try {
+        const dayInput = message.body?.trim() || "";
+        const days = dayInput.split(',')
+          .map(d => parseInt(d.trim()))
+          .filter(d => d >= 0 && d <= 6);
+        
+        if (days.length === 0) {
+          throw new Error("No valid days found");
         }
-      });
-      newState.currentState = "SUPPLIER_CUTOFF";
+
+        newState.context.supplierDays = days;
+        
+        // Convert day numbers to day names for confirmation
+        const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        const selectedDays = days.map(d => dayNames[d]).join(", ");
+        
+        actions.push({
+          type: "SEND_MESSAGE",
+          payload: {
+            to: message.from,
+            body: `✅ Delivery days: ${selectedDays}\n\n⏰ What's the order cutoff time?\n(24-hour format, e.g., 15 for 3:00 PM)`
+          }
+        });
+        newState.currentState = "SUPPLIER_CUTOFF";
+      } catch (error) {
+        actions.push({
+          type: "SEND_MESSAGE",
+          payload: {
+            to: message.from,
+            body: "❌ Invalid format. Please send delivery days as numbers separated by commas.\nExample: 1,3,5 for Monday, Wednesday, Friday"
+          }
+        });
+      }
       break;
 
     case "SUPPLIER_CUTOFF":
-      // Store cutoff and create supplier
-      newState.context.cutoffHour = parseInt(message.body);
-      actions.push({
-        type: "UPDATE_SUPPLIER",
-        payload: {
-          restaurantId: newState.restaurantId,
-          name: newState.context.supplierName,
-          whatsapp: newState.context.supplierWhatsapp,
-          deliveryDays: newState.context.deliveryDays,
-          cutoffHour: newState.context.cutoffHour
+      try {
+        const cutoffInput = message.body?.trim() || "";
+        const cutoffHour = parseInt(cutoffInput);
+        
+        if (isNaN(cutoffHour) || cutoffHour < 0 || cutoffHour > 23) {
+          throw new Error("Invalid hour");
         }
-      });
-      actions.push({
-        type: "SEND_MESSAGE",
-        payload: {
-          to: message.from,
-          message: `Supplier ${newState.context.supplierName} added! Now let's add their first product. What's the product name?`
-        }
-      });
-      newState.currentState = "PRODUCT_NAME";
+
+        // Create the supplier
+        actions.push({
+          type: "UPDATE_SUPPLIER",
+          payload: {
+            restaurantId: currentState.restaurantId,
+            name: newState.context.supplierName,
+            whatsapp: newState.context.supplierWhatsapp,
+            deliveryDays: newState.context.supplierDays,
+            cutoffHour: cutoffHour,
+            category: "general" // Default category
+          }
+        });
+        
+        const timeString = cutoffHour === 0 ? "12:00 AM" : 
+                          cutoffHour < 12 ? `${cutoffHour}:00 AM` :
+                          cutoffHour === 12 ? "12:00 PM" :
+                          `${cutoffHour - 12}:00 PM`;
+                          
+        actions.push({
+          type: "SEND_MESSAGE",
+          payload: {
+            to: message.from,
+            body: `✅ Supplier "${newState.context.supplierName}" added successfully!\n📞 ${newState.context.supplierWhatsapp}\n⏰ Cutoff: ${timeString}\n\nType 'supplier' to add another one, or 'help' for more options.`
+          }
+        });
+        
+        newState.currentState = "IDLE";
+        newState.context = {}; // Clear context after successful supplier creation
+      } catch (error) {
+        actions.push({
+          type: "SEND_MESSAGE",
+          payload: {
+            to: message.from,
+            body: "❌ Please enter a valid hour (0-23).\nExample: 15 for 3:00 PM"
+          }
+        });
+      }
       break;
 
-    // Add more cases for other states...
+    case "ONBOARDING_PAYMENT":
+      // Handle payment confirmation or move to next step
+      const paymentCommand = message.body?.toLowerCase().trim() || "";
+      
+      if (paymentCommand.includes("paid") || paymentCommand.includes("done") || paymentCommand.includes("complete")) {
+        actions.push({
+          type: "SEND_MESSAGE",
+          payload: {
+            to: message.from,
+            body: "Great! Once payment is processed, you'll be able to add suppliers.\n\nFor now, type 'supplier' to start adding your first supplier."
+          }
+        });
+        newState.currentState = "IDLE";
+      } else {
+        actions.push({
+          type: "SEND_MESSAGE",
+          payload: {
+            to: message.from,
+            body: "Please complete your payment first, then let me know when it's done.\n\nPayment link: https://payment.example.com/restaurant/" + currentState.restaurantId
+          }
+        });
+      }
+      break;
+
     default:
+      console.warn(`[BotEngine] Unhandled state: ${currentState.currentState}`);
       actions.push({
         type: "SEND_MESSAGE",
         payload: {
           to: message.from,
-          message: "I didn't understand that. Please try again."
+          body: "🤔 Something went wrong. Let me reset...\n\nType 'supplier' to add a supplier or 'help' for options."
         }
       });
+      newState.currentState = "IDLE";
+      newState.context = {};
       break;
   }
+
+  console.log(`[BotEngine] State transition: ${currentState.currentState} -> ${newState.currentState}`, {
+    actionsCount: actions.length,
+    contextKeys: Object.keys(newState.context)
+  });
 
   return { newState, actions };
-}
-
-function parseDays(input: string): number[] {
-  const dayMap: Record<string, number> = {
-    sunday: 0, sun: 0,
-    monday: 1, mon: 1,
-    tuesday: 2, tue: 2, tues: 2,
-    wednesday: 3, wed: 3,
-    thursday: 4, thu: 4, thur: 4, thurs: 4,
-    friday: 5, fri: 5,
-    saturday: 6, sat: 6
-  };
-
-  const days: number[] = [];
-  const words = input.toLowerCase().split(/[,\s]+/);
-  
-  for (const word of words) {
-    if (dayMap[word] !== undefined) {
-      days.push(dayMap[word]);
-    }
-  }
-  
-  return days;
 }

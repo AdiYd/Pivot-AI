@@ -4,15 +4,26 @@ import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 
 import { conversationStateReducer, processActions } from "./botEngine";
 import { ConversationState, IncomingMessage } from "./types";
-import { validateTwilioWebhook } from "./utils/twilioValidation";
+import { validateTwilioWebhook } from "./utils/twilio";
 
-admin.initializeApp({ projectId: 'pivot-chatbot-fdfe0' });
+// Initialize Firebase Admin only if not already initialized
+if (!admin.apps?.length) {
+  admin.initializeApp({ projectId: 'pivot-chatbot-fdfe0' });
+}
+
 const firestore = admin.firestore();
-console.log("Firestore initialized", FieldValue.serverTimestamp());
+console.log("Firebase Admin initialized");
 
 // Process incoming WhatsApp messages from Twilio
 exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
   try {
+
+    // Only process POST requests
+    if (req.method !== 'POST') {
+      res.status(405).send('Method Not Allowed');
+      return;
+    }
+
     // Validate that the request is coming from Twilio
     if (!validateTwilioWebhook(req)) {
       console.error("Invalid Twilio signature");
@@ -22,9 +33,16 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
 
     // Extract message details from Twilio request
     const from = req.body.From;
-    const body = req.body.Body;
+    const body = req.body.Body || '';
     const mediaUrl = req.body.MediaUrl0;
-    console.log("Received message from:", from, "with body:", body, "and media URL:", mediaUrl);
+    
+    if (!from) {
+      console.error('Missing From field in request body');
+      res.status(400).send('Bad Request: Missing From field');
+      return;
+    }
+
+    console.log(`[WhatsApp] Received message from ${from}: "${body}"`);
 
     // Create the incoming message object
     const message: IncomingMessage = {
