@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { BotAction } from '../types';
 import { sendWhatsAppMessage } from '../utils/twilio';
-import { createRestaurant, updateSupplier } from '../utils/firestore';
+import { createRestaurant, updateSupplier, logMessage } from '../utils/firestore';
 
 // Zod schemas for payload validation
 const SendMessagePayloadSchema = z.object({
@@ -25,13 +25,20 @@ const UpdateSupplierPayloadSchema = z.object({
   category: z.string().optional().default("general")
 });
 
-export async function processActions(actions: BotAction[]): Promise<void> {
-  console.log(`[BotActions] Processing ${actions.length} bot actions`);
+/**
+ * Process all bot actions sequentially
+ * Each action is executed and logged appropriately
+ * @param actions Array of bot actions to execute
+ * @param phone Phone number for logging context
+ */
+export async function processActions(actions: BotAction[], phone?: string): Promise<void> {
+  console.log(`[BotActions] Processing ${actions.length} bot actions for phone: ${phone}`);
 
   for (const action of actions) {
     try {
       console.log(`[BotActions] Executing action: ${action.type}`, {
-        payloadKeys: Object.keys(action.payload || {})
+        payloadKeys: Object.keys(action.payload || {}),
+        phone
       });
 
       switch (action.type) {
@@ -39,6 +46,12 @@ export async function processActions(actions: BotAction[]): Promise<void> {
           try {
             const validPayload = SendMessagePayloadSchema.parse(action.payload);
             await sendWhatsAppMessage(validPayload.to, validPayload.body);
+            
+            // Log outgoing message
+            if (phone) {
+              const phoneNumber = phone.replace("whatsapp:", "");
+              await logMessage(phoneNumber, validPayload.body, 'outgoing');
+            }
           } catch (validationError) {
             if (validationError instanceof z.ZodError) {
               throw new Error(`Invalid SEND_MESSAGE payload: ${validationError.errors.map(e => e.message).join(', ')}`);
@@ -49,7 +62,9 @@ export async function processActions(actions: BotAction[]): Promise<void> {
 
         case "CREATE_RESTAURANT":
           try {
-            const validPayload = CreateRestaurantPayloadSchema.parse(action.payload);
+            const validPayload = CreateRestaurantPayloadSchema.extend({
+              phone: z.string().min(10)
+            }).parse(action.payload);
             await createRestaurant(validPayload);
           } catch (validationError) {
             if (validationError instanceof z.ZodError) {
@@ -84,14 +99,15 @@ export async function processActions(actions: BotAction[]): Promise<void> {
     } catch (error) {
       console.error(`[BotActions] ❌ Error executing action ${action.type}:`, {
         error: error instanceof Error ? error.message : error,
-        payload: action.payload
+        payload: action.payload,
+        phone
       });
       
       // For critical errors, try to send an error message to the user
-      if (action.type !== "SEND_MESSAGE" && action.payload?.to) {
+      if (action.type !== "SEND_MESSAGE" && phone) {
         try {
           await sendWhatsAppMessage(
-            action.payload.to,
+            phone,
             "⚠️ Something went wrong. Please try again or contact support."
           );
         } catch (notificationError) {

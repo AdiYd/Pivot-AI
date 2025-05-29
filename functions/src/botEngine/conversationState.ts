@@ -1,5 +1,12 @@
 import { ConversationState, IncomingMessage, StateTransition, BotAction } from '../types';
 
+/**
+ * Main conversation state machine reducer
+ * Processes incoming messages and determines next state + actions
+ * @param currentState Current conversation state
+ * @param message Incoming WhatsApp message
+ * @returns State transition with new state and actions to execute
+ */
 export function conversationStateReducer(
   currentState: ConversationState,
   message: IncomingMessage
@@ -7,11 +14,16 @@ export function conversationStateReducer(
   console.log(`[BotEngine] Processing message in state: ${currentState.currentState}`, {
     from: message.from,
     bodyLength: message.body?.length || 0,
-    hasMedia: !!message.mediaUrl
+    hasMedia: !!message.mediaUrl,
+    currentContextKeys: Object.keys(currentState.context || {})
   });
 
   const actions: BotAction[] = [];
-  let newState = { ...currentState };
+  // Create new state preserving existing context
+  let newState = { 
+    ...currentState,
+    context: { ...currentState.context } // Ensure context is preserved
+  };
 
   switch (currentState.currentState) {
     case "INIT":
@@ -23,7 +35,7 @@ export function conversationStateReducer(
         }
       });
       newState.currentState = "ONBOARDING_NAME";
-      newState.context = {}; // Clear any existing context
+      newState.context = {}; // Clear any existing context for fresh start
       break;
 
     case "ONBOARDING_NAME":
@@ -35,10 +47,14 @@ export function conversationStateReducer(
             body: "❌ Please enter a valid restaurant name (at least 2 characters)."
           }
         });
+        // Stay in same state
         break;
       }
       
+      // Store restaurant name in context
       newState.context.restaurantName = message.body.trim();
+      console.log(`[BotEngine] Stored restaurant name: ${newState.context.restaurantName}`);
+      
       actions.push({
         type: "SEND_MESSAGE",
         payload: {
@@ -58,31 +74,35 @@ export function conversationStateReducer(
             body: "❌ Please enter your full name (at least 2 characters)."
           }
         });
+        // Stay in same state
         break;
       }
 
+      // Store contact name in context
       newState.context.contactName = message.body.trim();
+      console.log(`[BotEngine] Stored contact name: ${newState.context.contactName}`);
       
-      // Create restaurant first
+      // Create restaurant with stored context data
       actions.push({
         type: "CREATE_RESTAURANT",
         payload: {
           restaurantId: currentState.restaurantId,
           name: newState.context.restaurantName,
-          contactName: message.body.trim(),
+          contactName: newState.context.contactName,
           phone: message.from.replace("whatsapp:", "")
         }
       });
       
-      // Then send payment message
+      // Send payment message
       actions.push({
         type: "SEND_MESSAGE",
         payload: {
           to: message.from,
-          body: `Perfect! ${message.body.trim()}, your restaurant "${newState.context.restaurantName}" has been registered.\n\n💳 To activate your account, please complete payment:\nhttps://payment.example.com/restaurant/${currentState.restaurantId}\n\nOnce payment is confirmed, you can start adding suppliers by typing "supplier".`
+          body: `Perfect! ${newState.context.contactName}, your restaurant "${newState.context.restaurantName}" has been registered.\n\n💳 To activate your account, please complete payment:\nhttps://payment.example.com/restaurant/${currentState.restaurantId}\n\nOnce payment is confirmed, you can start adding suppliers by typing "supplier".`
         }
       });
-      newState.currentState = "IDLE"; // Go directly to IDLE after registration
+      newState.currentState = "IDLE";
+      // Keep context for future reference
       break;
 
     case "IDLE":
@@ -97,7 +117,13 @@ export function conversationStateReducer(
           }
         });
         newState.currentState = "SUPPLIER_NAME";
-        newState.context = {}; // Clear context for new supplier
+        // Clear supplier context but keep restaurant context
+        newState.context = {
+          ...newState.context,
+          supplierName: undefined,
+          supplierWhatsapp: undefined,
+          supplierDays: undefined
+        };
       } else if (command.includes("help") || command === "?") {
         actions.push({
           type: "SEND_MESSAGE",
@@ -106,6 +132,7 @@ export function conversationStateReducer(
             body: "🤖 Available commands:\n• 'supplier' - Add a new supplier\n• 'inventory' - Update stock levels\n• 'orders' - View recent orders\n• 'help' - Show this menu"
           }
         });
+        // Stay in IDLE state
       } else {
         actions.push({
           type: "SEND_MESSAGE",
@@ -114,6 +141,7 @@ export function conversationStateReducer(
             body: "👋 Hi! I can help you manage suppliers and inventory.\n\nType 'supplier' to add a new supplier, or 'help' for more options."
           }
         });
+        // Stay in IDLE state
       }
       break;
 
@@ -126,10 +154,14 @@ export function conversationStateReducer(
             body: "❌ Please enter a valid supplier name (at least 2 characters)."
           }
         });
+        // Stay in same state
         break;
       }
 
+      // Store supplier name in context
       newState.context.supplierName = message.body.trim();
+      console.log(`[BotEngine] Stored supplier name: ${newState.context.supplierName}`);
+      
       actions.push({
         type: "SEND_MESSAGE",
         payload: {
@@ -152,10 +184,14 @@ export function conversationStateReducer(
             body: "❌ Please enter a valid WhatsApp number with country code (e.g., +972501234567)"
           }
         });
+        // Stay in same state
         break;
       }
 
+      // Store WhatsApp number in context
       newState.context.supplierWhatsapp = whatsappNumber;
+      console.log(`[BotEngine] Stored supplier WhatsApp: ${newState.context.supplierWhatsapp}`);
+      
       actions.push({
         type: "SEND_MESSAGE",
         payload: {
@@ -177,7 +213,9 @@ export function conversationStateReducer(
           throw new Error("No valid days found");
         }
 
+        // Store delivery days in context
         newState.context.supplierDays = days;
+        console.log(`[BotEngine] Stored supplier days: ${newState.context.supplierDays}`);
         
         // Convert day numbers to day names for confirmation
         const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -199,6 +237,7 @@ export function conversationStateReducer(
             body: "❌ Invalid format. Please send delivery days as numbers separated by commas.\nExample: 1,3,5 for Monday, Wednesday, Friday"
           }
         });
+        // Stay in same state
       }
       break;
 
@@ -211,7 +250,15 @@ export function conversationStateReducer(
           throw new Error("Invalid hour");
         }
 
-        // Create the supplier
+        console.log(`[BotEngine] Creating supplier with context:`, {
+          restaurantId: currentState.restaurantId,
+          name: newState.context.supplierName,
+          whatsapp: newState.context.supplierWhatsapp,
+          days: newState.context.supplierDays,
+          cutoffHour
+        });
+
+        // Create the supplier with all stored context data
         actions.push({
           type: "UPDATE_SUPPLIER",
           payload: {
@@ -238,7 +285,11 @@ export function conversationStateReducer(
         });
         
         newState.currentState = "IDLE";
-        newState.context = {}; // Clear context after successful supplier creation
+        // Clear supplier-specific context but keep restaurant context
+        newState.context = {
+          restaurantName: newState.context.restaurantName,
+          contactName: newState.context.contactName
+        };
       } catch (error) {
         actions.push({
           type: "SEND_MESSAGE",
@@ -247,6 +298,7 @@ export function conversationStateReducer(
             body: "❌ Please enter a valid hour (0-23).\nExample: 15 for 3:00 PM"
           }
         });
+        // Stay in same state
       }
       break;
 
@@ -284,13 +336,18 @@ export function conversationStateReducer(
         }
       });
       newState.currentState = "IDLE";
-      newState.context = {};
+      // Keep basic context but clear temporary data
+      newState.context = {
+        restaurantName: newState.context.restaurantName,
+        contactName: newState.context.contactName
+      };
       break;
   }
 
   console.log(`[BotEngine] State transition: ${currentState.currentState} -> ${newState.currentState}`, {
     actionsCount: actions.length,
-    contextKeys: Object.keys(newState.context)
+    contextKeys: Object.keys(newState.context),
+    contextValues: newState.context
   });
 
   return { newState, actions };

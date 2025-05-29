@@ -27,59 +27,59 @@ const SupplierDataSchema = z.object({
 export type RestaurantData = z.infer<typeof RestaurantDataSchema>;
 export type SupplierData = z.infer<typeof SupplierDataSchema>;
 
-export async function createRestaurant(data: RestaurantData): Promise<void> {
-  console.log(`[Firestore] Creating restaurant:`, {
-    restaurantId: data.restaurantId,
-    name: data.name,
-    contactName: data.contactName,
-    phoneLength: data.phone.length
-  });
+// export async function createRestaurant(data: RestaurantData): Promise<void> {
+//   console.log(`[Firestore] Creating restaurant:`, {
+//     restaurantId: data.restaurantId,
+//     name: data.name,
+//     contactName: data.contactName,
+//     phoneLength: data.phone.length
+//   });
 
-  try {
-    // Validate input data
-    const validData = RestaurantDataSchema.parse(data);
+//   try {
+//     // Validate input data
+//     const validData = RestaurantDataSchema.parse(data);
     
-    console.log(`[Firestore] Writing to restaurants/${validData.restaurantId}...`);
+//     console.log(`[Firestore] Writing to restaurants/${validData.restaurantId}...`);
 
-    const restaurantDoc = {
-      name: validData.name,
-      businessName: validData.name, // Default to same as name
-      legalId: "", // To be filled later
-      yearsActive: 0, // To be filled later
-      isActivated: false,
-      primaryContact: {
-        name: validData.contactName,
-        phone: validData.phone,
-        role: "Owner" as const
-      },
-      payment: {
-        provider: "Stripe" as const,
-        customerId: "",
-        status: "pending" as const
-      },
-      settings: {
-        timezone: "Asia/Jerusalem",
-        locale: "he-IL"
-      },
-      createdAt: FieldValue.serverTimestamp()
-    };
+//     const restaurantDoc = {
+//       name: validData.name,
+//       businessName: validData.name, // Default to same as name
+//       legalId: "", // To be filled later
+//       yearsActive: 0, // To be filled later
+//       isActivated: false,
+//       primaryContact: {
+//         name: validData.contactName,
+//         phone: validData.phone,
+//         role: "Owner" as const
+//       },
+//       payment: {
+//         provider: "Stripe" as const,
+//         customerId: "",
+//         status: "pending" as const
+//       },
+//       settings: {
+//         timezone: "Asia/Jerusalem",
+//         locale: "he-IL"
+//       },
+//       createdAt: FieldValue.serverTimestamp()
+//     };
 
-    await firestore.collection('restaurants').doc(validData.restaurantId).set(restaurantDoc);
+//     await firestore.collection('restaurants').doc(validData.restaurantId).set(restaurantDoc);
     
-    console.log(`[Firestore] ✅ Restaurant "${validData.name}" created successfully with ID ${validData.restaurantId}`);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      console.error(`[Firestore] ❌ Invalid restaurant data:`, error.errors);
-      throw new Error(`Invalid restaurant data: ${error.errors.map(e => e.message).join(', ')}`);
-    }
+//     console.log(`[Firestore] ✅ Restaurant "${validData.name}" created successfully with ID ${validData.restaurantId}`);
+//   } catch (error) {
+//     if (error instanceof z.ZodError) {
+//       console.error(`[Firestore] ❌ Invalid restaurant data:`, error.errors);
+//       throw new Error(`Invalid restaurant data: ${error.errors.map(e => e.message).join(', ')}`);
+//     }
     
-    console.error(`[Firestore] ❌ Error creating restaurant:`, {
-      restaurantId: data.restaurantId,
-      error: error instanceof Error ? error.message : error
-    });
-    throw error;
-  }
-}
+//     console.error(`[Firestore] ❌ Error creating restaurant:`, {
+//       restaurantId: data.restaurantId,
+//       error: error instanceof Error ? error.message : error
+//     });
+//     throw error;
+//   }
+// }
 
 export async function updateSupplier(data: SupplierData): Promise<void> {
   console.log(`[Firestore] Adding supplier to restaurant:`, {
@@ -167,43 +167,158 @@ export async function getRestaurantByPhone(phone: string): Promise<{id: string, 
   }
 }
 
-export async function getConversationState(restaurantId: string): Promise<any | null> {
+/**
+ * Get conversation state by phone number (phone number is the document ID)
+ * @param phone The phone number (without whatsapp: prefix)
+ * @returns The conversation state or null if not found
+ */
+export async function getConversationState(phone: string): Promise<any | null> {
   try {
-    console.log(`[Firestore] Getting conversation state for restaurant: ${restaurantId}`);
+    console.log(`[Firestore] Getting conversation state for phone: ${phone}`);
     
     const doc = await firestore
       .collection('conversations')
-      .doc(restaurantId)
+      .doc(phone)
       .get();
       
     if (!doc.exists) {
-      console.log(`[Firestore] No conversation state found for restaurant: ${restaurantId}`);
+      console.log(`[Firestore] No conversation state found for phone: ${phone}`);
       return null;
     }
     
-    console.log(`[Firestore] ✅ Found conversation state for restaurant: ${restaurantId}`);
-    return doc.data();
+    const state = doc.data();
+    console.log(`[Firestore] ✅ Found conversation state for phone: ${phone}`, {
+      currentState: state?.currentState,
+      contextKeys: Object.keys(state?.context || {}),
+      restaurantId: state?.restaurantId
+    });
+    return state;
   } catch (error) {
     console.error(`[Firestore] ❌ Error getting conversation state:`, error);
     throw error;
   }
 }
 
-export async function saveConversationState(restaurantId: string, state: any): Promise<void> {
+/**
+ * Save conversation state using phone number as document ID
+ * @param phone The phone number (without whatsapp: prefix)
+ * @param state The conversation state to save
+ */
+export async function saveConversationState(phone: string, state: any): Promise<void> {
   try {
-    console.log(`[Firestore] Saving conversation state for restaurant: ${restaurantId}`);
+    console.log(`[Firestore] Saving conversation state for phone: ${phone}`, {
+      currentState: state.currentState,
+      contextKeys: Object.keys(state.context || {}),
+      restaurantId: state.restaurantId
+    });
     
     await firestore
       .collection('conversations')
-      .doc(restaurantId)
+      .doc(phone)
       .set({
         ...state,
-        lastMessageTimestamp: FieldValue.serverTimestamp()
+        lastMessageTimestamp: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp()
       });
       
-    console.log(`[Firestore] ✅ Conversation state saved for restaurant: ${restaurantId}`);
+    console.log(`[Firestore] ✅ Conversation state saved for phone: ${phone}`);
   } catch (error) {
     console.error(`[Firestore] ❌ Error saving conversation state:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Log an incoming or outgoing message for audit trail
+ * @param phone The phone number
+ * @param message The message content
+ * @param direction 'incoming' or 'outgoing'
+ * @param currentState The current bot state when message was processed
+ */
+export async function logMessage(
+  phone: string, 
+  message: string, 
+  direction: 'incoming' | 'outgoing',
+  currentState?: string
+): Promise<void> {
+  try {
+    console.log(`[Firestore] Logging ${direction} message for phone: ${phone}`);
+    
+    await firestore
+      .collection('conversations')
+      .doc(phone)
+      .collection('messages')
+      .add({
+        body: message,
+        direction,
+        currentState: currentState || 'unknown',
+        createdAt: FieldValue.serverTimestamp()
+      });
+      
+    console.log(`[Firestore] ✅ Message logged for phone: ${phone}`);
+  } catch (error) {
+    console.error(`[Firestore] ❌ Error logging message:`, error);
+    // Don't throw - message logging shouldn't break the flow
+  }
+}
+
+/**
+ * Create a new restaurant and link it to the phone number conversation
+ * @param phone The phone number that will own this restaurant
+ * @param data Restaurant creation data
+ */
+export async function createRestaurant(data: RestaurantData & { phone: string }): Promise<void> {
+  console.log(`[Firestore] Creating restaurant for phone:`, {
+    phone: data.phone,
+    restaurantId: data.restaurantId,
+    name: data.name,
+    contactName: data.contactName
+  });
+
+  try {
+    // Validate input data
+    const validData = RestaurantDataSchema.extend({
+      phone: z.string().min(10)
+    }).parse(data);
+    
+    console.log(`[Firestore] Writing to restaurants/${validData.restaurantId}...`);
+
+    const restaurantDoc = {
+      name: validData.name,
+      businessName: validData.name, // Default to same as name
+      legalId: "", // To be filled later
+      yearsActive: 0, // To be filled later
+      isActivated: false,
+      primaryContact: {
+        name: validData.contactName,
+        phone: validData.phone,
+        role: "Owner" as const
+      },
+      payment: {
+        provider: "Stripe" as const,
+        customerId: "",
+        status: "pending" as const
+      },
+      settings: {
+        timezone: "Asia/Jerusalem",
+        locale: "he-IL"
+      },
+      createdAt: FieldValue.serverTimestamp()
+    };
+
+    await firestore.collection('restaurants').doc(validData.restaurantId).set(restaurantDoc);
+    
+    console.log(`[Firestore] ✅ Restaurant "${validData.name}" created successfully with ID ${validData.restaurantId}`);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      console.error(`[Firestore] ❌ Invalid restaurant data:`, error.errors);
+      throw new Error(`Invalid restaurant data: ${error.errors.map(e => e.message).join(', ')}`);
+    }
+    
+    console.error(`[Firestore] ❌ Error creating restaurant:`, {
+      restaurantId: data.restaurantId,
+      error: error instanceof Error ? error.message : error
+    });
     throw error;
   }
 }

@@ -15,6 +15,10 @@ const firestore = admin.firestore();
 console.log("Firebase Admin initialized");
 
 // Process incoming WhatsApp messages from Twilio
+/**
+ * Main WhatsApp webhook handler
+ * Processes incoming messages from Twilio and manages conversation flow
+ */
 exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
   try {
 
@@ -34,7 +38,7 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
     // Extract message details from Twilio request
     const from = req.body.From;
     const body = req.body.Body || '';
-    const mediaUrl = req.body.MediaUrl0;
+    // const mediaUrl = req.body.MediaUrl0;
     
     if (!from) {
       console.error('Missing From field in request body');
@@ -44,79 +48,122 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
 
     console.log(`[WhatsApp] Received message from ${from}: "${body}"`);
 
+    // Extract phone number without whatsapp: prefix for document ID
+    const phoneNumber = from.replace("whatsapp:", "");
+    
+    // Log incoming message for audit trail
+    await firestore.collection('conversations').doc(phoneNumber).collection('messages').add({
+      body,
+      direction: 'incoming',
+      createdAt: FieldValue.serverTimestamp()
+    });
+
     // Create the incoming message object
     const message: IncomingMessage = {
       from,
       body,
-      mediaUrl,
     };
 
-    // Lookup the conversation state for this sender
-    const phoneWithoutPrefix = from.replace("whatsapp:", "");
-    const restaurantRef = await firestore
-      .collection("restaurants")
-      .where("primaryContact.phone", "==", phoneWithoutPrefix)
-      .limit(1)
-      .get();
-
+    /**
+     * Lookup existing conversation state by phone number
+     * Phone number is now the document ID for conversations
+     */
     let conversationState: ConversationState;
     let restaurantId = "";
 
-    if (restaurantRef.empty) {
-      // New user - create initial state
-      restaurantId = firestore.collection("restaurants").doc().id;
-      conversationState = {
-        restaurantId,
-        currentState: "INIT",
-        context: {},
-        lastMessageTimestamp: Timestamp.now(),
-      };
-    } else {
-      // Existing user - get their conversation state
-      const restaurantDoc = restaurantRef.docs[0];
-      restaurantId = restaurantDoc.id;
+    // Get existing conversation state by phone number
+    const conversationRef = firestore.collection("conversations").doc(phoneNumber);
+    const conversationDoc = await conversationRef.get();
 
-      const stateRef = await firestore
-        .collection("conversations")
-        .doc(restaurantId)
+    if (!conversationDoc.exists) {
+      // New conversation - check if restaurant already exists for this phone
+      const restaurantRef = await firestore
+        .collection("restaurants")
+        .where("primaryContact.phone", "==", phoneNumber)
+        .limit(1)
         .get();
 
-      if (!stateRef.exists) {
-        // Create a new conversation state for existing restaurant
+      if (restaurantRef.empty) {
+        // Completely new user - start onboarding
+        restaurantId = firestore.collection("restaurants").doc().id;
         conversationState = {
           restaurantId,
-          currentState: "IDLE",
+          currentState: "INIT",
           context: {},
           lastMessageTimestamp: Timestamp.now(),
         };
+        console.log(`[WhatsApp] New user starting onboarding - phone: ${phoneNumber}, restaurantId: ${restaurantId}`);
       } else {
-        // Use existing conversation state
-        conversationState = stateRef.data() as ConversationState;
-        // Update timestamp for this new message
-        conversationState.lastMessageTimestamp = Timestamp.now();
+        // Existing restaurant, new conversation
+        const restaurantDoc = restaurantRef.docs[0];
+        restaurantId = restaurantDoc.id;
+        const restaurantData = restaurantDoc.data();
+        
+        conversationState = {
+          restaurantId,
+          currentState: "IDLE",
+          context: {
+            restaurantName: restaurantData.name,
+            contactName: restaurantData.primaryContact.name
+          },
+          lastMessageTimestamp: Timestamp.now(),
+        };
+        console.log(`[WhatsApp] Existing restaurant, new conversation - phone: ${phoneNumber}, restaurantId: ${restaurantId}`);
       }
+    } else {
+      // Existing conversation - load state
+      const data = conversationDoc.data();
+      conversationState = {
+        restaurantId: data?.restaurantId || "",
+        currentState: data?.currentState || "IDLE",
+        context: data?.context || {},
+        lastMessageTimestamp: Timestamp.now(),
+      };
+      console.log(`[WhatsApp] Continuing existing conversation`, {
+        phone: phoneNumber,
+        restaurantId: conversationState.restaurantId,
+        currentState: conversationState.currentState,
+        contextKeys: Object.keys(conversationState.context)
+      });
     }
 
-    // Process the message through our state machine
+    /**
+     * Process the message through our state machine
+     * This determines the next state and actions to take
+     */
     const { newState, actions } = conversationStateReducer(
       conversationState,
       message
     );
 
-    // Create Firestore document with server timestamp
+    console.log(`[WhatsApp] State machine result:`, {
+      phone: phoneNumber,
+      oldState: conversationState.currentState,
+      newState: newState.currentState,
+      actionsCount: actions.length,
+      newContextKeys: Object.keys(newState.context)
+    });
+
+    /**
+     * Save the updated conversation state to Firestore
+     * Using phone number as document ID
+     */
     const firestoreState = {
-      ...newState,
+      restaurantId: newState.restaurantId,
+      currentState: newState.currentState,
+      context: newState.context,
       lastMessageTimestamp: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp()
     };
 
-    // Update the conversation state in Firestore
-    await firestore
-      .collection("conversations")
-      .doc(restaurantId)
-      .set(firestoreState);
+    await conversationRef.set(firestoreState);
+    console.log(`[WhatsApp] ✅ Conversation state saved for phone: ${phoneNumber}`);
 
-    // Execute the actions generated by the state machine
-    await processActions(actions);
+    /**
+     * Execute all actions generated by the state machine
+     * Pass phone number for message logging
+     */
+    await processActions(actions, from);
 
     // Send a successful response back to Twilio
     res.status(200).send("OK");
