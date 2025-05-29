@@ -21,11 +21,33 @@ const SupplierDataSchema = z.object({
   whatsapp: z.string().min(10),
   deliveryDays: z.array(z.number().min(0).max(6)),
   cutoffHour: z.number().min(0).max(23),
-  category: z.string().default("general")
+  category: z.string().default("general"),
+  products: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    emoji: z.string(),
+    unit: z.string(),
+    parMidweek: z.number(),
+    parWeekend: z.number()
+  })).optional()
+});
+
+const ExtendedRestaurantDataSchema = z.object({
+  restaurantId: z.string().min(1),
+  companyName: z.string().min(2),
+  legalId: z.string().regex(/^\d{9}$/),
+  name: z.string().min(2),
+  yearsActive: z.number().min(0).max(100),
+  contactName: z.string().min(2),
+  contactRole: z.string(),
+  contactEmail: z.string().optional(),
+  paymentMethod: z.string(),
+  phone: z.string().min(10)
 });
 
 export type RestaurantData = z.infer<typeof RestaurantDataSchema>;
 export type SupplierData = z.infer<typeof SupplierDataSchema>;
+export type ExtendedRestaurantData = z.infer<typeof ExtendedRestaurantDataSchema>;
 
 // export async function createRestaurant(data: RestaurantData): Promise<void> {
 //   console.log(`[Firestore] Creating restaurant:`, {
@@ -88,7 +110,8 @@ export async function updateSupplier(data: SupplierData): Promise<void> {
     whatsappLength: data.whatsapp.length,
     deliveryDaysCount: data.deliveryDays.length,
     cutoffHour: data.cutoffHour,
-    category: data.category
+    category: data.category,
+    productsCount: data.products?.length || 0
   });
 
   try {
@@ -119,10 +142,31 @@ export async function updateSupplier(data: SupplierData): Promise<void> {
 
     await supplierRef.set(supplierDoc);
     
+    // Add products as subcollection if provided
+    if (validData.products && validData.products.length > 0) {
+      const batch = firestore.batch();
+      
+      validData.products.forEach((product) => {
+        const productRef = supplierRef.collection('products').doc();
+        batch.set(productRef, {
+          name: product.name,
+          emoji: product.emoji,
+          unit: product.unit,
+          parMidweek: product.parMidweek,
+          parWeekend: product.parWeekend,
+          createdAt: FieldValue.serverTimestamp()
+        });
+      });
+      
+      await batch.commit();
+      console.log(`[Firestore] ✅ Added ${validData.products.length} products to supplier ${validData.name}`);
+    }
+    
     console.log(`[Firestore] ✅ Supplier "${validData.name}" added successfully to restaurant ${validData.restaurantId}`, {
       supplierId: supplierRef.id,
       deliveryDaysCount: validData.deliveryDays.length,
-      cutoffHour: validData.cutoffHour
+      cutoffHour: validData.cutoffHour,
+      productsCount: validData.products?.length || 0
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -263,41 +307,38 @@ export async function logMessage(
 }
 
 /**
- * Create a new restaurant and link it to the phone number conversation
- * @param phone The phone number that will own this restaurant
- * @param data Restaurant creation data
+ * Create a new restaurant with extended data
+ * @param data Extended restaurant creation data
  */
-export async function createRestaurant(data: RestaurantData & { phone: string }): Promise<void> {
-  console.log(`[Firestore] Creating restaurant for phone:`, {
-    phone: data.phone,
+export async function createRestaurant(data: ExtendedRestaurantData): Promise<void> {
+  console.log(`[Firestore] Creating restaurant with extended data:`, {
     restaurantId: data.restaurantId,
+    companyName: data.companyName,
     name: data.name,
+    legalId: data.legalId,
+    yearsActive: data.yearsActive,
     contactName: data.contactName
   });
 
   try {
-    // Validate input data
-    const validData = RestaurantDataSchema.extend({
-      phone: z.string().min(10)
-    }).parse(data);
+    const validData = ExtendedRestaurantDataSchema.parse(data);
     
-    console.log(`[Firestore] Writing to restaurants/${validData.restaurantId}...`);
-
     const restaurantDoc = {
       name: validData.name,
-      businessName: validData.name, // Default to same as name
-      legalId: "", // To be filled later
-      yearsActive: 0, // To be filled later
+      businessName: validData.companyName,
+      legalId: validData.legalId,
+      yearsActive: validData.yearsActive,
       isActivated: false,
       primaryContact: {
         name: validData.contactName,
         phone: validData.phone,
-        role: "Owner" as const
+        role: validData.contactRole as any,
+        email: validData.contactEmail || ""
       },
       payment: {
-        provider: "Stripe" as const,
+        provider: validData.paymentMethod === "creditCard" ? "Stripe" : "Paylink" as any,
         customerId: "",
-        status: "pending" as const
+        status: "pending" as any
       },
       settings: {
         timezone: "Asia/Jerusalem",
@@ -308,17 +349,51 @@ export async function createRestaurant(data: RestaurantData & { phone: string })
 
     await firestore.collection('restaurants').doc(validData.restaurantId).set(restaurantDoc);
     
-    console.log(`[Firestore] ✅ Restaurant "${validData.name}" created successfully with ID ${validData.restaurantId}`);
+    console.log(`[Firestore] ✅ Restaurant "${validData.name}" created successfully`);
   } catch (error) {
     if (error instanceof z.ZodError) {
       console.error(`[Firestore] ❌ Invalid restaurant data:`, error.errors);
       throw new Error(`Invalid restaurant data: ${error.errors.map(e => e.message).join(', ')}`);
     }
     
-    console.error(`[Firestore] ❌ Error creating restaurant:`, {
-      restaurantId: data.restaurantId,
-      error: error instanceof Error ? error.message : error
-    });
+    console.error(`[Firestore] ❌ Error creating restaurant:`, error);
     throw error;
+  }
+}
+
+/**
+ * Store bot messages in Firestore for dynamic updates
+ */
+export async function updateBotMessages(messages: any): Promise<void> {
+  try {
+    await firestore.collection('system').doc('botMessages').set({
+      messages,
+      updatedAt: FieldValue.serverTimestamp(),
+      version: Date.now()
+    });
+    
+    console.log(`[Firestore] ✅ Bot messages updated successfully`);
+  } catch (error) {
+    console.error(`[Firestore] ❌ Error updating bot messages:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Get bot messages from Firestore
+ */
+export async function getBotMessages(): Promise<any> {
+  try {
+    const doc = await firestore.collection('system').doc('botMessages').get();
+    
+    if (!doc.exists) {
+      console.log(`[Firestore] No bot messages found, using defaults`);
+      return null;
+    }
+    
+    return doc.data()?.messages;
+  } catch (error) {
+    console.error(`[Firestore] ❌ Error getting bot messages:`, error);
+    return null;
   }
 }

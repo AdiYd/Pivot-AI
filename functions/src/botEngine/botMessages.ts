@@ -1,102 +1,201 @@
 /*
+ * Configuration constants for bot behavior
+ * These can be uploaded to Firestore for dynamic configuration
+ */
+export const BOT_CONFIG = {
+  // Reminder intervals in hours
+  inventoryReminderInterval: 24, // Daily reminders
+  orderCutoffReminderHours: 3, // 3 hours before cutoff
+  
+  // Default supplier categories in order
+  supplierCategories: [
+    "vegetables", "fish", "alcohol", "meat", "fruits", 
+    "oliveOil", "disposables", "dessert", "juices", "eggs"
+  ],
+  
+  // Order increase percentage options
+  orderIncreasePercentage: 20,
+  
+  // Payment options
+  paymentMethods: ["creditCard", "applePay"],
+  
+  // User roles
+  userRoles: ["בעלים", "מנהל מסעדה", "אחמ\"ש", "מנהל בר", "אחר"]
+} as const;
+
+/*
  * Centralized bot messages in Hebrew with typography
  * This object can be uploaded to Firestore for dynamic message management
  */
 export const BOT_MESSAGES = {
-  // 🚀 Onboarding Flow
+  // 🚀 התצרפות - Onboarding Flow
   onboarding: {
-    welcome: "🍽️ *ברוכים הבאים לבוט ניהול המלאי!*\n\n✨ בואו נגדיר את המערכת שלכם תוך כמה דקות בלבד.\n\n📝 איך קוראים למסעדה שלכם?",
+    welcome: "🍽️ *ברוכים הבאים לבוט ניהול המלאי והזמנות!*\n\n✨ אני כאן לעזור לכם לנהל ספקים, מלאי והזמנות בצורה חכמה ופשוטה.\n\n📝 בואו נתחיל - איך קוראים לחברה שלכם?",
     
-    askContactName: "🎉 מעולה! *\"{restaurantName}\"* נשמע נהדר.\n\n👤 עכשיו אני צריך את פרטי הקשר שלכם.\n📞 איך קוראים לכם?",
+    askLegalId: "👍 מעולה!\n\n🏢 מה מספר ח.פ של החברה?",
     
-    registrationComplete: "✅ *מושלם!* {contactName}, המסעדה *\"{restaurantName}\"* נרשמה בהצלחה.\n\n💳 *להפעלת החשבון*, אנא השלימו את התשלום:\n🔗 {paymentLink}\n\n🎯 לאחר אישור התשלום, תוכלו להתחיל להוסיף ספקים על ידי הקלדת *\"ספק\"*.",
+    askRestaurantName: "✅ רשמתי את החברה.\n\n🍽️ איך קוראים למסעדה?",
     
-    paymentPending: "⏳ אנא השלימו את התשלום תחילה, ואז הודיעו לי שסיימתם.\n\n💳 קישור תשלום:\n{paymentLink}",
+    askYearsActive: "🎉 נהדר!\n\n📅 כמה שנים המסעדה פעילה?",
     
-    paymentConfirmed: "🎉 מעולה! ברגע שהתשלום יעובד, תוכלו להוסיף ספקים.\n\n🚀 בינתיים, הקלידו *\"ספק\"* כדי להתחיל להוסיף את הספק הראשון שלכם."
+    askContactName: "👤 עכשיו אני צריך את פרטי איש הקשר הראשי.\n\n📝 איך קוראים לך?",
+    
+    askContactRole: "👔 מה התפקיד שלך במסעדה?\n\n🔢 שלח מספר:\n1️⃣ בעלים\n2️⃣ מנהל מסעדה\n3️⃣ אחמ\"ש\n4️⃣ מנהל בר\n5️⃣ אחר",
+    
+    askContactEmail: "📧 מה כתובת האימייל שלך? (אופציונלי - שלח 'דלג' אם אין)",
+    
+    askPaymentMethod: "💳 *בחר אמצעי תשלום:*\n\n1️⃣ כרטיס אשראי\n2️⃣ Apple Pay\n\nשלח מספר:",
+    
+    registrationComplete: "✅ *ההרשמה הושלמה בהצלחה!*\n\n👋 שלום {contactName}!\nהמסעדה *\"{restaurantName}\"* נרשמה במערכת.\n\n💳 להשלמת הרישום:\n🔗 {paymentLink}\n\n🎯 לאחר התשלום נתחיל להגדיר את הספקים שלכם."
   },
 
-  // 📋 Supplier Management
-  supplier: {
-    startAdding: "📋 *בואו נוסיף ספק חדש!*\n\n🏪 איך קוראים לספק?",
+  // 📋 הגדרת ספקים ומוצרים - Supplier Setup
+  suppliers: {
+    startSetup: "🏪 *בואו נתחיל להגדיר את הספקים שלכם.*\n\n🥬 מי ספק הירקות שלך?\nשלח את שם הספק ומספר הוואטסאפ שלו.\n\n💡 דוגמה: ירקות השדה, 050-1234567",
     
-    askWhatsapp: "✏️ מוסיף ספק: *\"{supplierName}\"*\n\n📱 מה מספר הוואטסאפ שלהם?\n(כולל קידומת מדינה, למשל: +972501234567)",
+    askSupplierDetails: "📋 מוסיף ספק: *{supplierName}*\n\n📅 באילו ימים הספק מבצע אספקה?\nשלח מספרי ימים מופרדים בפסיקים:\n\n• 0️⃣ = ראשון • 1️⃣ = שני • 2️⃣ = שלישי\n• 3️⃣ = רביעי • 4️⃣ = חמישי • 5️⃣ = שישי • 6️⃣ = שבת\n\n💡 דוגמה: 0,3 עבור ראשון ורביעי",
     
-    askDeliveryDays: "📅 *באילו ימים בשבוע הם מבצעים משלוחים?*\n\n🔢 שלחו מספרי ימים מופרדים בפסיקים:\n• 0️⃣ = ראשון\n• 1️⃣ = שני  \n• 2️⃣ = שלישי\n• 3️⃣ = רביעי\n• 4️⃣ = חמישי\n• 5️⃣ = שישי\n• 6️⃣ = שבת\n\n💡 *דוגמה:* 1,3,5 עבור שני/רביעי/שישי",
+    askCutoffTime: "⏰ *מה השעה האחרונה להזמנה?*\n(ביום שלפני האספקה)\n\nדוגמה: 14 עבור 14:00",
     
-    askCutoffTime: "✅ *ימי משלוח:* {selectedDays}\n\n⏰ *מה השעה הסופית להזמנות?*\n(פורמט 24 שעות, למשל: 15 עבור 15:00)",
+    askProductList: "🛒 *שלח את רשימת המוצרים להזמנה מספק זה:*\n\n💡 לחסוך זמן - ניתן להעתיק מהתכתבות עם הספק\n\nדוגמה:\n🥒 מלפפונים\n🍅 עגבניות\n🥬 חסה",
     
-    addedSuccessfully: "🎉 *הספק \"{supplierName}\" נוסף בהצלחה!*\n\n📞 *טלפון:* {whatsapp}\n⏰ *שעת סגירה:* {timeString}\n\n➕ הקלידו *\"ספק\"* להוספת ספק נוסף\n🆘 או *\"עזרה\"* לאפשרויות נוספות"
+    askParLevelMidweek: "📊 *כמה {emoji} {productName} אתה צריך לאמצע השבוע* (ראשון-רביעי)?\n\nשלח כמות + יחידה:\nדוגמה: 10 ק\"ג",
+    
+    askParLevelWeekend: "📊 *כמה {emoji} {productName} אתה צריך לסוף השבוע* (חמישי-שבת)?\n\nשלח כמות + יחידה:\nדוגמה: 15 ק\"ג",
+    
+    supplierCompleted: "✅ *ספק {supplierName} הוגדר בהצלחה!*\n\n📦 סה\"כ {productCount} מוצרים\n⏰ אספקה: {deliveryDays}\n🕒 הזמנה עד: {cutoffTime}\n\n➡️ עובר לקטגוריה הבאה...",
+    
+    nextCategory: "🔄 *עובר לקטגוריה: {categoryName}*\n\n{categoryEmoji} מי הספק שלך עבור {categoryName}?\nשלח שם הספק ומספר וואטסאפ.\n\n⏭️ או שלח 'דלג' אם אין ספק בקטגוריה זו",
+    
+    allSuppliersCompleted: "🎉 *כל הספקים הוגדרו בהצלחה!*\n\n📊 המערכת מוכנה לשימוש.\n\n💡 הקלד 'עזרה' לראות את הפקודות הזמינות."
   },
 
-  // 🤖 General Commands & Help
+  // 📦 תהליך ספירת מלאי והזמנה - Inventory & Orders
+  inventory: {
+    reminderMessage: "⏰ *הגיע הזמן לעדכן את המלאי של ספק {supplierName}*\n\n📋 בואו נעבור על המוצרים יחד.\n\n🔄 הקלד 'התחל' כדי להתחיל בספירה",
+    
+    askCurrentStock: "📦 *כמה {emoji} {productName} יש לך כרגע?*\n\nשלח את הכמות הקיימת:\nדוגמה: 3 ק\"ג",
+    
+    calculateOrder: "🧮 *חישוב הזמנה עבור {emoji} {productName}:*\n\n📊 יש כרגע: {currentStock}\n🎯 צריך: {targetAmount}\n➕ להזמין: {orderAmount}\n\n✅ מאושר?",
+    
+    askIncrease: "📈 *האם תרצה להגדיל את ההזמנה ב-{percentage}% בעקבות אירוע?*\n\n🔢 ההזמנה תהיה: {increasedAmount} במקום {originalAmount}\n\n✅ כן / ❌ לא",
+    
+    orderSummary: "📋 *סיכום הזמנה - ספק {supplierName}:*\n\n{orderItems}\n\n📤 האם לשלוח את ההזמנה לספק?",
+    
+    orderSent: "✅ *ההזמנה נשלחה לספק {supplierName}*\n\n📱 נעדכן אותך כאשר הספק יאשר.\n\n🔔 תקבל התראה כאשר הסחורה תגיע."
+  },
+
+  // 🚚 תהליך קבלת סחורה - Delivery Process
+  delivery: {
+    deliveryNotification: "🚚 *סחורה מספק {supplierName} צפויה להגיע*\n\n📋 אנא בדוק את הפריטים לפי הרשימה.\n\n▶️ הקלד 'התחל בדיקה' כדי להתחיל",
+    
+    checkItem: "📦 *האם התקבלו {expectedAmount} {emoji} {productName}?*\n\n✅ כן - התקבל במלואו\n❌ לא - יש חוסר\n📝 אחר - כמות שונה",
+    
+    askReceivedAmount: "📊 *כמה {emoji} {productName} התקבלו בפועל?*\n\nשלח את הכמות שהתקבלה:",
+    
+    askInvoicePhoto: "📸 *אנא צלם את החשבונית שקיבלת מהנהג ושלח אותה כאן.*\n\n📋 החשבונית תישמר במערכת לתיעוד.",
+    
+    deliveryComplete: "✅ *קבלת הסחורה הושלמה*\n\n📊 *סיכום:*\n{deliverySummary}\n\n📤 דיווח נשלח לבעלי המסעדה ולספק."
+  },
+
+  // 🔔 תזכורות - Reminders
+  reminders: {
+    orderCutoffSoon: "⏰ *תזכורת: שעת ההזמנה עבור ספק {supplierName} מתקרבת*\n\n🕒 נותרו {hoursLeft} שעות עד סגירת הזמנות\n\n📦 אנא ודא שהמלאי מעודכן.",
+    
+    inventoryUpdate: "📋 *תזכורת: הזמן לעדכן את המלאי עבור ספק {supplierName}*\n\n🔄 הקלד 'מלאי {supplierName}' כדי להתחיל"
+  },
+
+  // 🤖 פקודות כלליות - General Commands
   general: {
-    helpMenu: "🤖 *פקודות זמינות:*\n\n📋 *\"ספק\"* - הוספת ספק חדש\n📦 *\"מלאי\"* - עדכון רמות מלאי\n📋 *\"הזמנות\"* - צפייה בהזמנות אחרונות\n🆘 *\"עזרה\"* - הצגת תפריט זה",
+    helpMenu: "🤖 *פקודות זמינות:*\n\n📋 *'ספק [שם]'* - הוספת/עריכת ספק\n📦 *'מלאי [ספק]'* - עדכון מלאי\n📋 *'הזמנות'* - צפייה בהזמנות\n🚚 *'משלוחים'* - סטטוס משלוחים\n⚙️ *'הגדרות'* - הגדרות מערכת\n🆘 *'עזרה'* - תפריט זה",
     
-    welcomeBack: "👋 *שלום!* אני יכול לעזור לכם לנהל ספקים ומלאי.\n\n📋 הקלידו *\"ספק\"* להוספת ספק חדש\n🆘 או *\"עזרה\"* לאפשרויות נוספות",
+    welcomeBack: "👋 *שלום {contactName}!*\n\nאני כאן לעזור לכם לנהל את המלאי וההזמנות.\n\n🆘 הקלד 'עזרה' לראות את הפקודות הזמינות",
     
-    systemError: "🤔 *משהו השתבש.* בואו נתחיל מחדש...\n\n📋 הקלידו *\"ספק\"* להוספת ספק\n🆘 או *\"עזרה\"* לאפשרויות נוספות"
+    systemError: "🤔 *משהו השתבש במערכת*\n\nבואו ננסה שוב...\n\n🆘 הקלד 'עזרה' לראות את הפקודות"
   },
 
-  // ❌ Validation Errors
+  // ❌ שגיאות אימות - Validation Errors
   validation: {
-    invalidRestaurantName: "❌ *אנא הזינו שם מסעדה תקין* (לפחות 2 תווים)",
-    
-    invalidContactName: "❌ *אנא הזינו שם מלא תקין* (לפחות 2 תווים)",
-    
-    invalidSupplierName: "❌ *אנא הזינו שם ספק תקין* (לפחות 2 תווים)",
-    
-    invalidWhatsappNumber: "❌ *אנא הזינו מספר וואטסאפ תקין עם קידומת מדינה*\n💡 דוגמה: +972501234567",
-    
-    invalidDeliveryDays: "❌ *פורמט לא תקין.* אנא שלחו ימי משלוח כמספרים מופרדים בפסיקים.\n💡 *דוגמה:* 1,3,5 עבור שני, רביעי, שישי",
-    
-    invalidCutoffHour: "❌ *אנא הזינו שעה תקינה (0-23).*\n💡 *דוגמה:* 15 עבור 15:00"
+    invalidCompanyName: "❌ *אנא הזן שם חברה תקין* (לפחות 2 תווים)",
+    invalidLegalId: "❌ *אנא הזן מספר ח.פ תקין* (9 ספרות)",
+    invalidRestaurantName: "❌ *אנא הזן שם מסעדה תקין* (לפחות 2 תווים)",
+    invalidYearsActive: "❌ *אנא הזן מספר שנים תקין* (מספר בין 0-100)",
+    invalidContactName: "❌ *אנא הזן שם מלא תקין* (לפחות 2 תווים)",
+    invalidContactRole: "❌ *אנא בחר תפקיד תקין* (מספר בין 1-5)",
+    invalidEmail: "❌ *אנא הזן כתובת אימייל תקינה* או 'דלג'",
+    invalidPaymentMethod: "❌ *אנא בחר אמצעי תשלום תקין* (1 או 2)",
+    invalidSupplierFormat: "❌ *פורמט לא תקין*\nדוגמה: ירקות השדה, 050-1234567",
+    invalidDeliveryDays: "❌ *פורמט ימים לא תקין*\nדוגמה: 0,3 עבור ראשון ורביעי",
+    invalidCutoffHour: "❌ *שעה לא תקינה*\nהזן מספר בין 0-23",
+    invalidQuantity: "❌ *כמות לא תקינה*\nדוגמה: 10 ק\"ג"
   },
 
-  // 📅 Day Names for Display
+  // 📅 קטגוריות ספקים - Supplier Categories
+  categories: {
+    vegetables: { name: "ירקות", emoji: "🥬" },
+    fish: { name: "דגים", emoji: "🐟" },
+    alcohol: { name: "אלכוהול", emoji: "🍷" },
+    meat: { name: "בשרים", emoji: "🥩" },
+    fruits: { name: "פירות", emoji: "🍎" },
+    oliveOil: { name: "שמן זית", emoji: "🫒" },
+    disposables: { name: "חד פעמי", emoji: "🥤" },
+    dessert: { name: "קינוחים", emoji: "🍰" },
+    juices: { name: "מיצים טבעיים", emoji: "🧃" },
+    eggs: { name: "ביצים אורגניות", emoji: "🥚" }
+  },
+
+  // 📅 שמות ימים - Day Names
   dayNames: {
-    0: "ראשון",
-    1: "שני", 
-    2: "שלישי",
-    3: "רביעי",
-    4: "חמישי",
-    5: "שישי",
-    6: "שבת"
+    0: "ראשון", 1: "שני", 2: "שלישי", 3: "רביעי", 
+    4: "חמישי", 5: "שישי", 6: "שבת"
   }
 } as const;
 
-/*
- * Helper function to format time display in Hebrew
- */
+// Helper functions remain the same with additions for new functionality
 export function formatTimeHebrew(hour: number): string {
   if (hour === 0) return "00:00";
   if (hour < 10) return `0${hour}:00`;
   return `${hour}:00`;
 }
 
-/*
- * Helper function to format selected days in Hebrew
- */
 export function formatDaysHebrew(days: number[]): string {
   return days.map(d => BOT_MESSAGES.dayNames[d as keyof typeof BOT_MESSAGES.dayNames]).join(", ");
 }
 
-/*
- * Type for dynamic message interpolation
- */
+export function formatCategoryName(category: string): string {
+  return BOT_MESSAGES.categories[category as keyof typeof BOT_MESSAGES.categories]?.name || category;
+}
+
+export function formatCategoryEmoji(category: string): string {
+  return BOT_MESSAGES.categories[category as keyof typeof BOT_MESSAGES.categories]?.emoji || "📦";
+}
+
 export type MessageContext = {
-  restaurantName?: string;
   contactName?: string;
+  companyName?: string;
+  restaurantName?: string;
   supplierName?: string;
-  whatsapp?: string;
-  selectedDays?: string;
-  timeString?: string;
+  categoryName?: string;
+  categoryEmoji?: string;
+  productName?: string;
+  emoji?: string;
+  currentStock?: string;
+  targetAmount?: string;
+  orderAmount?: string;
+  percentage?: string;
+  deliveryDays?: string;
+  cutoffTime?: string;
   paymentLink?: string;
+  orderItems?: string;
+  deliverySummary?: string;
+  hoursLeft?: string;
+  productCount?: string;
+  expectedAmount?: string;
+  originalAmount?: string;
+  increasedAmount?: string;
+  selectedDays?: string;
 };
 
-/*
- * Helper function to interpolate variables in messages
- */
 export function interpolateMessage(template: string, context: MessageContext): string {
   let result = template;
   

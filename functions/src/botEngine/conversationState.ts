@@ -1,5 +1,8 @@
 import { ConversationState, IncomingMessage, StateTransition, BotAction } from '../types';
-import { BOT_MESSAGES, formatTimeHebrew, formatDaysHebrew, interpolateMessage } from './botMessages';
+import { 
+  BOT_MESSAGES, BOT_CONFIG, formatDaysHebrew, 
+  interpolateMessage, formatCategoryName, formatCategoryEmoji 
+} from './botMessages';
 
 /**
  * Main conversation state machine reducer
@@ -15,7 +18,6 @@ export function conversationStateReducer(
   console.log(`[BotEngine] Processing message in state: ${currentState.currentState}`, {
     from: message.from,
     bodyLength: message.body?.length || 0,
-    hasMedia: !!message.mediaUrl,
     currentContextKeys: Object.keys(currentState.context || {})
   });
 
@@ -35,11 +37,66 @@ export function conversationStateReducer(
           body: BOT_MESSAGES.onboarding.welcome
         }
       });
-      newState.currentState = "ONBOARDING_NAME";
+      newState.currentState = "ONBOARDING_COMPANY_NAME";
       newState.context = {}; // Clear any existing context for fresh start
       break;
 
-    case "ONBOARDING_NAME":
+    case "ONBOARDING_COMPANY_NAME":
+      if (!message.body || message.body.trim().length < 2) {
+        actions.push({
+          type: "SEND_MESSAGE",
+          payload: {
+            to: message.from,
+            body: BOT_MESSAGES.validation.invalidCompanyName
+          }
+        });
+        // Stay in same state
+        break;
+      }
+      
+      // Store company name in context
+      newState.context.companyName = message.body.trim();
+      console.log(`[BotEngine] Stored company name: ${newState.context.companyName}`);
+      
+      actions.push({
+        type: "SEND_MESSAGE",
+        payload: {
+          to: message.from,
+          body: BOT_MESSAGES.onboarding.askLegalId
+        }
+      });
+      newState.currentState = "ONBOARDING_LEGAL_ID";
+      break;
+
+    case "ONBOARDING_LEGAL_ID":
+      const legalId = message.body?.trim() || "";
+      if (!legalId.match(/^\d{9}$/)) {
+        actions.push({
+          type: "SEND_MESSAGE",
+          payload: {
+            to: message.from,
+            body: BOT_MESSAGES.validation.invalidLegalId
+          }
+        });
+        // Stay in same state
+        break;
+      }
+      
+      // Store legal ID in context
+      newState.context.legalId = legalId;
+      console.log(`[BotEngine] Stored legal ID: ${newState.context.legalId}`);
+      
+      actions.push({
+        type: "SEND_MESSAGE",
+        payload: {
+          to: message.from,
+          body: BOT_MESSAGES.onboarding.askRestaurantName
+        }
+      });
+      newState.currentState = "ONBOARDING_RESTAURANT_NAME";
+      break;
+
+    case "ONBOARDING_RESTAURANT_NAME":
       if (!message.body || message.body.trim().length < 2) {
         actions.push({
           type: "SEND_MESSAGE",
@@ -60,15 +117,41 @@ export function conversationStateReducer(
         type: "SEND_MESSAGE",
         payload: {
           to: message.from,
-          body: interpolateMessage(BOT_MESSAGES.onboarding.askContactName, {
-            restaurantName: newState.context.restaurantName
-          })
+          body: BOT_MESSAGES.onboarding.askYearsActive
         }
       });
-      newState.currentState = "ONBOARDING_CONTACT";
+      newState.currentState = "ONBOARDING_YEARS_ACTIVE";
       break;
 
-    case "ONBOARDING_CONTACT":
+    case "ONBOARDING_YEARS_ACTIVE":
+      const years = parseInt(message.body?.trim() || "");
+      if (isNaN(years) || years < 0 || years > 100) {
+        actions.push({
+          type: "SEND_MESSAGE",
+          payload: {
+            to: message.from,
+            body: BOT_MESSAGES.validation.invalidYearsActive
+          }
+        });
+        // Stay in same state
+        break;
+      }
+      
+      // Store years active in context
+      newState.context.yearsActive = years;
+      console.log(`[BotEngine] Stored years active: ${newState.context.yearsActive}`);
+      
+      actions.push({
+        type: "SEND_MESSAGE",
+        payload: {
+          to: message.from,
+          body: BOT_MESSAGES.onboarding.askContactName
+        }
+      });
+      newState.currentState = "ONBOARDING_CONTACT_NAME";
+      break;
+
+    case "ONBOARDING_CONTACT_NAME":
       if (!message.body || message.body.trim().length < 2) {
         actions.push({
           type: "SEND_MESSAGE",
@@ -80,23 +163,113 @@ export function conversationStateReducer(
         // Stay in same state
         break;
       }
-
+      
       // Store contact name in context
       newState.context.contactName = message.body.trim();
       console.log(`[BotEngine] Stored contact name: ${newState.context.contactName}`);
       
-      // Create restaurant with stored context data
+      actions.push({
+        type: "SEND_MESSAGE",
+        payload: {
+          to: message.from,
+          body: BOT_MESSAGES.onboarding.askContactRole
+        }
+      });
+      newState.currentState = "ONBOARDING_CONTACT_ROLE";
+      break;
+
+    case "ONBOARDING_CONTACT_ROLE":
+      const roleIndex = parseInt(message.body?.trim() || "");
+      if (isNaN(roleIndex) || roleIndex < 1 || roleIndex > BOT_CONFIG.userRoles.length) {
+        actions.push({
+          type: "SEND_MESSAGE",
+          payload: {
+            to: message.from,
+            body: BOT_MESSAGES.validation.invalidContactRole
+          }
+        });
+        // Stay in same state
+        break;
+      }
+      
+      // Store contact role in context
+      newState.context.contactRole = BOT_CONFIG.userRoles[roleIndex - 1];
+      console.log(`[BotEngine] Stored contact role: ${newState.context.contactRole}`);
+      
+      actions.push({
+        type: "SEND_MESSAGE",
+        payload: {
+          to: message.from,
+          body: BOT_MESSAGES.onboarding.askContactEmail
+        }
+      });
+      newState.currentState = "ONBOARDING_CONTACT_EMAIL";
+      break;
+
+    case "ONBOARDING_CONTACT_EMAIL":
+      const email = message.body?.trim() || "";
+      if (email !== "דלג" && email !== "" && !email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+        actions.push({
+          type: "SEND_MESSAGE",
+          payload: {
+            to: message.from,
+            body: BOT_MESSAGES.validation.invalidEmail
+          }
+        });
+        // Stay in same state
+        break;
+      }
+      
+      // Store contact email in context
+      newState.context.contactEmail = email === "דלג" ? "" : email;
+      console.log(`[BotEngine] Stored contact email: ${newState.context.contactEmail}`);
+      
+      actions.push({
+        type: "SEND_MESSAGE",
+        payload: {
+          to: message.from,
+          body: BOT_MESSAGES.onboarding.askPaymentMethod
+        }
+      });
+      newState.currentState = "ONBOARDING_PAYMENT_METHOD";
+      break;
+
+    case "ONBOARDING_PAYMENT_METHOD":
+      const paymentIndex = parseInt(message.body?.trim() || "");
+      if (isNaN(paymentIndex) || paymentIndex < 1 || paymentIndex > BOT_CONFIG.paymentMethods.length) {
+        actions.push({
+          type: "SEND_MESSAGE",
+          payload: {
+            to: message.from,
+            body: BOT_MESSAGES.validation.invalidPaymentMethod
+          }
+        });
+        // Stay in same state
+        break;
+      }
+      
+      // Store payment method in context
+      newState.context.paymentMethod = BOT_CONFIG.paymentMethods[paymentIndex - 1];
+      console.log(`[BotEngine] Stored payment method: ${newState.context.paymentMethod}`);
+      
+      // Create restaurant with all collected data
       actions.push({
         type: "CREATE_RESTAURANT",
         payload: {
           restaurantId: currentState.restaurantId,
+          companyName: newState.context.companyName,
+          legalId: newState.context.legalId,
           name: newState.context.restaurantName,
+          yearsActive: newState.context.yearsActive,
           contactName: newState.context.contactName,
+          contactRole: newState.context.contactRole,
+          contactEmail: newState.context.contactEmail,
+          paymentMethod: newState.context.paymentMethod,
           phone: message.from.replace("whatsapp:", "")
         }
       });
       
-      // Send payment message
+      // Send registration complete message
       actions.push({
         type: "SEND_MESSAGE",
         payload: {
@@ -108,110 +281,70 @@ export function conversationStateReducer(
           })
         }
       });
-      newState.currentState = "IDLE";
+      newState.currentState = "SETUP_SUPPLIERS_START";
       // Keep context for future reference
       break;
 
-    case "IDLE":
-      const command = message.body?.toLowerCase().trim() || "";
-      
-      if (command.includes("supplier") || command.includes("add supplier") || command.includes("ספק")) {
-        actions.push({
-          type: "SEND_MESSAGE",
-          payload: {
-            to: message.from,
-            body: BOT_MESSAGES.supplier.startAdding
-          }
-        });
-        newState.currentState = "SUPPLIER_NAME";
-        // Clear supplier context but keep restaurant context
-        newState.context = {
-          ...newState.context,
-          supplierName: undefined,
-          supplierWhatsapp: undefined,
-          supplierDays: undefined
-        };
-      } else if (command.includes("help") || command === "?" || command.includes("עזרה")) {
-        actions.push({
-          type: "SEND_MESSAGE",
-          payload: {
-            to: message.from,
-            body: BOT_MESSAGES.general.helpMenu
-          }
-        });
-        // Stay in IDLE state
-      } else {
-        actions.push({
-          type: "SEND_MESSAGE",
-          payload: {
-            to: message.from,
-            body: BOT_MESSAGES.general.welcomeBack
-          }
-        });
-        // Stay in IDLE state
-      }
-      break;
-
-    case "SUPPLIER_NAME":
-      if (!message.body || message.body.trim().length < 2) {
-        actions.push({
-          type: "SEND_MESSAGE",
-          payload: {
-            to: message.from,
-            body: BOT_MESSAGES.validation.invalidSupplierName
-          }
-        });
-        // Stay in same state
-        break;
-      }
-
-      // Store supplier name in context
-      newState.context.supplierName = message.body.trim();
-      console.log(`[BotEngine] Stored supplier name: ${newState.context.supplierName}`);
+    case "SETUP_SUPPLIERS_START":
+      // Start supplier setup with first category
+      newState.context.currentCategoryIndex = 0;
+      const firstCategory = BOT_CONFIG.supplierCategories[0];
       
       actions.push({
         type: "SEND_MESSAGE",
         payload: {
           to: message.from,
-          body: interpolateMessage(BOT_MESSAGES.supplier.askWhatsapp, {
-            supplierName: newState.context.supplierName
+          body: interpolateMessage(BOT_MESSAGES.suppliers.startSetup, {
+            categoryName: formatCategoryName(firstCategory),
+            categoryEmoji: formatCategoryEmoji(firstCategory)
           })
         }
       });
-      newState.currentState = "SUPPLIER_WHATSAPP";
+      newState.currentState = "SUPPLIER_DETAILS";
       break;
 
-    case "SUPPLIER_WHATSAPP":
-      const whatsappNumber = message.body?.trim() || "";
+    case "SUPPLIER_DETAILS":
+      if (message.body?.trim().toLowerCase() === "דלג") {
+        // Skip this category, move to next
+        const nextCategoryResult = moveToNextCategory(newState, actions, currentState.restaurantId, message.from);
+        return nextCategoryResult;
+      }
       
-      // Basic WhatsApp number validation
-      if (!whatsappNumber || !whatsappNumber.match(/^\+?[1-9]\d{1,14}$/)) {
+      // Parse "supplier name, phone" format
+      const supplierMatch = message.body?.match(/^(.+),\s*(.+)$/);
+      if (!supplierMatch) {
         actions.push({
           type: "SEND_MESSAGE",
           payload: {
             to: message.from,
-            body: BOT_MESSAGES.validation.invalidWhatsappNumber
+            body: BOT_MESSAGES.validation.invalidSupplierFormat
           }
         });
         // Stay in same state
         break;
       }
-
-      // Store WhatsApp number in context
-      newState.context.supplierWhatsapp = whatsappNumber;
-      console.log(`[BotEngine] Stored supplier WhatsApp: ${newState.context.supplierWhatsapp}`);
+      
+      // Store current supplier details in context
+      newState.context.currentSupplier = {
+        name: supplierMatch[1].trim(),
+        whatsapp: supplierMatch[2].trim(),
+        category: BOT_CONFIG.supplierCategories[newState.context.currentCategoryIndex || 0]
+      };
+      console.log(`[BotEngine] Stored current supplier:`, newState.context.currentSupplier);
       
       actions.push({
         type: "SEND_MESSAGE",
         payload: {
           to: message.from,
-          body: BOT_MESSAGES.supplier.askDeliveryDays
+          body: interpolateMessage(BOT_MESSAGES.suppliers.askSupplierDetails, {
+            supplierName: newState.context.currentSupplier.name
+          })
         }
       });
-      newState.currentState = "SUPPLIER_DAYS";
+      newState.currentState = "SUPPLIER_DELIVERY_DAYS";
       break;
 
-    case "SUPPLIER_DAYS":
+    case "SUPPLIER_DELIVERY_DAYS":
       try {
         const dayInput = message.body?.trim() || "";
         const days = dayInput.split(',')
@@ -223,8 +356,8 @@ export function conversationStateReducer(
         }
 
         // Store delivery days in context
-        newState.context.supplierDays = days;
-        console.log(`[BotEngine] Stored supplier days: ${newState.context.supplierDays}`);
+        newState.context.currentSupplier.deliveryDays = days;
+        console.log(`[BotEngine] Stored supplier delivery days: ${newState.context.currentSupplier.deliveryDays}`);
         
         const selectedDays = formatDaysHebrew(days);
         
@@ -232,10 +365,10 @@ export function conversationStateReducer(
           type: "SEND_MESSAGE",
           payload: {
             to: message.from,
-            body: interpolateMessage(BOT_MESSAGES.supplier.askCutoffTime, { selectedDays })
+            body: interpolateMessage(BOT_MESSAGES.suppliers.askCutoffTime, { selectedDays })
           }
         });
-        newState.currentState = "SUPPLIER_CUTOFF";
+        newState.currentState = "SUPPLIER_CUTOFF_TIME";
       } catch (error) {
         actions.push({
           type: "SEND_MESSAGE",
@@ -248,57 +381,9 @@ export function conversationStateReducer(
       }
       break;
 
-    case "SUPPLIER_CUTOFF":
-      try {
-        const cutoffInput = message.body?.trim() || "";
-        const cutoffHour = parseInt(cutoffInput);
-        
-        if (isNaN(cutoffHour) || cutoffHour < 0 || cutoffHour > 23) {
-          throw new Error("Invalid hour");
-        }
-
-        console.log(`[BotEngine] Creating supplier with context:`, {
-          restaurantId: currentState.restaurantId,
-          name: newState.context.supplierName,
-          whatsapp: newState.context.supplierWhatsapp,
-          days: newState.context.supplierDays,
-          cutoffHour
-        });
-
-        // Create the supplier with all stored context data
-        actions.push({
-          type: "UPDATE_SUPPLIER",
-          payload: {
-            restaurantId: currentState.restaurantId,
-            name: newState.context.supplierName,
-            whatsapp: newState.context.supplierWhatsapp,
-            deliveryDays: newState.context.supplierDays,
-            cutoffHour: cutoffHour,
-            category: "general" // Default category
-          }
-        });
-        
-        const timeString = formatTimeHebrew(cutoffHour);
-                          
-        actions.push({
-          type: "SEND_MESSAGE",
-          payload: {
-            to: message.from,
-            body: interpolateMessage(BOT_MESSAGES.supplier.addedSuccessfully, {
-              supplierName: newState.context.supplierName,
-              whatsapp: newState.context.supplierWhatsapp,
-              timeString
-            })
-          }
-        });
-        
-        newState.currentState = "IDLE";
-        // Clear supplier-specific context but keep restaurant context
-        newState.context = {
-          restaurantName: newState.context.restaurantName,
-          contactName: newState.context.contactName
-        };
-      } catch (error) {
+    case "SUPPLIER_CUTOFF_TIME":
+      const cutoffHour = parseInt(message.body?.trim() || "");
+      if (isNaN(cutoffHour) || cutoffHour < 0 || cutoffHour > 23) {
         actions.push({
           type: "SEND_MESSAGE",
           payload: {
@@ -307,29 +392,187 @@ export function conversationStateReducer(
           }
         });
         // Stay in same state
+        break;
       }
+      
+      // Store cutoff hour in context
+      newState.context.currentSupplier.cutoffHour = cutoffHour;
+      console.log(`[BotEngine] Stored supplier cutoff hour: ${newState.context.currentSupplier.cutoffHour}`);
+      
+      actions.push({
+        type: "SEND_MESSAGE",
+        payload: {
+          to: message.from,
+          body: BOT_MESSAGES.suppliers.askProductList
+        }
+      });
+      newState.currentState = "SUPPLIER_PRODUCTS";
       break;
 
-    case "ONBOARDING_PAYMENT":
-      // Handle payment confirmation or move to next step
-      const paymentCommand = message.body?.toLowerCase().trim() || "";
+    case "SUPPLIER_PRODUCTS":
+      // Parse product list and start par level collection
+      const productLines = message.body?.split('\n').filter(line => line.trim()) || [];
+      newState.context.currentSupplier.products = productLines.map((line, index) => ({
+        id: `product_${index}`,
+        name: line.replace(/^[^\w\s]*/, '').trim(), // Remove emoji prefix
+        emoji: line.match(/^[^\w\s]*/)?.[0] || "📦",
+        unit: "ק\"ג" // Default unit
+      }));
       
-      if (paymentCommand.includes("paid") || paymentCommand.includes("done") || paymentCommand.includes("complete") || paymentCommand.includes("שילמתי") || paymentCommand.includes("סיימתי")) {
+      newState.context.currentProductIndex = 0;
+      
+      if (newState.context.currentSupplier.products.length > 0) {
+        const firstProduct = newState.context.currentSupplier.products[0];
         actions.push({
           type: "SEND_MESSAGE",
           payload: {
             to: message.from,
-            body: BOT_MESSAGES.onboarding.paymentConfirmed
+            body: interpolateMessage(BOT_MESSAGES.suppliers.askParLevelMidweek, {
+              emoji: firstProduct.emoji,
+              productName: firstProduct.name
+            })
           }
         });
-        newState.currentState = "IDLE";
+        newState.currentState = "PRODUCT_PAR_MIDWEEK";
+      } else {
+        // No products entered, move to next category
+        const nextCategoryResult = moveToNextCategory(newState, actions, currentState.restaurantId, message.from);
+        return nextCategoryResult;
+      }
+      break;
+
+    case "PRODUCT_PAR_MIDWEEK":
+      // Parse quantity and unit
+      const midweekInput = message.body?.trim() || "";
+      const midweekMatch = midweekInput.match(/^(\d+(?:\.\d+)?)\s*(.*)$/);
+      
+      if (!midweekMatch) {
+        actions.push({
+          type: "SEND_MESSAGE",
+          payload: {
+            to: message.from,
+            body: BOT_MESSAGES.validation.invalidQuantity
+          }
+        });
+        break;
+      }
+      
+      const currentProductIndex = newState.context.currentProductIndex || 0;
+      const currentProduct = newState.context.currentSupplier.products[currentProductIndex];
+      
+      // Store par level midweek
+      currentProduct.parMidweek = parseFloat(midweekMatch[1]);
+      currentProduct.unit = midweekMatch[2].trim() || "ק\"ג";
+      
+      actions.push({
+        type: "SEND_MESSAGE",
+        payload: {
+          to: message.from,
+          body: interpolateMessage(BOT_MESSAGES.suppliers.askParLevelWeekend, {
+            emoji: currentProduct.emoji,
+            productName: currentProduct.name
+          })
+        }
+      });
+      newState.currentState = "PRODUCT_PAR_WEEKEND";
+      break;
+
+    case "PRODUCT_PAR_WEEKEND":
+      // Parse quantity 
+      const weekendInput = message.body?.trim() || "";
+      const weekendMatch = weekendInput.match(/^(\d+(?:\.\d+)?)/);
+      
+      if (!weekendMatch) {
+        actions.push({
+          type: "SEND_MESSAGE",
+          payload: {
+            to: message.from,
+            body: BOT_MESSAGES.validation.invalidQuantity
+          }
+        });
+        break;
+      }
+      
+      const currentProductIdx = newState.context.currentProductIndex || 0;
+      const product = newState.context.currentSupplier.products[currentProductIdx];
+      
+      // Store par level weekend
+      product.parWeekend = parseFloat(weekendMatch[1]);
+      
+      // Move to next product or finish supplier
+      const nextProductIndex = currentProductIdx + 1;
+      
+      if (nextProductIndex < newState.context.currentSupplier.products.length) {
+        // More products to process
+        newState.context.currentProductIndex = nextProductIndex;
+        const nextProduct = newState.context.currentSupplier.products[nextProductIndex];
+        
+        actions.push({
+          type: "SEND_MESSAGE",
+          payload: {
+            to: message.from,
+            body: interpolateMessage(BOT_MESSAGES.suppliers.askParLevelMidweek, {
+              emoji: nextProduct.emoji,
+              productName: nextProduct.name
+            })
+          }
+        });
+        newState.currentState = "PRODUCT_PAR_MIDWEEK";
+      } else {
+        // Finished all products for this supplier
+        // Save supplier to database
+        actions.push({
+          type: "UPDATE_SUPPLIER",
+          payload: {
+            restaurantId: currentState.restaurantId,
+            name: newState.context.currentSupplier.name,
+            whatsapp: newState.context.currentSupplier.whatsapp,
+            deliveryDays: newState.context.currentSupplier.deliveryDays,
+            cutoffHour: newState.context.currentSupplier.cutoffHour,
+            category: newState.context.currentSupplier.category,
+            products: newState.context.currentSupplier.products
+          }
+        });
+        
+        // Send completion message
+        actions.push({
+          type: "SEND_MESSAGE",
+          payload: {
+            to: message.from,
+            body: interpolateMessage(BOT_MESSAGES.suppliers.supplierCompleted, {
+              supplierName: newState.context.currentSupplier.name,
+              productCount: newState.context.currentSupplier.products.length.toString(),
+              deliveryDays: formatDaysHebrew(newState.context.currentSupplier.deliveryDays),
+              cutoffTime: `${newState.context.currentSupplier.cutoffHour}:00`
+            })
+          }
+        });
+        
+        // Move to next category
+        const nextCategoryResult = moveToNextCategory(newState, actions, currentState.restaurantId, message.from);
+        return nextCategoryResult;
+      }
+      break;
+
+    // Continue with product par level collection and other states...
+    case "IDLE":
+      const command = message.body?.toLowerCase().trim() || "";
+      
+      if (command.includes("עזרה") || command === "?") {
+        actions.push({
+          type: "SEND_MESSAGE",
+          payload: {
+            to: message.from,
+            body: BOT_MESSAGES.general.helpMenu
+          }
+        });
       } else {
         actions.push({
           type: "SEND_MESSAGE",
           payload: {
             to: message.from,
-            body: interpolateMessage(BOT_MESSAGES.onboarding.paymentPending, {
-              paymentLink: `https://payment.example.com/restaurant/${currentState.restaurantId}`
+            body: interpolateMessage(BOT_MESSAGES.general.welcomeBack, {
+              contactName: newState.context.contactName || "משתמש"
             })
           }
         });
@@ -337,7 +580,6 @@ export function conversationStateReducer(
       break;
 
     default:
-      console.warn(`[BotEngine] Unhandled state: ${currentState.currentState}`);
       actions.push({
         type: "SEND_MESSAGE",
         payload: {
@@ -360,5 +602,47 @@ export function conversationStateReducer(
     contextValues: newState.context
   });
 
+  return { newState, actions };
+}
+
+function moveToNextCategory(newState: ConversationState, actions: BotAction[], restaurantId: string, phoneNumber: string): StateTransition {
+  const currentIndex = newState.context.currentCategoryIndex || 0;
+  const nextIndex = currentIndex + 1;
+  
+  if (nextIndex >= BOT_CONFIG.supplierCategories.length) {
+    // All categories completed
+    actions.push({
+      type: "SEND_MESSAGE",
+      payload: {
+        to: phoneNumber,
+        body: BOT_MESSAGES.suppliers.allSuppliersCompleted
+      }
+    });
+    newState.currentState = "IDLE";
+    // Clear supplier setup context
+    newState.context.currentCategoryIndex = undefined;
+    newState.context.currentSupplier = undefined;
+    newState.context.currentProductIndex = undefined;
+  } else {
+    // Move to next category
+    newState.context.currentCategoryIndex = nextIndex;
+    newState.context.currentSupplier = undefined; // Clear previous supplier data
+    newState.context.currentProductIndex = undefined;
+    
+    const nextCategory = BOT_CONFIG.supplierCategories[nextIndex];
+    
+    actions.push({
+      type: "SEND_MESSAGE",
+      payload: {
+        to: phoneNumber,
+        body: interpolateMessage(BOT_MESSAGES.suppliers.nextCategory, {
+          categoryName: formatCategoryName(nextCategory),
+          categoryEmoji: formatCategoryEmoji(nextCategory)
+        })
+      }
+    });
+    newState.currentState = "SUPPLIER_DETAILS";
+  }
+  
   return { newState, actions };
 }
