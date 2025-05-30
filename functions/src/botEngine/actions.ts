@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { BotAction } from '../types';
+import { BotAction } from '../schema/types';
 import { sendWhatsAppMessage } from '../utils/twilio';
 import { createRestaurant, updateSupplier, logMessage } from '../utils/firestore';
 

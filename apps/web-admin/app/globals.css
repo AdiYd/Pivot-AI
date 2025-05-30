@@ -1,7 +1,8 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
- 
+@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@100..900&family=Roboto:wght@100;300;400;500;700;900&display=swap');
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -86,6 +87,7 @@
     @apply border-border;
   }
   body {
+    font-family: 'Heebo', 'Roboto', sans-serif;
     @apply bg-background text-foreground;
   }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useFirebase } from "@/lib/firebaseClient";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,30 +30,30 @@ export default function Login() {
   };
   
   // Attempt to sign in with the email link if available
-  async function attemptSignIn() {
-    const savedEmail = window.localStorage.getItem("emailForSignIn");
-    if (savedEmail) {
-      try {
-        const user = await signInWithLink(savedEmail);
-        if (user) {
-          router.push("/");
+  useEffect(() => {
+    const attemptSignIn = async () => {
+      const savedEmail = window.localStorage.getItem("emailForSignIn");
+      if (savedEmail) {
+        try {
+          const user = await signInWithLink(savedEmail);
+          if (user) {
+            router.push("/");
+          }
+        } catch (error) {
+          console.error("Error signing in with link", error);
         }
-      } catch (error) {
-        console.error("Error signing in with link", error);
       }
-    }
-  }
-  
-  // Check for email link on component mount
-  useState(() => {
+    };
+    
     attemptSignIn();
-  });
+  }, [signInWithLink, router]);
   
   // If user is already logged in, redirect to dashboard
-  if (user) {
-    router.push("/");
-    return null;
-  }
+  useEffect(() => {
+    if (user) {
+      router.push("/");
+    }
+  }, [user, router]);
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-muted/30">

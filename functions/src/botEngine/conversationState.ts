@@ -1,8 +1,10 @@
-import { ConversationState, IncomingMessage, StateTransition, BotAction } from '../types';
+import { ConversationState, IncomingMessage, StateTransition, BotAction } from '../schema/types';
 import { 
   BOT_MESSAGES, BOT_CONFIG, formatDaysHebrew, 
   interpolateMessage, formatCategoryName, formatCategoryEmoji 
 } from './botMessages';
+
+const defaultPaymentLink = "https://example.com/payment"; // Default payment link if not configured
 
 /**
  * Main conversation state machine reducer
@@ -270,20 +272,43 @@ export function conversationStateReducer(
       });
       
       // Send registration complete message
-      actions.push({
-        type: "SEND_MESSAGE",
-        payload: {
-          to: message.from,
-          body: interpolateMessage(BOT_MESSAGES.onboarding.registrationComplete, {
-            contactName: newState.context.contactName,
-            restaurantName: newState.context.restaurantName,
-            paymentLink: `https://payment.example.com/restaurant/${currentState.restaurantId}`
-          })
-        }
-      });
+      if ((BOT_CONFIG.showPaymentLink)) {
+        actions.push({
+          type: "SEND_MESSAGE",
+          payload: {
+            to: message.from,
+            body: interpolateMessage(BOT_MESSAGES.onboarding.registrationComplete, {
+              contactName: newState.context.contactName,
+              restaurantName: newState.context.restaurantName,
+              paymentLink: BOT_CONFIG.paymentLink || defaultPaymentLink
+            })
+          }
+        });
+        newState.currentState = "WAITING_FOR_PAYMENT";
+        break;
+      }
       newState.currentState = "SETUP_SUPPLIERS_START";
       // Keep context for future reference
       break;
+
+    case "WAITING_FOR_PAYMENT":
+      const isFreeTrial = message.body?.trim().toLowerCase() === BOT_CONFIG.skipPaymentCoupon;
+      const isFree = !BOT_CONFIG.showPaymentLink;
+
+      if (!(isFree || isFreeTrial)) {
+        // User is trying to skip payment without valid coupon
+           actions.push({
+              type: "SEND_MESSAGE",
+              payload: {
+                to: message.from,
+                body: interpolateMessage(BOT_MESSAGES.general.waitingForPayment, {
+                  paymentLink: BOT_CONFIG.paymentLink || defaultPaymentLink
+                })
+              }
+            });
+            // Stay in same state
+            break;
+}
 
     case "SETUP_SUPPLIERS_START":
       // Start supplier setup with first category

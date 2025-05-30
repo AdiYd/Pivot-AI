@@ -8,8 +8,8 @@ import { SideNav } from "@/components/layout/side-nav";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "WhatsApp Inventory Bot Admin",
-  description: "Admin panel for managing restaurants, suppliers, and inventory",
+  title: "דף הבית",
+  description: "לוח בקרה לניהול מסעדות, ספקים ומלאי",
 };
 
 export default function RootLayout({
@@ -18,12 +18,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
+    <html lang="he" dir="rtl" suppressHydrationWarning>
+      <body className='relative'>
+        <div className="fixed top-[-130px] left-[-210px] overflow-hidden w-[40vw] max-sm:w-[20vw] h-[20vh] max-sm:h-2/3 rounded-full bg-gradient-to-r filter from-green-500/40 to-orange-400/80 blur-[150px] z-0" />
+        <div className="fixed bottom-[-130px] right-[-210px] overflow-hidden w-[40vw] max-sm:w-[20vw] h-[20vh] max-sm:h-2/3 rounded-full bg-gradient-to-r filter from-purple-700/80 to-teal-500/80 blur-[200px] z-0" />
         <Providers>
-          <div className="flex h-screen">
+          <div className="flex min-h-screen relative">
             <SideNav />
-            <main className="flex-1 p-6 overflow-auto">
+            <main className="flex-1 p-6 pt-12 overflow-auto max-h-screen">
               {children}
             </main>
           </div>

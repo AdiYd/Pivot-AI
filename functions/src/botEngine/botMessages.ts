@@ -12,6 +12,11 @@ export const BOT_CONFIG = {
     "vegetables", "fish", "alcohol", "meat", "fruits", 
     "oliveOil", "disposables", "dessert", "juices", "eggs"
   ],
+
+  showPaymentLink: true, // Show payment link after registration
+
+  paymentLink: 'https://payment.example.com/restaurant/',
+  skipPaymentCoupon: 'try14', // Coupon to skip payment
   
   // Order increase percentage options
   orderIncreasePercentage: 20,
@@ -109,6 +114,8 @@ export const BOT_MESSAGES = {
   general: {
     helpMenu: "🤖 *פקודות זמינות:*\n\n📋 *'ספק [שם]'* - הוספת/עריכת ספק\n📦 *'מלאי [ספק]'* - עדכון מלאי\n📋 *'הזמנות'* - צפייה בהזמנות\n🚚 *'משלוחים'* - סטטוס משלוחים\n⚙️ *'הגדרות'* - הגדרות מערכת\n🆘 *'עזרה'* - תפריט זה",
     
+    waitingForPayment: "⏳ *המסעדה עדיין לא שילמה*\n\n💳 יש להסדיר את התשלום כדי להמשיך.\n\n🔗 {paymentLink}\n\n📅 לאחר התשלום, נתחיל להגדיר את הספקים.",
+
     welcomeBack: "👋 *שלום {contactName}!*\n\nאני כאן לעזור לכם לנהל את המלאי וההזמנות.\n\n🆘 הקלד 'עזרה' לראות את הפקודות הזמינות",
     
     systemError: "🤔 *משהו השתבש במערכת*\n\nבואו ננסה שוב...\n\n🆘 הקלד 'עזרה' לראות את הפקודות"

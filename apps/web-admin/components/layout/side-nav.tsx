@@ -4,28 +4,63 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { 
-  HomeIcon, 
-  PackageIcon, 
-  ShoppingCartIcon, 
-  ClipboardListIcon, 
-  SettingsIcon, 
-  LogOutIcon,
-  MenuIcon,
-  XIcon
+  Users, 
+  Package, 
+  ShoppingCart, 
+  MessageSquare,
+  Settings,
+  Database,
+  Workflow,
+  LogOut,
+  Menu,
+  X,
+  ChevronRight,
+  ChevronLeft,
+  Home
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { useFirebase } from "@/lib/firebaseClient";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface NavItemProps {
   href: string;
   icon: React.ReactNode;
   title: string;
+  isCollapsed: boolean;
 }
 
-function NavItem({ href, icon, title }: NavItemProps) {
+function NavItem({ href, icon, title, isCollapsed }: NavItemProps) {
   const pathname = usePathname();
   const isActive = pathname === href;
+  
+  if (isCollapsed) {
+    return (
+      <TooltipProvider delayDuration={0}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Link 
+              href={href}
+              className={cn(
+                "flex h-10 w-10 items-center justify-center rounded-md p-2 text-sm transition-colors",
+                isActive 
+                  ? "bg-primary text-primary-foreground" 
+                  : "hover:bg-muted"
+              )}
+            >
+              {icon}
+              <span className="sr-only">{title}</span>
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent side="left" className="mr-1">
+            {title}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
   
   return (
     <Link 
@@ -45,10 +80,33 @@ function NavItem({ href, icon, title }: NavItemProps) {
 
 export function SideNav() {
   const { signOut } = useFirebase();
-  const [isOpen, setIsOpen] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   
-  const toggleSidebar = () => {
-    setIsOpen(!isOpen);
+  // Check if we're on mobile when component mounts
+  useEffect(() => {
+    const checkIfMobile = () => {
+      setIsCollapsed(window.innerWidth < 1024 ? false : isCollapsed);
+    };
+    
+    // Initial check
+    checkIfMobile();
+    
+    // Add event listener
+    window.addEventListener('resize', checkIfMobile);
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('resize', checkIfMobile);
+    };
+  }, [isCollapsed]);
+  
+  const toggleMobileSidebar = () => {
+    setIsMobileOpen(!isMobileOpen);
+  };
+  
+  const toggleCollapse = () => {
+    setIsCollapsed(!isCollapsed);
   };
   
   return (
@@ -57,49 +115,199 @@ export function SideNav() {
       <Button 
         variant="ghost" 
         size="icon"
-        onClick={toggleSidebar}
-        className="fixed top-4 left-4 z-50 md:hidden"
+        onClick={toggleMobileSidebar}
+        className="fixed top-4 left-4 bg-zinc-200 dark:bg-zinc-800 z-50 lg:hidden"
       >
-        {isOpen ? <XIcon size={20} /> : <MenuIcon size={20} />}
+        {isMobileOpen ? <X size={20} /> : <Menu size={20} />}
       </Button>
       
-      {/* Sidebar */}
-      <div className={cn(
-        "fixed inset-y-0 left-0 z-40 w-64 bg-background border-r transform transition-transform duration-200 ease-in-out md:translate-x-0",
-        isOpen ? "translate-x-0" : "-translate-x-full"
-      )}>
+      {/* Sidebar for desktop */}
+      <motion.div 
+        initial={{ width: isCollapsed ? 80 : 200 }}
+        animate={{ width: isCollapsed ? 60 : 200 }}
+        transition={{ duration: 0.2 }}
+        className={cn(
+          "hidden lg:block h-screen border-l z-30 relative",
+        )}
+      >
+        <div className="flex flex-col h-full bg-zinc-200/20 dark:bg-zinc-800/20 backdrop-blur-sm">
+          {/* Logo area */}
+          <div className={cn(
+            "h-16 flex items-center border-b px-2",
+            isCollapsed ? "justify-center" : "justify-between px-6"
+          )}>
+            {!isCollapsed && <h1 className="text-lg font-semibold truncate">Pivot</h1>}
+            <div className="flex items-center gap-2">
+              {!isCollapsed && <ThemeToggle />}
+              <Button variant="ghost" size="icon" onClick={toggleCollapse} className="flex-shrink-0">
+                {isCollapsed ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+              </Button>
+            </div>
+          </div>
+          
+          {/* Navigation */}
+          <nav className={cn(
+            "flex-1 py-6 overflow-y-auto",
+            isCollapsed ? "px-1 mx-auto" : "px-4"
+          )}>
+            <div className="space-y-2">
+              <NavItem 
+                href="/" 
+                icon={<Home size={16} />} 
+                title="דף הבית"
+                isCollapsed={isCollapsed}
+              />
+              <NavItem 
+                href="/restaurants" 
+                icon={<Users size={16} />} 
+                title="מסעדות"
+                isCollapsed={isCollapsed}
+              />
+              <NavItem 
+                href="/suppliers" 
+                icon={<Package size={16} />} 
+                title="ספקים"
+                isCollapsed={isCollapsed}
+              />
+              <NavItem 
+                href="/orders" 
+                icon={<ShoppingCart size={16} />} 
+                title="הזמנות"
+                isCollapsed={isCollapsed}
+              />
+              <NavItem 
+                href="/conversations" 
+                icon={<MessageSquare size={16} />} 
+                title="שיחות"
+                isCollapsed={isCollapsed}
+              />
+              <NavItem 
+                href="/workflow" 
+                icon={<Workflow size={16} />} 
+                title="הגדרות זרימה"
+                isCollapsed={isCollapsed}
+              />
+              <NavItem 
+                href="/bot-config" 
+                icon={<Settings size={16} />} 
+                title="תצורת בוט"
+                isCollapsed={isCollapsed}
+              />
+              <NavItem 
+                href="/raw-data" 
+                icon={<Database size={16} />} 
+                title="נתונים גולמיים"
+                isCollapsed={isCollapsed}
+              />
+            </div>
+          </nav>
+          
+          {/* User & Logout */}
+          <div className={cn(
+            "border-t",
+            isCollapsed ? "p-2 mx-auto" : "p-4"
+          )}>
+            {isCollapsed ? (
+              <TooltipProvider delayDuration={0}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={() => signOut()}
+                    >
+                      <LogOut size={16} />
+                      <span className="sr-only">התנתק</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="left" className="mr-1">
+                    התנתק
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              <Button 
+                variant="ghost" 
+                className="w-full justify-start gap-2"
+                onClick={() => signOut()}
+              >
+                <LogOut size={16} />
+                <span>התנתק</span>
+              </Button>
+            )}
+            
+            {isCollapsed && (
+              <div className="flex justify-center mt-2">
+                <ThemeToggle />
+              </div>
+            )}
+          </div>
+        </div>
+      </motion.div>
+      
+      {/* Sidebar for mobile */}
+      <motion.div 
+        initial={{ x: "100%" }}
+        animate={{ x: isMobileOpen ? "0%" : "100%" }}
+        transition={{ duration: 0.2 }}
+        className="fixed inset-y-0 right-0 z-40 w-64 bg-background border-l lg:hidden"
+      >
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="h-16 flex items-center px-6 border-b">
-            <h1 className="text-lg font-semibold">WhatsApp Inventory Bot</h1>
+          <div className="h-16 flex items-center justify-between px-6 border-b">
+            <h1 className="text-lg font-semibold">Pivot</h1>
+            <ThemeToggle />
           </div>
           
           {/* Navigation */}
           <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
             <NavItem 
               href="/" 
-              icon={<HomeIcon size={16} />} 
-              title="Dashboard" 
+              icon={<Home size={16} />} 
+              title="דף הבית"
+              isCollapsed={false}
+            />
+            <NavItem 
+              href="/restaurants" 
+              icon={<Users size={16} />} 
+              title="מסעדות" 
+              isCollapsed={false}
             />
             <NavItem 
               href="/suppliers" 
-              icon={<PackageIcon size={16} />} 
-              title="Suppliers" 
+              icon={<Package size={16} />} 
+              title="ספקים" 
+              isCollapsed={false}
             />
             <NavItem 
               href="/orders" 
-              icon={<ShoppingCartIcon size={16} />} 
-              title="Orders" 
+              icon={<ShoppingCart size={16} />} 
+              title="הזמנות" 
+              isCollapsed={false}
             />
             <NavItem 
-              href="/inventory" 
-              icon={<ClipboardListIcon size={16} />} 
-              title="Inventory" 
+              href="/conversations" 
+              icon={<MessageSquare size={16} />} 
+              title="שיחות" 
+              isCollapsed={false}
             />
             <NavItem 
-              href="/settings" 
-              icon={<SettingsIcon size={16} />} 
-              title="Settings" 
+              href="/workflow" 
+              icon={<Workflow size={16} />} 
+              title="הגדרות זרימה" 
+              isCollapsed={false}
+            />
+            <NavItem 
+              href="/bot-config" 
+              icon={<Settings size={16} />} 
+              title="תצורת בוט" 
+              isCollapsed={false}
+            />
+            <NavItem 
+              href="/raw-data" 
+              icon={<Database size={16} />} 
+              title="נתונים גולמיים" 
+              isCollapsed={false}
             />
           </nav>
           
@@ -110,18 +318,18 @@ export function SideNav() {
               className="w-full justify-start gap-2"
               onClick={() => signOut()}
             >
-              <LogOutIcon size={16} />
-              <span>Logout</span>
+              <LogOut size={16} />
+              <span>התנתק</span>
             </Button>
           </div>
         </div>
-      </div>
+      </motion.div>
       
       {/* Overlay for mobile */}
-      {isOpen && (
+      {isMobileOpen && (
         <div 
-          className="fixed inset-0 bg-foreground/20 z-30 md:hidden"
-          onClick={() => setIsOpen(false)}
+          className="fixed inset-0 bg-foreground/20 z-30 lg:hidden"
+          onClick={() => setIsMobileOpen(false)}
         />
       )}
     </>

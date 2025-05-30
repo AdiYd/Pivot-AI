@@ -25,9 +25,10 @@ A multi-tenant SaaS that lets restaurant owners manage suppliers, inventory, and
 ├── apps/
 │   └── web-admin/      # Next.js admin panel
 ├── functions/          # Firebase Cloud Functions
-└── packages/
-    ├── schema/         # Shared TypeScript types
-    └── botEngine/      # WhatsApp conversation state machine
+    └──src/
+        ├── types/          # Shared TypeScript types
+        ├── utils/          # Twilio and Firestore functions
+        └── botEngine/      # WhatsApp conversation state machine
 ```
 
 ## Getting Started
@@ -68,7 +69,7 @@ Private
 ## Roadmap
 
 - [x] Setup project structure
-- [ ] Implement WhatsApp webhook endpoint
+- [x] Implement WhatsApp webhook endpoint
 - [ ] Complete conversation state machine
 - [ ] Build admin dashboard
 - [ ] Add supplier management

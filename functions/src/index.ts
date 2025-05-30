@@ -3,7 +3,7 @@ import * as admin from "firebase-admin";
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 
 import { conversationStateReducer, processActions } from "./botEngine";
-import { ConversationState, IncomingMessage } from "./types";
+import { ConversationState, IncomingMessage } from "./schema/types";
 import { validateTwilioWebhook } from "./utils/twilio";
 
 // Initialize Firebase Admin only if not already initialized
