@@ -1,14 +1,18 @@
+import { BotConfig } from "./botMessages";
+
+export { BotConfig } from "../schema/types";
+
 /*
  * Configuration constants for bot behavior
  * These can be uploaded to Firestore for dynamic configuration
  */
-export const BOT_CONFIG = {
+export const BOT_CONFIG: BotConfig = {
   // Reminder intervals in hours
   inventoryReminderInterval: 24, // Daily reminders
   orderCutoffReminderHours: 3, // 3 hours before cutoff
   
   // Default supplier categories in order
-  supplierCategories: [
+  supplierCategories:  [
     "vegetables", "fish", "alcohol", "meat", "fruits", 
     "oliveOil", "disposables", "dessert", "juices", "eggs"
   ],
@@ -18,15 +22,10 @@ export const BOT_CONFIG = {
   paymentLink: 'https://payment.example.com/restaurant/',
   skipPaymentCoupon: 'try14', // Coupon to skip payment
   
-  // Order increase percentage options
-  orderIncreasePercentage: 20,
-  
   // Payment options
-  paymentMethods: ["creditCard", "applePay"],
+  paymentMethods: ["creditCard", "googlePay"],
   
-  // User roles
-  userRoles: ["בעלים", "מנהל מסעדה", "אחמ\"ש", "מנהל בר", "אחר"]
-} as const;
+  };
 
 /*
  * Centralized bot messages in Hebrew with typography
@@ -72,7 +71,17 @@ export const BOT_MESSAGES = {
     
     nextCategory: "🔄 *עובר לקטגוריה: {categoryName}*\n\n{categoryEmoji} מי הספק שלך עבור {categoryName}?\nשלח שם הספק ומספר וואטסאפ.\n\n⏭️ או שלח 'דלג' אם אין ספק בקטגוריה זו",
     
-    allSuppliersCompleted: "🎉 *כל הספקים הוגדרו בהצלחה!*\n\n📊 המערכת מוכנה לשימוש.\n\n💡 הקלד 'עזרה' לראות את הפקודות הזמינות."
+    allSuppliersCompleted: "🎉 *כל הספקים הוגדרו בהצלחה!*\n\n📊 המערכת מוכנה לשימוש.\n\n💡 הקלד 'עזרה' לראות את הפקודות הזמינות.",
+
+    // Add these new messages
+    askSupplierName: "👤 *שלח את שם הספק*\n\nדוגמה: ירקות השדה",
+    askSupplierWhatsapp: "📱 *שלח את מספר הוואטסאפ של הספק*\n\nדוגמה: 050-1234567",
+    
+    askProductQty: "📊 *מה כמות הבסיס ל{emoji} {productName}?*\n\nשלח כמות בסיס ב{unit}:\nדוגמה: 5",
+    
+    askProductUnit: "📦 *מה יחידת המידה של {emoji} {productName}?*\n\nשלח יחידת מידה תקנית:\nדוגמה: ק\"ג, יחידות, ליטר",
+
+    addNewSupplier: "🏪 *הוספת ספק חדש*\n\nבחר קטגוריה לספק החדש מהרשימה הבאה:"
   },
 
   // 📦 תהליך ספירת מלאי והזמנה - Inventory & Orders
@@ -87,7 +96,33 @@ export const BOT_MESSAGES = {
     
     orderSummary: "📋 *סיכום הזמנה - ספק {supplierName}:*\n\n{orderItems}\n\n📤 האם לשלוח את ההזמנה לספק?",
     
-    orderSent: "✅ *ההזמנה נשלחה לספק {supplierName}*\n\n📱 נעדכן אותך כאשר הספק יאשר.\n\n🔔 תקבל התראה כאשר הסחורה תגיע."
+    orderSent: "✅ *ההזמנה נשלחה לספק {supplierName}*\n\n📱 נעדכן אותך כאשר הספק יאשר.\n\n🔔 תקבל התראה כאשר הסחורה תגיע.",
+
+    // Add these new messages
+    categorySelected: "✅ *נבחרה קטגוריה: {categoryName} {categoryEmoji}*\n\nכעת נעבור על המוצרים בקטגוריה זו.",
+    
+    noCategoryProducts: "❌ אין מוצרים בקטגוריה זו.\n\nבחר קטגוריה אחרת או הקלד 'סיום' לסיום:",
+    
+    askSnapshotQty: "📊 *האם לאשר את כמויות המלאי שהוזנו?*\n\n✅ הקלד 'כן' לאישור\n❌ הקלד 'לא' לעריכה",
+    
+    reviseSnapshot: "🔄 *עורך מחדש את נתוני המלאי*\n\nבחר קטגוריה:",
+    
+    calculatingSnapshot: "🧮 *מחשב את המלאי...*",
+    
+    snapshotResults: "✅ *מלאי נשמר בהצלחה*\n\nהמערכת חישבה את ההזמנה המומלצת.",
+    
+    snapshotComplete: "🎉 *סיימנו את עדכון המלאי*\n\nהמערכת תשלח תזכורות לפני מועדי הזמנה.",
+    
+    proceedToOrder: "📦 *האם להכין הזמנה לפי המלאי?*\n\n✅ הקלד 'כן' להכנת הזמנה\n❌ הקלד 'לא' לדחייה",
+    
+    noOrderNeeded: "✅ *אין צורך בהזמנה כרגע*\n\nהמלאי מספיק עד ההזמנה הבאה.",
+    
+    orderCancelled: "❌ *הזמנה בוטלה*\n\nתוכל להזמין מאוחר יותר דרך תפריט ההזמנות.",
+    
+    startSnapshot: "📊 *עדכון מלאי*\n\nבחר קטגוריה לעדכון (שלח מספר):\n" +
+                  BOT_CONFIG.supplierCategories.map((category, index) => 
+                    `${index + 1}. ${formatCategoryEmoji(category)} ${formatCategoryName(category)}`).join('\n') +
+                  "\n\nאו הקלד 'סיום' לסיום"
   },
 
   // 🚚 תהליך קבלת סחורה - Delivery Process
@@ -100,7 +135,10 @@ export const BOT_MESSAGES = {
     
     askInvoicePhoto: "📸 *אנא צלם את החשבונית שקיבלת מהנהג ושלח אותה כאן.*\n\n📋 החשבונית תישמר במערכת לתיעוד.",
     
-    deliveryComplete: "✅ *קבלת הסחורה הושלמה*\n\n📊 *סיכום:*\n{deliverySummary}\n\n📤 דיווח נשלח לבעלי המסעדה ולספק."
+    deliveryComplete: "✅ *קבלת הסחורה הושלמה*\n\n📊 *סיכום:*\n{deliverySummary}\n\n📤 דיווח נשלח לבעלי המסעדה ולספק.",
+
+    // Add this new message
+    noItems: "❌ *אין פריטים להזמנה זו*\n\nהמערכת מבטלת את תהליך קבלת הסחורה."
   },
 
   // 🔔 תזכורות - Reminders
@@ -130,11 +168,23 @@ export const BOT_MESSAGES = {
     invalidContactName: "❌ *אנא הזן שם מלא תקין* (לפחות 2 תווים)",
     invalidContactRole: "❌ *אנא בחר תפקיד תקין* (מספר בין 1-5)",
     invalidEmail: "❌ *אנא הזן כתובת אימייל תקינה* או 'דלג'",
+    invalidPhone: "❌ *אנא הזן מספר וואטסאפ תקין* (לדוגמה: 050-1234567)",
     invalidPaymentMethod: "❌ *אנא בחר אמצעי תשלום תקין* (1 או 2)",
     invalidSupplierFormat: "❌ *פורמט לא תקין*\nדוגמה: ירקות השדה, 050-1234567",
     invalidDeliveryDays: "❌ *פורמט ימים לא תקין*\nדוגמה: 0,3 עבור ראשון ורביעי",
     invalidCutoffHour: "❌ *שעה לא תקינה*\nהזן מספר בין 0-23",
-    invalidQuantity: "❌ *כמות לא תקינה*\nדוגמה: 10 ק\"ג"
+    invalidQuantity: "❌ *כמות לא תקינה*\nדוגמה: 10 ק\"ג",
+
+    // Add these new messages
+    invalidCategory: "❌ *קטגוריה לא תקינה*\n\nאנא בחר מספר מהרשימה",
+    
+    invalidProductList: "❌ *רשימת מוצרים ריקה*\n\nאנא הזן לפחות מוצר אחד",
+    
+    invalidUnit: "❌ *יחידת מידה לא תקינה*\n\nאנא הזן יחידת מידה (לדוגמה: ק\"ג, יחידות)",
+    
+    invalidYesNo: "❌ *תשובה לא תקינה*\n\nאנא הקלד 'כן' או 'לא'",
+    
+    noPhotoAttached: "❌ *לא צורפה תמונה*\n\nאנא שלח תמונה של החשבונית"
   },
 
   // 📅 קטגוריות ספקים - Supplier Categories
@@ -201,6 +251,7 @@ export type MessageContext = {
   originalAmount?: string;
   increasedAmount?: string;
   selectedDays?: string;
+  unit?: string;
 };
 
 export function interpolateMessage(template: string, context: MessageContext): string {

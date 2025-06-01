@@ -1,4 +1,4 @@
-import { Timestamp } from 'firebase-admin/firestore';
+import { Timestamp, DocumentReference } from 'firebase-admin/firestore';
 
 // Represents a contact person for a restaurant or supplier
 export interface Contact {
@@ -12,7 +12,7 @@ export interface Contact {
 export interface PaymentMeta {
   provider: "Stripe" | "Paylink";
   customerId: string;
-  status: Boolean;
+  status: "pending" | "active";
 }
 
 // Represents a restaurant with its details and primary contact
@@ -24,6 +24,10 @@ export interface Restaurant {
   yearsActive: number;
   payment: PaymentMeta;
   isActivated: boolean;
+  settings: {
+    timezone: string;
+    locale: string;
+  };
   inventory?: Inventory | null;
   createdAt: Timestamp;
 }
@@ -41,6 +45,7 @@ export interface Supplier extends Contact {
   // The contact's WhatsApp number is used as the supplier ID in Firestore
   category: SupplierCategory;
   deliveryDays: number[];
+  cutoffHour: number;    // 0–23 local
   rating?: Rating;
   createdAt: Timestamp;
 }
@@ -82,13 +87,13 @@ export interface ItemShortage extends ItemLine {
 // Stock line for inventory snapshots
 // Represents the current stock level of a product
 export interface StockLine {
-  productId: Product["id"];
+  productRef: DocumentReference; // ref→ /restaurants/{r}/suppliers/{s}/products/{id}
   currentQty: number;
 }
 
 export interface Order {
   id: string;
-  supplierId: Supplier["whatsapp"];
+  supplierRef: DocumentReference;  // ref→ /restaurants/{r}/suppliers/{id}
   status: "pending" | "sent" | "delivered";
   items: ItemLine[];
   shortages: ItemShortage[];
@@ -101,14 +106,14 @@ export interface Order {
 
 export interface InventorySnapshot {
   id: string;
-  supplierId: Supplier["whatsapp"];
+  supplierRef: DocumentReference;  // ref→ /restaurants/{r}/suppliers/{id}
   lines: StockLine[];
   createdAt: Timestamp;
 }
 
 // Conversation state types for the WhatsApp bot
 export interface ConversationState {
-  restaurantId: Restaurant["legalId"];
+  restaurantRef: DocumentReference; // ref→ /restaurants/{id}
   currentState: BotState; // Current state of the bot conversation
   context: Record<string, any>;  // Additional context for the conversation, to collect information and user input
   lastMessageTimestamp: Timestamp;
@@ -129,6 +134,7 @@ export type BotState =
   | "SUPPLIER_NAME"                // Supplier name collection
   | "SUPPLIER_WHATSAPP"           // Supplier WhatsApp collection
   | "SUPPLIER_DELIVERY_DAYS"     // Supplier delivery days collection
+  | "SUPPLIER_CUTOFF_TIME"      // Supplier cutoff time collection
   | "PRODUCT_NAME"                  // Product name collection  (Iterative for each product within a supplier)
   | "PRODUCT_UNIT"                 // Product unit collection
   | "PRODUCT_QTY"                 // Product quantity collection
@@ -155,9 +161,10 @@ export interface IncomingMessage {
 }
 
 export interface BotAction {
-  type: "SEND_MESSAGE" | "CREATE_RESTAURANT" | "UPDATE_SUPPLIER" | "UPDATE_PRODUCT" | "SEND_ORDER" | "LOG_DELIVERY";
+  type: "SEND_MESSAGE" | "CREATE_RESTAURANT" | "UPDATE_SUPPLIER" | "UPDATE_PRODUCT" | "CREATE_INVENTORY_SNAPSHOT" | "SEND_ORDER" | "LOG_DELIVERY";
   payload: Record<string, any>;
 }
+
 
 export interface StateTransition {
   newState: ConversationState;
@@ -167,11 +174,24 @@ export interface StateTransition {
 export interface BotConfig {
   inventoryReminderInterval: number;
   orderCutoffReminderHours: number;
-  supplierCategories: string[];
+  supplierCategories: SupplierCategory[];
   showPaymentLink: boolean;
   paymentLink: string;
   skipPaymentCoupon: string;
-  orderIncreasePercentage: number;
   paymentMethods: string[];
-  userRoles: string[];
+}
+
+// new Firestore‐doc shapes for conversations & messages
+export interface ConversationDoc {
+  restaurantRef: DocumentReference;         // points at /restaurants/{id}
+  currentState: BotState;
+  context: Record<string, any>;
+  lastMessageTimestamp: Timestamp;
+}
+
+export interface MessageDoc {
+  body: string;
+  direction: "incoming" | "outgoing";
+  currentState: BotState;
+  createdAt: Timestamp;
 }

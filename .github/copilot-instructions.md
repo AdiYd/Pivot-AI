@@ -46,8 +46,8 @@ Copilot: keep this context in memory when suggesting code.
 
    1. Bot asks for supplier → delivery days → order cut‑off.
    2. Collect product list and weekday / weekend par‑levels.
-   3. Repeat until owner sends **Done**.
-3. **Inventory Cycle** (scheduled CF per supplier):
+   3. Repeat until owner confirms that all suppliers and their products are set up.
+3. **Inventory Cycle** (scheduled Cloud Functions per supplier):
 
    1. At `inventoryReminderTime` send stock prompt sequence.
    2. Calculate shortages: `required = parLevel – current`.
@@ -63,112 +63,157 @@ Copilot: keep this context in memory when suggesting code.
    * Cron functions (`pubsub.schedule('every 1 hours')`) find upcoming cut‑offs and fire nudges.
 
 ---
+<!-- You can see the Firestore data model and TypeScript interfaces in the code snippets below -->
+## 4. Data Model (Firestore Structure and TypeScript Interfaces)
+/ (root)
+├─ restaurants (collection)
+│  └─ {legalId} (document)           // Using legalId as the document ID
+│     ├─ businessName: string
+│     ├─ legalId: string             // Duplicate of document ID for queries
+│     ├─ name: string
+│     ├─ yearsActive: number
+│     ├─ isActivated: boolean
+│     ├─ primaryContact: {
+│     │    whatsapp: string,
+│     │    name: string,
+│     │    role: string,
+│     │    email?: string
+│     │ }
+│     ├─ payment: {
+│     │    provider: "Stripe" | "Paylink",
+│     │    customerId: string,
+│     │    status: boolean
+│     │ }
+│     └─ createdAt: Timestamp
+│
+│     ├─ suppliers (sub-collection)
+│     │  └─ {supplierWhatsapp} (document)  // Using WhatsApp number as ID
+│     │     ├─ name: string
+│     │     ├─ whatsapp: string            // Duplicate of document ID
+│     │     ├─ category: string            // "vegetables", "fish", etc.
+│     │     ├─ deliveryDays: number[]      // [0=Sun...6=Sat]
+│     │     ├─ cutoffHour: number          // 0-23 hours
+│     │     ├─ rating: number              // 1-5
+│     │     └─ createdAt: Timestamp
+│     │
+│     │     └─ products (sub-collection)   // Nested under each supplier
+│     │        └─ {productId} (document)
+│     │           ├─ name: string
+│     │           ├─ emoji: string
+│     │           ├─ unit: string          // "kg", "pcs", etc.
+│     │           ├─ parMidweek: number
+│     │           ├─ parWeekend: number
+│     │           └─ createdAt: Timestamp
+│     │
+│     ├─ orders (sub-collection)           // Direct sub-collection of restaurant
+│     │  └─ {orderId} (document)
+│     │     ├─ supplierRef: DocumentReference  // Points to supplier
+│     │     ├─ status: "pending"|"sent"|"delivered"
+│     │     ├─ midweek: boolean
+│     │     ├─ items: [                    // Array of ordered items
+│     │     │    {
+│     │     │      productId: string,
+│     │     │      qty: number
+│     │     │    }
+│     │     │ ]
+│     │     ├─ shortages: [                // Array of short items
+│     │     │    {
+│     │     │      productId: string,
+│     │     │      qty: number,
+│     │     │      received: number
+│     │     │    }
+│     │     │ ]
+│     │     ├─ createdAt: Timestamp
+│     │     ├─ sentAt?: Timestamp
+│     │     ├─ receivedAt?: Timestamp
+│     │     └─ invoiceUrl?: string
+│     │
+│     └─ inventorySnapshots (sub-collection)
+│        └─ {snapshotId} (document)
+│           ├─ supplierRef: DocumentReference  // Points to supplier
+│           ├─ lines: [                    // Array of stock lines
+│           │    {
+│           │      productId: string,
+│           │      currentQty: number
+│           │    }
+│           │ ]
+│           └─ createdAt: Timestamp
+│
+└─ conversations (collection)
+   └─ {phone} (document)                  // Phone number as document ID
+      ├─ restaurantRef: DocumentReference // Points to restaurant
+      ├─ currentState: string             // Current bot state
+      ├─ context: Map<string, any>        // Conversation context
+      ├─ lastMessageTimestamp: Timestamp
+      │
+      └─ messages (sub-collection)
+         └─ {messageId} (document)
+            ├─ body: string
+            ├─ direction: "incoming"|"outgoing"
+            ├─ currentState: string       // Bot state during message
+            └─ createdAt: Timestamp
 
-## 4. Data Model (Firestore)
-
-```
-/restaurants (collection)
-  {restaurantId} (document)
-    name              string   // display name
-    legalId           string   // ח.פ
-    businessName      string
-    yearsActive       number
-    createdAt         Timestamp
-    isActivated       boolean
-    primaryContact    map<Contact>
-    payment           map<PaymentMeta>
-    settings          map { timezone, locale }
-
-    /suppliers (sub‑collection)
-      {supplierId}
-        name              string
-        whatsapp          string
-        deliveryDays      array<number>   // 0=Sun … 6=Sat
-        cutoffHour        number          // 0‑23 local
-        category          string          // "vegetables" etc.
-        createdAt         Timestamp
-        rating            number          // 1‑5 stars
-
-        /products
-          {productId}
-            name              string
-            unit              string        // "kg", "pcs"
-            emoji             string
-            parMidweek        number
-            parWeekend        number
-            createdAt         Timestamp
-
-    /orders
-      {orderId}
-        supplierId        ref
-        status            "pending"|"sent"|"delivered"
-        items             array<ItemLine>
-        midweek           boolean
-        createdAt         Timestamp
-        sentAt            Timestamp?
-        receivedAt        Timestamp?
-        invoiceUrl        string?
-        shortages         array<ItemShortage>
-
-    /inventorySnapshots
-      {snapshotId}
-        supplierId        ref
-        lines             array<StockLine>
-        createdAt         Timestamp
-```
-
-### Shared TypeScript interfaces (`/packages/schema/index.ts`)
 
 ```ts
 import { Timestamp } from 'firebase-admin/firestore';
-
+// Represents a contact person for a restaurant or supplier
 export interface Contact {
+  whatsapp: string;  // This is also the document ID in Firestore
   name: string;
-  role: "Owner" | "Manager" | "Shift" | "Other";
-  phone: string;
+  role: "Owner" | "Manager" | "Shift" | "Other" | "Supplier";
   email?: string;
 }
 
+// Represents payment metadata for a restaurant
 export interface PaymentMeta {
   provider: "Stripe" | "Paylink";
   customerId: string;
-  status: "pending" | "active";
+  status: Boolean;
 }
 
+// Represents a restaurant with its details and primary contact
 export interface Restaurant {
-  id: string;
-  name: string;
-  legalId: string;
+  legalId: string;  // This is also the document ID in Firestore
   businessName: string;
-  yearsActive: number;
-  createdAt: Timestamp;
-  isActivated: boolean;
+  name: string;
   primaryContact: Contact;
+  yearsActive: number;
   payment: PaymentMeta;
-  settings: {
-    timezone: string;
-    locale: string;
+  isActivated: boolean;
+  inventory?: Inventory | null;
+  createdAt: Timestamp;
+}
+
+
+export interface Inventory {
+  [category: SupplierCategory]: {
+    products: Product[];
+    supplier: Supplier;
   };
 }
 
-export interface Supplier {
-  id: string;
-  name: string;
-  whatsapp: string;
-  deliveryDays: number[];
-  cutoffHour: number;
+// Represents a supplier with its details and products
+export interface Supplier extends Contact {
+  // The contact's WhatsApp number is used as the supplier ID in Firestore
   category: SupplierCategory;
+  deliveryDays: number[];
+  rating?: Rating;
   createdAt: Timestamp;
-  rating: number;
 }
 
+// Represents a rating for a supplier
+export type Rating = 1 | 2 | 3 | 4 | 5;
+
+// Represents a category for suppliers (can be extended with custom categories)
 export type SupplierCategory =
-  | "vegetables" | "fruits" | "fish" | "meat" | "alcohol"
+  | "vegetables" | "fruits" | "fish" | "meat" | "alcohol" | "dairy"
   | "oliveOil" | "disposables" | "dessert" | "juices" | "eggs" | string;
 
+// Represents a product supplied by a supplier (e.g tomatoes, ice-cream, salmon, etc.)
 export interface Product {
-  id: string;
-  supplierId: string;
+  id: string; // This is also the product's document ID in Firestore
+  supplierId: Supplier["whatsapp"];
+  category: SupplierCategory;
   name: string;
   emoji: string;
   unit: "kg" | "gram" | "liter" | "pcs" | "box" | "bottle" | string;
@@ -177,80 +222,90 @@ export interface Product {
   createdAt: Timestamp;
 }
 
+// Represents a line item in an order
+// Contains the product ID and quantity ordered
 export interface ItemLine {
-  productId: string;
+  productId: Product["id"];
   qty: number;
 }
 
+// Represents a shortage of an item in an order
+// Contains the product ID, quantity ordered, and quantity received
 export interface ItemShortage extends ItemLine {
   received: number;
 }
 
+// Stock line for inventory snapshots
+// Represents the current stock level of a product
 export interface StockLine {
-  productId: string;
+  productId: Product["id"];
   currentQty: number;
 }
 
 export interface Order {
   id: string;
-  supplierId: string;
+  supplierId: Supplier["whatsapp"];
   status: "pending" | "sent" | "delivered";
   items: ItemLine[];
+  shortages: ItemShortage[];
   midweek: boolean;
-  createdAt: Timestamp;
   sentAt?: Timestamp;
   receivedAt?: Timestamp;
   invoiceUrl?: string;
-  shortages: ItemShortage[];
+  createdAt: Timestamp;
 }
 
 export interface InventorySnapshot {
   id: string;
-  supplierId: string;
+  supplierId: Supplier["whatsapp"];
   lines: StockLine[];
   createdAt: Timestamp;
 }
 
 // Conversation state types for the WhatsApp bot
 export interface ConversationState {
-  restaurantId: string;
-  currentState: BotState;
-  context: Record<string, any>;
+  restaurantId: Restaurant["legalId"];
+  currentState: BotState; // Current state of the bot conversation
+  context: Record<string, any>;  // Additional context for the conversation, to collect information and user input
   lastMessageTimestamp: Timestamp;
 }
 
 export type BotState =
-  | "INIT"
-  | "ONBOARDING_COMPANY_NAME"
-  | "ONBOARDING_LEGAL_ID"
-  | "ONBOARDING_RESTAURANT_NAME"
-  | "ONBOARDING_YEARS_ACTIVE"
-  | "ONBOARDING_CONTACT_NAME"
-  | "ONBOARDING_CONTACT_ROLE"
-  | "ONBOARDING_CONTACT_EMAIL"
-  | "ONBOARDING_PAYMENT_METHOD"
-  | "WAITING_FOR_PAYMENT"
-  | "SETUP_SUPPLIERS_START"
-  | "SUPPLIER_DETAILS"
-  | "SUPPLIER_DELIVERY_DAYS"
-  | "SUPPLIER_CUTOFF_TIME"
-  | "SUPPLIER_PRODUCTS"
-  | "PRODUCT_PAR_MIDWEEK"
-  | "PRODUCT_PAR_WEEKEND"
-  | "INVENTORY_START"
-  | "INVENTORY_COUNT"
-  | "INVENTORY_CALCULATE"
-  | "ORDER_INCREASE"
-  | "ORDER_CONFIRMATION"
-  | "DELIVERY_START"
-  | "DELIVERY_CHECK_ITEM"
-  | "DELIVERY_RECEIVED_AMOUNT"
-  | "DELIVERY_INVOICE_PHOTO"
-  | "IDLE";
+  | "INIT" // Initial state when the bot starts
+  | "ONBOARDING_COMPANY_NAME"         // Onboarding states for new restaurants
+  | "ONBOARDING_LEGAL_ID"            // Legal ID collection
+  | "ONBOARDING_RESTAURANT_NAME"    // Restaurant name collection
+  | "ONBOARDING_YEARS_ACTIVE"      // Years active collection
+  | "ONBOARDING_CONTACT_NAME"     // Contact name collection
+  | "ONBOARDING_CONTACT_EMAIL"   // Contact email collection (Role defaults to "Owner")
+  | "ONBOARDING_PAYMENT_METHOD" // Showing Payment Link
+  | "WAITING_FOR_PAYMENT"      // Waiting for payment confirmation state - always shows the same message
+  | "SETUP_SUPPLIERS_START"          // Starting supplier setup
+  | "SUPPLIER_CATEGORY"             // Supplier category collection  (Iterative for each supplier)
+  | "SUPPLIER_NAME"                // Supplier name collection
+  | "SUPPLIER_WHATSAPP"           // Supplier WhatsApp collection
+  | "SUPPLIER_DELIVERY_DAYS"     // Supplier delivery days collection
+  | "PRODUCT_NAME"                  // Product name collection  (Iterative for each product within a supplier)
+  | "PRODUCT_UNIT"                 // Product unit collection
+  | "PRODUCT_QTY"                 // Product quantity collection
+  | "PRODUCT_PAR_MIDWEEK"        // Product par midweek collection
+  | "PRODUCT_PAR_WEEKEND"       // Product par weekend collection
+  | "INVENTORY_SNAPSHOT_START"         // Starting inventory snapshot (Iterative for each supplier / caregory)
+  | "INVENTORY_SNAPSHOT_CATEGORY"     // Inventory snapshot category selection
+  | "INVENTORY_SNAPSHOT_PRODUCT"     // Inventory snapshot product selection
+  | "INVENTORY_SNAPSHOT_QTY"        // Inventory snapshot quantity collection
+  | "INVENTORY_CALCULATE_SNAPSHOT" // Calculating inventory snapshot and showing results
+  | "ORDER_START"                        // Starting order process
+  | "ORDER_CONFIRMATION"                // Order confirmation
+  | "DELIVERY_START"                        // Starting delivery process
+  | "DELIVERY_CHECK_ITEM"                  // Checking delivery items
+  | "DELIVERY_RECEIVED_AMOUNT"            // Confirming received delivery amount
+  | "DELIVERY_INVOICE_PHOTO"             // Requesting delivery invoice photo
+  | "IDLE";   // Idle state when no conversation is active
 
 // Bot engine types
 export interface IncomingMessage {
-  from: string;
+  from: Contact['whatsapp'];
   body: string;
   mediaUrl?: string;
 }
@@ -260,9 +315,20 @@ export interface BotAction {
   payload: Record<string, any>;
 }
 
+
 export interface StateTransition {
   newState: ConversationState;
   actions: BotAction[];
+}
+
+export interface BotConfig {
+  inventoryReminderInterval: number;
+  orderCutoffReminderHours: number;
+  supplierCategories: SupplierCategory[];
+  showPaymentLink: boolean;
+  paymentLink: string;
+  skipPaymentCoupon: string;
+  paymentMethods: string[];
 }
 
 ```
@@ -336,268 +402,8 @@ PAYMENT_WEBHOOK_SECRET=
 6. Lint: ESLint + Prettier (monorepo config).
 7. Commit format: `feat(orders): calculate shortages correctly`.
 8. Always use error handling in CFs (try/catch).
+9. Use **shadcn/ui** components for the admin UI.
+10. Use **TanStack Query** for data fetching in the admin.
 
-This is an example of the data structure as it would be stored in Firestore, including restaurants, suppliers, products, orders, and conversations. The data is structured to facilitate easy querying and management of restaurant inventory and supplier relationships:
-
- {
-  restaurants: [
-    {
-      id: "rest-001",
-      data: {
-        name: "Olive Branch",
-        businessName: "Olive Branch Ltd.",
-        legalId: "123456789",
-        yearsActive: 5,
-        isActivated: true,
-        createdAt: new Date("2025-05-01T08:00:00Z") as unknown as Timestamp,
-        primaryContact: { name: "Maya Cohen", role: "Owner", phone: "0501001000", email: "maya@olive.com" },
-        payment: { provider: "Stripe", customerId: "cus_ABC", status: "active" },
-        settings: { timezone: "Asia/Jerusalem", locale: "he-IL" }
-      },
-      suppliers: [
-        {
-          id: "sup-veg-001",
-          data: {
-            name: "Green Farms",
-            whatsapp: "0502002000",
-            deliveryDays: [1, 3, 5],
-            cutoffHour: 14,
-            category: "vegetables",
-            rating: 4,
-            createdAt: new Date("2025-05-02T09:00:00Z") as unknown as Timestamp
-          },
-          products: [
-            { id: "prod-veg-001", supplierId: "sup-veg-001", name: "מלפפונים", emoji: "🥒", unit: "kg", parMidweek: 10, parWeekend: 15, createdAt: new Date("2025-05-02T09:05:00Z") as unknown as Timestamp },
-            { id: "prod-veg-002", supplierId: "sup-veg-001", name: "חסה", emoji: "🥬", unit: "pcs", parMidweek: 20, parWeekend: 25, createdAt: new Date("2025-05-02T09:06:00Z") as unknown as Timestamp }
-          ]
-        },
-        {
-          id: "sup-fish-001",
-          data: {
-            name: "Sea Fresh",
-            whatsapp: "0503003000",
-            deliveryDays: [2, 4],
-            cutoffHour: 12,
-            category: "fish",
-            rating: 5,
-            createdAt: new Date("2025-05-03T10:00:00Z") as unknown as Timestamp
-          },
-          products: [
-            { id: "prod-fish-001", supplierId: "sup-fish-001", name: "דג סלמון", emoji: "🐟", unit: "kg", parMidweek: 5, parWeekend: 8, createdAt: new Date("2025-05-03T10:10:00Z") as unknown as Timestamp }
-          ]
-        }
-      ],
-      orders: [
-        {
-          id: "ord-001",
-          data: {
-            supplierId: "sup-veg-001",
-            status: "delivered",
-            items: [{ productId: "prod-veg-001", qty: 10 }],
-            midweek: true,
-            createdAt: new Date("2025-05-25T08:00:00Z") as unknown as Timestamp,
-            sentAt: new Date("2025-05-25T08:05:00Z") as unknown as Timestamp,
-            receivedAt: new Date("2025-05-26T09:00:00Z") as unknown as Timestamp,
-            invoiceUrl: "https://storage.example.com/inv-001.jpg",
-            shortages: [{ productId: "prod-veg-002", qty: 25, received: 20 }]
-          }
-        }
-      ],
-      inventorySnapshots: [
-        {
-          id: "snap-001",
-          data: {
-            supplierId: "sup-veg-001",
-            lines: [{ productId: "prod-veg-001", currentQty: 3 }, { productId: "prod-veg-002", currentQty: 5 }],
-            createdAt: new Date("2025-05-26T07:00:00Z") as unknown as Timestamp
-          }
-        }
-      ]
-    },
-
-    {
-      id: "rest-002",
-      data: {
-        name: "Sunset Grill",
-        businessName: "Sunset Grill Inc.",
-        legalId: "987654321",
-        yearsActive: 2,
-        isActivated: false,
-        createdAt: new Date("2025-04-15T08:00:00Z") as unknown as Timestamp,
-        primaryContact: { name: "Eli Levi", role: "Manager", phone: "0504004000" },
-        payment: { provider: "Paylink", customerId: "pl_123", status: "pending" },
-        settings: { timezone: "Asia/Jerusalem", locale: "he-IL" }
-      },
-      suppliers: [],
-      orders: [],
-      inventorySnapshots: []
-    },
-
-    {
-      id: "rest-003",
-      data: {
-        name: "Cafe Aroma",
-        businessName: "Aroma Ltd.",
-        legalId: "111222333",
-        yearsActive: 10,
-        isActivated: true,
-        createdAt: new Date("2025-03-01T08:00:00Z") as unknown as Timestamp,
-        primaryContact: { name: "Dana Katz", role: "Shift", phone: "0505005000", email: "dana@aroma.co.il" },
-        payment: { provider: "Stripe", customerId: "cus_XYZ", status: "active" },
-        settings: { timezone: "Asia/Jerusalem", locale: "he-IL" }
-      },
-      suppliers: [
-        {
-          id: "sup-meat-001",
-          data: {
-            name: "Butcher's Best",
-            whatsapp: "0506006000",
-            deliveryDays: [0, 6],
-            cutoffHour: 16,
-            category: "meat",
-            rating: 3,
-            createdAt: new Date("2025-03-05T09:00:00Z") as unknown as Timestamp
-          },
-          products: []
-        }
-      ],
-      orders: [],
-      inventorySnapshots: []
-    },
-
-    {
-      id: "rest-004",
-      data: {
-        name: "Spice Route",
-        businessName: "Spice Route LLC",
-        legalId: "555666777",
-        yearsActive: 3,
-        isActivated: true,
-        createdAt: new Date("2025-02-20T08:00:00Z") as unknown as Timestamp,
-        primaryContact: { name: "Yonatan Sapir", role: "Other", phone: "0507007000" },
-        payment: { provider: "Paylink", customerId: "pl_456", status: "active" },
-        settings: { timezone: "Asia/Jerusalem", locale: "he-IL" }
-      },
-      suppliers: [
-        {
-          id: "sup-alc-001",
-          data: {
-            name: "Wine & Spirits",
-            whatsapp: "0508008000",
-            deliveryDays: [4],
-            cutoffHour: 18,
-            category: "alcohol",
-            rating: 5,
-            createdAt: new Date("2025-02-25T10:00:00Z") as unknown as Timestamp
-          },
-          products: [
-            { id: "prod-alc-001", supplierId: "sup-alc-001", name: "יין אדום", emoji: "🍷", unit: "bottle", parMidweek: 12, parWeekend: 20, createdAt: new Date("2025-02-25T10:15:00Z") as unknown as Timestamp }
-          ]
-        }
-      ],
-      orders: [],
-      inventorySnapshots: []
-    },
-
-    {
-      id: "rest-005",
-      data: {
-        name: "Bakery Bliss",
-        businessName: "Bliss Bakes",
-        legalId: "222333444",
-        yearsActive: 7,
-        isActivated: false,
-        createdAt: new Date("2025-01-10T08:00:00Z") as unknown as Timestamp,
-        primaryContact: { name: "Rachel Dayan", role: "Manager", phone: "0509009000" },
-        payment: { provider: "Stripe", customerId: "cus_DEF", status: "pending" },
-        settings: { timezone: "Asia/Jerusalem", locale: "he-IL" }
-      },
-      suppliers: [],
-      orders: [],
-      inventorySnapshots: []
-    }
-  ],
-
-  conversations: [
-    {
-      id: "0501001000",
-      data: {
-        restaurantId: "rest-001",
-        currentState: "IDLE",
-        context: { restaurantName: "Olive Branch", contactName: "Maya Cohen" },
-        lastMessageTimestamp: new Date("2025-05-26T10:00:00Z") as unknown as Timestamp,
-        updatedAt: new Date("2025-05-26T10:00:00Z") as unknown as Timestamp
-      },
-      messages: [
-        { body: "שלום", direction: "incoming", currentState: "IDLE", createdAt: new Date("2025-05-26T09:59:00Z") as unknown as Timestamp },
-        { body: "👋 שלום Maya Cohen!\n...", direction: "outgoing", currentState: "IDLE", createdAt: new Date("2025-05-26T10:00:00Z") as unknown as Timestamp }
-      ]
-    },
-
-    {
-      id: "0504004000",
-      data: {
-        restaurantId: "rest-002",
-        currentState: "WAITING_FOR_PAYMENT",
-        context: { contactName: "Eli Levi", restaurantName: "Sunset Grill" },
-        lastMessageTimestamp: new Date("2025-05-30T12:00:00Z") as unknown as Timestamp,
-        updatedAt: new Date("2025-05-30T12:00:00Z") as unknown as Timestamp
-      },
-      messages: [
-        { body: "דלג", direction: "incoming", currentState: "ONBOARDING_CONTACT_EMAIL", createdAt: new Date("2025-05-30T11:50:00Z") as unknown as Timestamp },
-        { body: "💳 ...", direction: "outgoing", currentState: "WAITING_FOR_PAYMENT", createdAt: new Date("2025-05-30T12:00:00Z") as unknown as Timestamp }
-      ]
-    },
-
-    {
-      id: "0505005000",
-      data: {
-        restaurantId: "rest-003",
-        currentState: "SUPPLIER_DETAILS",
-        context: { currentCategoryIndex: 0, currentSupplier: { name: "Butcher's Best", whatsapp: "0506006000", category: "meat" } },
-        lastMessageTimestamp: new Date("2025-05-28T14:00:00Z") as unknown as Timestamp,
-        updatedAt: new Date("2025-05-28T14:00:00Z") as unknown as Timestamp
-      },
-      messages: [
-        { body: "משהו", direction: "incoming", currentState: "IDLE", createdAt: new Date("2025-05-28T13:50:00Z") as unknown as Timestamp },
-        { body: "🏪 בואו נתחיל...", direction: "outgoing", currentState: "SUPPLIER_DETAILS", createdAt: new Date("2025-05-28T14:00:00Z") as unknown as Timestamp }
-      ]
-    },
-    
-    {
-      id: "0507007000",
-      data: {
-        restaurantId: "rest-004",
-        currentState: "PRODUCT_PAR_MIDWEEK",
-        context: {
-          currentCategoryIndex: 2,
-          currentSupplier: { name: "Wine & Spirits", whatsapp: "0508008000", category: "alcohol", deliveryDays: [4], cutoffHour: 18, products: [
-            { id: "prod-alc-001", name: "יין אדום", emoji: "🍷", unit: "bottle", parMidweek: 12 }
-          ] },
-          currentProductIndex: 0
-        },
-        lastMessageTimestamp: new Date("2025-05-24T16:00:00Z") as unknown as Timestamp,
-        updatedAt: new Date("2025-05-24T16:00:00Z") as unknown as Timestamp
-      },
-      messages: [
-        { body: "10 bottle", direction: "incoming", currentState: "PRODUCT_PAR_MIDWEEK", createdAt: new Date("2025-05-24T15:55:00Z") as unknown as Timestamp }
-      ]
-    },
-    {
-      id: "0509009000",
-      data: {
-        restaurantId: "rest-005",
-        currentState: "ONBOARDING_COMPANY_NAME",
-        context: {},
-        lastMessageTimestamp: new Date("2025-06-01T09:00:00Z") as unknown as Timestamp,
-        updatedAt: new Date("2025-06-01T09:00:00Z") as unknown as Timestamp
-      },
-      messages: [
-        { body: "Coffee Shop", direction: "incoming", currentState: "INIT", createdAt: new Date("2025-06-01T08:59:00Z") as unknown as Timestamp },
-        { body: "❌ אנא הזן שם חברה תקין", direction: "outgoing", currentState: "ONBOARDING_COMPANY_NAME", createdAt: new Date("2025-06-01T09:00:00Z") as unknown as Timestamp }
-      ]
-    }
-  ]
-}
 
 **End of system prompt.**  Keep this file updated as the single source of truth.
