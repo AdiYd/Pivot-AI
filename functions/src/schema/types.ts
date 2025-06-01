@@ -1,4 +1,4 @@
-import { Timestamp, DocumentReference } from 'firebase-admin/firestore';
+import { Timestamp } from 'firebase-admin/firestore';
 
 // Represents a contact person for a restaurant or supplier
 export interface Contact {
@@ -87,13 +87,13 @@ export interface ItemShortage extends ItemLine {
 // Stock line for inventory snapshots
 // Represents the current stock level of a product
 export interface StockLine {
-  productRef: DocumentReference; // ref→ /restaurants/{r}/suppliers/{s}/products/{id}
+  productId: string; // ref→ /restaurants/{r}/suppliers/{s}/products/{id}
   currentQty: number;
 }
 
 export interface Order {
   id: string;
-  supplierRef: DocumentReference;  // ref→ /restaurants/{r}/suppliers/{id}
+  supplierId: string;  // ref→ /restaurants/{r}/suppliers/{id}
   status: "pending" | "sent" | "delivered";
   items: ItemLine[];
   shortages: ItemShortage[];
@@ -106,14 +106,14 @@ export interface Order {
 
 export interface InventorySnapshot {
   id: string;
-  supplierRef: DocumentReference;  // ref→ /restaurants/{r}/suppliers/{id}
+  supplierId: string;  // ref→ /restaurants/{r}/suppliers/{id}
   lines: StockLine[];
   createdAt: Timestamp;
 }
 
 // Conversation state types for the WhatsApp bot
 export interface ConversationState {
-  restaurantRef: DocumentReference; // ref→ /restaurants/{id}
+  restaurantId: string; //   ref→ /restaurants/{id}
   currentState: BotState; // Current state of the bot conversation
   context: Record<string, any>;  // Additional context for the conversation, to collect information and user input
   lastMessageTimestamp: Timestamp;
@@ -183,7 +183,7 @@ export interface BotConfig {
 
 // new Firestore‐doc shapes for conversations & messages
 export interface ConversationDoc {
-  restaurantRef: DocumentReference;         // points at /restaurants/{id}
+  restaurantId: string;         // ref→ /restaurants/{id}
   currentState: BotState;
   context: Record<string, any>;
   lastMessageTimestamp: Timestamp;

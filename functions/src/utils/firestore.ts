@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import * as admin from 'firebase-admin';
-import { FieldValue, DocumentReference } from 'firebase-admin/firestore';
+import { FieldValue, DocumentReference, Query, CollectionReference } from 'firebase-admin/firestore';
 import {
   Restaurant,
   Supplier,
@@ -311,7 +311,7 @@ export async function updateSupplier(data: SupplierData): Promise<string> {
  */
 export async function getSuppliers(restaurantId: string, category?: SupplierCategory): Promise<Supplier[]> {
   try {
-    let query = firestore.collection('restaurants').doc(restaurantId).collection('suppliers');
+    let query: Query | CollectionReference = firestore.collection('restaurants').doc(restaurantId).collection('suppliers');
     
     if (category) {
       query = query.where('category', '==', category)
@@ -601,7 +601,7 @@ export async function getOrders(
   status?: "pending" | "sent" | "delivered"
 ): Promise<(Order & { id: string })[]> {
   try {
-    let query = firestore.collection('restaurants').doc(restaurantId).collection('orders');
+    let query: Query | CollectionReference = firestore.collection('restaurants').doc(restaurantId).collection('orders');
     
     if (supplierId) {
       const supplierRef = firestore
@@ -672,7 +672,7 @@ export async function createInventorySnapshot(
           .doc(line.productId);
         
         return {
-          productRef,
+          productId: productRef.id,
           currentQty: line.currentQty
         };
       })

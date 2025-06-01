@@ -1,4 +1,3 @@
-import { DocumentReference } from 'firebase-admin/firestore';
 import { ConversationState, IncomingMessage, StateTransition, BotAction, BotState } from '../schema/types';
 import { 
   BOT_MESSAGES, BOT_CONFIG, formatDaysHebrew, 
@@ -238,7 +237,7 @@ export function conversationStateReducer(
         actions.push({
           type: "CREATE_RESTAURANT",
           payload: {
-            restaurantRef: currentState.restaurantRef,
+            restaurantId: currentState.restaurantId,
             companyName: newState.context.companyName,
             legalId: newState.context.legalId,
             name: newState.context.restaurantName,
@@ -349,7 +348,7 @@ export function conversationStateReducer(
       case "SUPPLIER_NAME":
         // Skip this category if requested
         if (message.body?.trim().toLowerCase() === "דלג") {
-          const nextCategoryResult = moveToNextCategory(newState, actions, currentState.restaurantRef, message.from);
+          const nextCategoryResult = moveToNextCategory(newState, actions, currentState.restaurantId, message.from);
           return nextCategoryResult;
         }
         
@@ -528,7 +527,7 @@ export function conversationStateReducer(
           newState.currentState = "PRODUCT_UNIT";
         } else {
           // No products entered, move to next category
-          const nextCategoryResult = moveToNextCategory(newState, actions, currentState.restaurantRef, message.from);
+          const nextCategoryResult = moveToNextCategory(newState, actions, currentState.restaurantId, message.from);
           return nextCategoryResult;
         }
         break;
@@ -687,7 +686,7 @@ export function conversationStateReducer(
           actions.push({
             type: "UPDATE_SUPPLIER",
             payload: {
-              restaurantId: currentState.restaurantRef,
+              restaurantId: currentState.restaurantId,
               name: newState.context.currentSupplier.name,
               whatsapp: newState.context.currentSupplier.whatsapp,
               deliveryDays: newState.context.currentSupplier.deliveryDays,
@@ -712,7 +711,7 @@ export function conversationStateReducer(
           });
           
           // Move to next category
-          const nextCategoryResult = moveToNextCategory(newState, actions, currentState.restaurantRef, message.from);
+          const nextCategoryResult = moveToNextCategory(newState, actions, currentState.restaurantId, message.from);
           return nextCategoryResult;
         }
         break;
@@ -892,7 +891,7 @@ export function conversationStateReducer(
           actions.push({
             type: "CREATE_INVENTORY_SNAPSHOT",
             payload: {
-              restaurantRef: currentState.restaurantRef,
+              restaurantId: currentState.restaurantId,
               supplierId: newState.context.currentSupplier?.whatsapp || "",
               lines: newState.context.currentProducts
             }
@@ -990,7 +989,7 @@ export function conversationStateReducer(
           actions.push({
             type: "SEND_ORDER",
             payload: {
-              restaurantRef: currentState.restaurantRef,
+              restaurantId: currentState.restaurantId,
               supplierId: newState.context.currentOrder.supplierId,
               items: newState.context.currentOrder.items,
               midweek: newState.context.currentOrder.midweek
@@ -1209,7 +1208,7 @@ export function conversationStateReducer(
           actions.push({
             type: "LOG_DELIVERY",
             payload: {
-              restaurantRef: currentState.restaurantRef,
+              restaurantId: currentState.restaurantId,
               orderId: newState.context.currentOrder?.id || "",
               shortages: generateShortages(newState.context.deliveryResults),
               invoiceUrl: message.mediaUrl
@@ -1350,7 +1349,7 @@ export function conversationStateReducer(
 function moveToNextCategory(
   newState: ConversationState, 
   actions: BotAction[], 
-  restaurantRef: DocumentReference, 
+  restaurantId: string, 
   phoneNumber: string
 ): StateTransition {
   const currentIndex = newState.context.currentCategoryIndex || 0;
