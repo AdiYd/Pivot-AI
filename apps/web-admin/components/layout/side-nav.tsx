@@ -193,12 +193,12 @@ export function SideNav() {
                 title="תצורת בוט"
                 isCollapsed={isCollapsed}
               />
-              <NavItem 
+              {/* <NavItem 
                 href="/raw-data" 
                 icon={<Database size={16} />} 
                 title="נתונים גולמיים"
                 isCollapsed={isCollapsed}
-              />
+              /> */}
             </div>
           </nav>
           

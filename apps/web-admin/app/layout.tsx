@@ -8,8 +8,8 @@ import { SideNav } from "@/components/layout/side-nav";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "דף הבית",
-  description: "לוח בקרה לניהול מסעדות, ספקים ומלאי",
+  title: "מערכת ניהול מסעדות",
+  description: "לוח בקרה לניהול מסעדות, ספקים ומלאי באמצעות WhatsApp",
 };
 
 export default function RootLayout({
@@ -19,9 +19,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="he" dir="rtl" suppressHydrationWarning>
-      <body className='relative'>
+      <body className={`relative`}>
         <div className="fixed top-[-130px] left-[-210px] overflow-hidden w-[40vw] max-sm:w-[20vw] h-[20vh] max-sm:h-2/3 rounded-full bg-gradient-to-r filter from-green-500/40 to-orange-400/80 blur-[150px] z-0" />
-        <div className="fixed bottom-[-130px] right-[-210px] overflow-hidden w-[40vw] max-sm:w-[20vw] h-[20vh] max-sm:h-2/3 rounded-full bg-gradient-to-r filter from-purple-700/80 to-teal-500/80 blur-[200px] z-0" />
+        <div className="fixed bottom-[-130px] right-[-210px] overflow-hidden w-[40vw] max-sm:w-[20vw] h-[20vh] max-sm:h-2/3 rounded-full bg-gradient-to-r filter from-purple-400/80 to-teal-500/90 dark:from-purple-800/80 dark:to-teal-600/80 blur-[100px] z-0" />
         <Providers>
           <div className="flex min-h-screen relative">
             <SideNav />

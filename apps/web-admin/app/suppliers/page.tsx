@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,10 +8,10 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Supplier, Product } from '@/lib/types';
+import { Progress } from '@/components/ui/progress';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Plus, 
   Search, 
@@ -24,68 +24,42 @@ import {
   Edit,
   Trash2,
   Eye,
-  MapPin,
-  Filter
+  Store,
+  Filter,
+  TrendingUp,
+  Users,
+  AlertCircle,
+  CheckCircle,
+  X
 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
-// Mock data for development
-const mockSuppliers: (Partial<Supplier> & { restaurantName: string; productCount: number })[] = [
-  {
-    id: 'sup-1',
-    restaurantName: 'בית קפה הדרך',
-    name: 'ירקות השדה',
-    whatsapp: '+972-50-1111111',
-    deliveryDays: [1, 3, 5], // Mon, Wed, Fri
-    cutoffHour: 16,
-    category: 'vegetables',
-    rating: 4.8,
-    productCount: 25
-  },
-  {
-    id: 'sup-2',
-    restaurantName: 'פיצה רומא',
-    name: 'מחלבת הגולן',
-    whatsapp: '+972-52-2222222',
-    deliveryDays: [0, 2, 4, 6], // Sun, Tue, Thu, Sat
-    cutoffHour: 14,
-    category: 'dairy',
-    rating: 4.5,
-    productCount: 18
-  },
-  {
-    id: 'sup-3',
-    restaurantName: 'סושי יאמה',
-    name: 'דגי הים התיכון',
-    whatsapp: '+972-54-3333333',
-    deliveryDays: [1, 2, 3, 4, 5], // Mon-Fri
-    cutoffHour: 18,
-    category: 'fish',
-    rating: 4.9,
-    productCount: 12
-  },
-  {
-    id: 'sup-4',
-    restaurantName: 'בית קפה הדרך',
-    name: 'בשר טרי',
-    whatsapp: '+972-53-4444444',
-    deliveryDays: [0, 3], // Sun, Wed
-    cutoffHour: 12,
-    category: 'meat',
-    rating: 4.3,
-    productCount: 8
-  },
-  {
-    id: 'sup-5',
-    restaurantName: 'פיצה רומא',
-    name: 'כלים חד פעמיים',
-    whatsapp: '+972-50-5555555',
-    deliveryDays: [1], // Mon
-    cutoffHour: 10,
-    category: 'disposables',
-    rating: 4.0,
-    productCount: 45
-  }
-];
+// Import the actual database
+import exampleDatabase from '@/schema/example';
+
+// Types for enhanced supplier data
+interface EnhancedSupplier {
+  id: string;
+  whatsapp: string;
+  name: string;
+  category: string;
+  deliveryDays: number[];
+  cutoffHour: number;
+  rating: number;
+  restaurantId: string;
+  restaurantName: string;
+  productCount: number;
+  products: Array<{
+    id: string;
+    name: string;
+    emoji: string;
+    unit: string;
+    parMidweek: number;
+    parWeekend: number;
+  }>;
+  recentOrdersCount: number;
+  createdAt: Date;
+}
 
 const categoryNames: Record<string, string> = {
   vegetables: 'ירקות',
@@ -98,27 +72,120 @@ const categoryNames: Record<string, string> = {
   disposables: 'כלים חד פעמיים',
   dessert: 'קינוחים',
   juices: 'משקאות',
-  eggs: 'ביצים'
+  eggs: 'ביצים',
+  bread: 'לחם',
+  coffee: 'קפה'
 };
 
 const dayNames = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 
 export default function SuppliersPage() {
-  const [suppliers, setSuppliers] = useState(mockSuppliers);
+  const [data, setData] = useState(exampleDatabase);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [selectedSupplier, setSelectedSupplier] = useState<typeof mockSuppliers[0] | null>(null);
+  const [selectedSupplier, setSelectedSupplier] = useState<EnhancedSupplier | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const { toast } = useToast();
 
-  const filteredSuppliers = suppliers.filter(supplier => {
-    const matchesSearch = supplier.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         supplier.restaurantName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         supplier.whatsapp?.includes(searchTerm);
-    const matchesCategory = selectedCategory === 'all' || supplier.category === selectedCategory;
-    
-    return matchesSearch && matchesCategory;
-  });
+  // Extract and enhance supplier data from the actual database
+  const enhancedSuppliers = useMemo((): EnhancedSupplier[] => {
+    try {
+      const suppliers: EnhancedSupplier[] = [];
+
+      Object.entries(data.restaurants).forEach(([restaurantId, restaurant]) => {
+        Object.entries(restaurant.suppliers).forEach(([supplierWhatsapp, supplier]) => {
+          // Get products for this supplier
+          const products = Object.values(supplier.products).map(product => ({
+            id: product.id,
+            name: product.name,
+            emoji: product.emoji,
+            unit: product.unit,
+            parMidweek: product.parMidweek,
+            parWeekend: product.parWeekend
+          }));
+
+          // Count recent orders for this supplier
+          const recentOrdersCount = Object.values(restaurant.orders)
+            .filter(order => order.supplierId === supplierWhatsapp)
+            .length;
+
+          suppliers.push({
+            id: supplierWhatsapp,
+            whatsapp: supplier.whatsapp,
+            name: supplier.name,
+            category: supplier.category,
+            deliveryDays: supplier.deliveryDays,
+            cutoffHour: supplier.cutoffHour,
+            rating: supplier.rating,
+            restaurantId,
+            restaurantName: restaurant.name,
+            productCount: products.length,
+            products,
+            recentOrdersCount,
+            createdAt: supplier.createdAt.toDate()
+          });
+        });
+      });
+
+      return suppliers;
+    } catch (error) {
+      console.error('Error processing suppliers:', error);
+      return [];
+    }
+  }, [data]);
+
+  // Filter suppliers based on search and category
+  const filteredSuppliers = useMemo(() => {
+    return enhancedSuppliers.filter(supplier => {
+      const matchesSearch = supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           supplier.restaurantName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           supplier.whatsapp.includes(searchTerm);
+      const matchesCategory = selectedCategory === 'all' || supplier.category === selectedCategory;
+      
+      return matchesSearch && matchesCategory;
+    });
+  }, [enhancedSuppliers, searchTerm, selectedCategory]);
+
+  // Calculate statistics from real data
+  const stats = useMemo(() => {
+    try {
+      const totalSuppliers = enhancedSuppliers.length;
+      const totalProducts = enhancedSuppliers.reduce((sum, s) => sum + s.productCount, 0);
+      const averageRating = totalSuppliers > 0 
+        ? enhancedSuppliers.reduce((sum, s) => sum + s.rating, 0) / totalSuppliers 
+        : 0;
+      
+      // Category distribution
+      const categoryStats = enhancedSuppliers.reduce((acc, supplier) => {
+        acc[supplier.category] = (acc[supplier.category] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      const mostPopularCategory = Object.entries(categoryStats)
+        .sort(([,a], [,b]) => b - a)[0];
+
+      return {
+        totalSuppliers,
+        totalProducts,
+        averageRating,
+        categoryStats,
+        mostPopularCategory: mostPopularCategory ? {
+          name: categoryNames[mostPopularCategory[0]] || mostPopularCategory[0],
+          count: mostPopularCategory[1]
+        } : null
+      };
+    } catch (error) {
+      console.error('Error calculating stats:', error);
+      return {
+        totalSuppliers: 0,
+        totalProducts: 0,
+        averageRating: 0,
+        categoryStats: {},
+        mostPopularCategory: null
+      };
+    }
+  }, [enhancedSuppliers]);
 
   const getCategoryBadge = (category: string) => {
     const colors: Record<string, string> = {
@@ -127,6 +194,8 @@ export default function SuppliersPage() {
       fish: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
       meat: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
       dairy: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+      bread: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
+      coffee: 'bg-brown-100 text-brown-800 dark:bg-brown-900 dark:text-brown-200',
       disposables: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
     };
     
@@ -146,7 +215,19 @@ export default function SuppliersPage() {
     ));
   };
 
-  const SupplierCard = ({ supplier }: { supplier: typeof mockSuppliers[0] }) => (
+  const getRelativeTime = (date: Date): string => {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'היום';
+    if (diffDays === 1) return 'אתמול';
+    if (diffDays < 7) return `לפני ${diffDays} ימים`;
+    if (diffDays < 30) return `לפני ${Math.floor(diffDays / 7)} שבועות`;
+    return `לפני ${Math.floor(diffDays / 30)} חודשים`;
+  };
+
+  const SupplierCard = ({ supplier }: { supplier: EnhancedSupplier }) => (
     <Card className="hover:shadow-lg transition-shadow">
       <CardHeader className="pb-4">
         <div className="flex items-start justify-between">
@@ -156,10 +237,13 @@ export default function SuppliersPage() {
             </div>
             <div>
               <CardTitle className="text-lg">{supplier.name}</CardTitle>
-              <CardDescription>{supplier.restaurantName}</CardDescription>
+              <CardDescription className="flex items-center gap-1">
+                <Store className="w-3 h-3" />
+                {supplier.restaurantName}
+              </CardDescription>
             </div>
           </div>
-          {getCategoryBadge(supplier.category || '')}
+          {getCategoryBadge(supplier.category)}
         </div>
       </CardHeader>
       <CardContent>
@@ -171,7 +255,7 @@ export default function SuppliersPage() {
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Calendar className="w-4 h-4" />
             <span>
-              {supplier.deliveryDays?.map(day => dayNames[day]).join(', ')}
+              {supplier.deliveryDays.map(day => dayNames[day]).join(', ')}
             </span>
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -182,9 +266,14 @@ export default function SuppliersPage() {
             <Package className="w-4 h-4" />
             <span>{supplier.productCount} מוצרים</span>
           </div>
-          <div className="flex items-center gap-1">
-            {getRatingStars(supplier.rating || 0)}
-            <span className="text-sm text-muted-foreground mr-1">({supplier.rating})</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1">
+              {getRatingStars(supplier.rating)}
+              <span className="text-sm text-muted-foreground mr-1">({supplier.rating})</span>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {getRelativeTime(supplier.createdAt)}
+            </div>
           </div>
         </div>
         <div className="flex gap-2 mt-4">
@@ -268,7 +357,9 @@ export default function SuppliersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">ספקים</h1>
-          <p className="text-muted-foreground">נהל את כל הספקים במערכת</p>
+          <p className="text-muted-foreground">
+            נהל את כל הספקים במערכת ({stats.totalSuppliers} ספקים, {stats.totalProducts} מוצרים)
+          </p>
         </div>
         <Dialog>
           <DialogTrigger asChild>
@@ -343,159 +434,303 @@ export default function SuppliersPage() {
         </div>
         <div className="flex items-center gap-2">
           <Filter className="w-4 h-4 text-muted-foreground" />
-          <select 
-            value={selectedCategory} 
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="p-2 border rounded-md"
-          >
-            <option value="all">כל הקטגוריות</option>
-            {Object.entries(categoryNames).map(([key, value]) => (
-              <option key={key} value={key}>{value}</option>
-            ))}
-          </select>
+          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="כל הקטגוריות" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">כל הקטגוריות</SelectItem>
+              {Object.entries(categoryNames).map(([key, value]) => (
+                <SelectItem key={key} value={key}>{value}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      {/* Enhanced Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">סה״כ ספקים</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Truck className="w-4 h-4" />
+              סה״כ ספקים
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{suppliers.length}</div>
+            <div className="text-2xl font-bold">{stats.totalSuppliers}</div>
+            <Progress value={100} className="mt-2" />
           </CardContent>
         </Card>
+        
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">ספקי ירקות ופירות</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Package className="w-4 h-4" />
+              סה״כ מוצרים
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {suppliers.filter(s => s.category === 'vegetables' || s.category === 'fruits').length}
-            </div>
+            <div className="text-2xl font-bold text-blue-600">{stats.totalProducts}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              ממוצע {Math.round(stats.totalProducts / stats.totalSuppliers)} מוצרים לספק
+            </p>
           </CardContent>
         </Card>
+        
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">ספקי בשר ודגים</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">
-              {suppliers.filter(s => s.category === 'meat' || s.category === 'fish').length}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">דירוג ממוצע</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Star className="w-4 h-4" />
+              דירוג ממוצע
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-yellow-600">
-              {(suppliers.reduce((sum, s) => sum + (s.rating || 0), 0) / suppliers.length).toFixed(1)}
+              {stats.averageRating.toFixed(1)}
             </div>
+            <div className="flex items-center gap-1 mt-1">
+              {getRatingStars(stats.averageRating)}
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <TrendingUp className="w-4 h-4" />
+              קטגוריה פופולרית
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">
+              {stats.mostPopularCategory?.count || 0}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {stats.mostPopularCategory?.name || 'אין נתונים'}
+            </p>
           </CardContent>
         </Card>
       </div>
 
+      {/* Category Distribution Chart */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="w-5 h-5" />
+            התפלגות קטגוריות
+          </CardTitle>
+          <CardDescription>
+            התפלגות הספקים לפי קטגוריות
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {Object.entries(stats.categoryStats)
+              .sort(([,a], [,b]) => b - a)
+              .map(([category, count]) => (
+                <div key={category} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {getCategoryBadge(category)}
+                    <span className="text-sm">{categoryNames[category] || category}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Progress 
+                      value={(count / stats.totalSuppliers) * 100} 
+                      className="w-24" 
+                    />
+                    <span className="text-sm font-medium w-8 text-right">{count}</span>
+                  </div>
+                </div>
+              ))}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Suppliers Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredSuppliers.map((supplier) => (
-          <SupplierCard key={supplier.id} supplier={supplier} />
-        ))}
+        {filteredSuppliers.length > 0 ? (
+          filteredSuppliers.map((supplier) => (
+            <SupplierCard key={supplier.id} supplier={supplier} />
+          ))
+        ) : (
+          <div className="col-span-full text-center py-12">
+            <Truck className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium mb-2">לא נמצאו ספקים</h3>
+            <p className="text-muted-foreground">נסה לשנות את מונחי החיפוש או המסנן</p>
+          </div>
+        )}
       </div>
 
-      {/* Supplier Details Dialog */}
+      {/* Enhanced Supplier Details Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-6xl max-h-[85vh] overflow-hidden p-0">
           {selectedSupplier && (
             <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <Truck className="w-5 h-5" />
-                  {selectedSupplier.name}
-                </DialogTitle>
-                <DialogDescription>
-                  פרטי ספק מלאים
-                </DialogDescription>
+              <DialogHeader className="p-6 pb-4 pr-16 sticky top-0 bg-background z-10 border-b">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <DialogTitle className="flex items-center gap-2">
+                      <Truck className="w-5 h-5" />
+                      {selectedSupplier.name}
+                    </DialogTitle>
+                    <DialogDescription className="flex items-center gap-1 mt-1">
+                      <Store className="w-4 h-4" />
+                      {selectedSupplier.restaurantName}
+                    </DialogDescription>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="absolute top-4 left-4 h-8 w-8 p-0 bg-gray-50 hover:bg-gray-100 dark:bg-gray-900 dark:hover:bg-gray-800 rounded-md"
+                  onClick={() => setIsDialogOpen(false)}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
               </DialogHeader>
               
-              <Tabs defaultValue="general" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="general">כללי</TabsTrigger>
-                  <TabsTrigger value="schedule">לוח זמנים</TabsTrigger>
-                  <TabsTrigger value="products">מוצרים</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="general" className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>שם הספק</Label>
-                      <Input value={selectedSupplier.name} readOnly />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>מסעדה</Label>
-                      <Input value={selectedSupplier.restaurantName} readOnly />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>WhatsApp</Label>
-                      <Input value={selectedSupplier.whatsapp} readOnly />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>קטגוריה</Label>
-                      <Input value={categoryNames[selectedSupplier.category || 0] || selectedSupplier.category} readOnly />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>דירוג</Label>
-                      <div className="flex items-center gap-2">
-                        <div className="flex">
-                          {getRatingStars(selectedSupplier.rating || 0)}
-                        </div>
-                        <span>({selectedSupplier.rating || 0})</span>
+              <div className="flex-1 overflow-y-auto p-6 pt-4">
+                <Tabs defaultValue="general" className="w-full">
+                  <TabsList className="grid w-full grid-cols-4">
+                    <TabsTrigger value="general">כללי</TabsTrigger>
+                    <TabsTrigger value="schedule">לוח זמנים</TabsTrigger>
+                    <TabsTrigger value="products">מוצרים</TabsTrigger>
+                    <TabsTrigger value="analytics">נתונים</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="general" className="space-y-4 mt-6">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>שם הספק</Label>
+                        <Input value={selectedSupplier.name} readOnly />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>מסעדה</Label>
+                        <Input value={selectedSupplier.restaurantName} readOnly />
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label>מספר מוצרים</Label>
-                      <Input value={selectedSupplier.productCount.toString()} readOnly />
-                    </div>
-                  </div>
-                </TabsContent>
-                
-                <TabsContent value="schedule" className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>ימי משלוח</Label>
-                    <div className="grid grid-cols-7 gap-2">
-                      {dayNames.map((day, index) => (
-                        <div key={index} className="text-center">
-                          <div className={`p-2 rounded-md text-sm ${
-                            selectedSupplier.deliveryDays?.includes(index) 
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
-                              : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
-                          }`}>
-                            {day}
-                          </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>WhatsApp</Label>
+                        <Input value={selectedSupplier.whatsapp} readOnly />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>קטגוריה</Label>
+                        <div className="pt-2">
+                          {getCategoryBadge(selectedSupplier.category)}
                         </div>
-                      ))}
+                      </div>
                     </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>שעת סגירת הזמנות</Label>
-                    <Input value={`${selectedSupplier.cutoffHour}:00`} readOnly />
-                  </div>
-                </TabsContent>
-                
-                <TabsContent value="products" className="space-y-4">
-                  <div className="text-center text-muted-foreground">
-                    <Package className="w-12 h-12 mx-auto mb-2" />
-                    <p>רשימת המוצרים תוצג כאן</p>
-                    <p className="text-sm">בקרוב: נהל את כל המוצרים של הספק</p>
-                  </div>
-                </TabsContent>
-              </Tabs>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label>דירוג</Label>
+                        <div className="flex items-center gap-2">
+                          <div className="flex">
+                            {getRatingStars(selectedSupplier.rating)}
+                          </div>
+                          <span>({selectedSupplier.rating})</span>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>מספר מוצרים</Label>
+                        <Input value={selectedSupplier.productCount.toString()} readOnly />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>הזמנות</Label>
+                        <Input value={selectedSupplier.recentOrdersCount.toString()} readOnly />
+                      </div>
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="schedule" className="space-y-4 mt-6">
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>ימי משלוח</Label>
+                        <div className="grid grid-cols-7 gap-2">
+                          {dayNames.map((day, index) => (
+                            <div key={index} className="text-center">
+                              <div className={`p-3 rounded-md text-sm font-medium ${
+                                selectedSupplier.deliveryDays.includes(index) 
+                                  ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
+                                  : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
+                              }`}>
+                                {day}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>שעת סגירת הזמנות</Label>
+                          <Input value={`${selectedSupplier.cutoffHour}:00`} readOnly />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>תאריך הצטרפות</Label>
+                          <Input value={selectedSupplier.createdAt.toLocaleDateString('he-IL')} readOnly />
+                        </div>
+                      </div>
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="products" className="space-y-4 mt-6">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-medium">מוצרים ({selectedSupplier.productCount})</h3>
+                        <Button variant="outline" size="sm">
+                          <Plus className="w-4 h-4 mr-1" />
+                          הוסף מוצר
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {selectedSupplier.products.map((product) => (
+                          <Card key={product.id}>
+                            <CardContent className="p-4">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-lg">{product.emoji}</span>
+                                  <div>
+                                    <div className="font-medium">{product.name}</div>
+                                    <div className="text-sm text-muted-foreground">יחידה: {product.unit}</div>
+                                  </div>
+                                </div>
+                                <div className="text-right text-sm">
+                                  <div>אמצע שבוע: {product.parMidweek}</div>
+                                  <div>סוף שבוע: {product.parWeekend}</div>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="analytics" className="space-y-4 mt-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-sm">פעילות הזמנות</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-2xl font-bold">{selectedSupplier.recentOrdersCount}</div>
+                          <p className="text-xs text-muted-foreground">הזמנות סה״כ</p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-sm">מגוון מוצרים</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-2xl font-bold">{selectedSupplier.productCount}</div>
+                          <p className="text-xs text-muted-foreground">מוצרים זמינים</p>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </div>
             </>
           )}
         </DialogContent>

@@ -1,4 +1,4 @@
-import { Timestamp, DocumentReference } from 'firebase-admin/firestore';
+import { Timestamp } from 'firebase/firestore';
 import {
   Restaurant,
   Supplier,

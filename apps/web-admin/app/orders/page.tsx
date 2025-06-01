@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Order, ItemLine } from '@/lib/types';
+import { Progress } from '@/components/ui/progress';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Plus, 
   Search, 
@@ -27,162 +28,295 @@ import {
   AlertTriangle,
   DollarSign,
   Filter,
-  ArrowUpDown
+  ArrowUpDown,
+  Store,
+  Phone,
+  User,
+  X,
+  TrendingUp,
+  BarChart3
 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
-// Mock data for development
-const mockOrders: (Order & { 
-  restaurantName: string; 
-  supplierName: string; 
+// Import the actual database
+import exampleDatabase from '@/schema/example';
+
+// Types for enhanced order data
+interface EnhancedOrder {
+  id: string;
+  restaurantId: string;
+  restaurantName: string;
+  supplierId: string;
+  supplierName: string;
+  supplierCategory: string;
+  status: 'pending' | 'sent' | 'delivered';
+  midweek: boolean;
+  items: Array<{
+    productId: string;
+    productName: string;
+    productEmoji: string;
+    productUnit: string;
+    qty: number;
+    parMidweek: number;
+    parWeekend: number;
+  }>;
+  shortages: Array<{
+    productId: string;
+    productName: string;
+    productEmoji: string;
+    qty: number;
+    received: number;
+  }>;
   totalItems: number;
-  totalAmount?: number;
-})[] = [
-  {
-    id: 'ord-1',
-    restaurantName: 'בית קפה הדרך',
-    supplierName: 'ירקות השדה',
-    supplierId: 'sup-1',
-    status: 'delivered',
-    items: [
-      { productId: 'prod-1', qty: 5 },
-      { productId: 'prod-2', qty: 3 },
-      { productId: 'prod-3', qty: 2 }
-    ],
-    totalItems: 3,
-    totalAmount: 245.50,
-    midweek: true,
-    createdAt: new Date('2024-01-15T08:30:00'),
-    sentAt: new Date('2024-01-15T16:00:00'),
-    receivedAt: new Date('2024-01-16T07:30:00'),
-    invoiceUrl: 'https://example.com/invoice-1.pdf',
-    shortages: []
-  },
-  {
-    id: 'ord-2',
-    restaurantName: 'פיצה רומא',
-    supplierName: 'מחלבת הגולן',
-    supplierId: 'sup-2',
-    status: 'sent',
-    items: [
-      { productId: 'prod-4', qty: 10 },
-      { productId: 'prod-5', qty: 5 }
-    ],
-    totalItems: 2,
-    totalAmount: 180.00,
-    midweek: false,
-    createdAt: new Date('2024-01-16T10:15:00'),
-    sentAt: new Date('2024-01-16T14:00:00'),
-    shortages: []
-  },
-  {
-    id: 'ord-3',
-    restaurantName: 'סושי יאמה',
-    supplierName: 'דגי הים התיכון',
-    supplierId: 'sup-3',
-    status: 'pending',
-    items: [
-      { productId: 'prod-6', qty: 2 },
-      { productId: 'prod-7', qty: 1 },
-      { productId: 'prod-8', qty: 3 }
-    ],
-    totalItems: 3,
-    totalAmount: 320.00,
-    midweek: true,
-    createdAt: new Date('2024-01-17T09:45:00'),
-    shortages: []
-  },
-  {
-    id: 'ord-4',
-    restaurantName: 'בית קפה הדרך',
-    supplierName: 'בשר טרי',
-    supplierId: 'sup-4',
-    status: 'delivered',
-    items: [
-      { productId: 'prod-9', qty: 4 }
-    ],
-    totalItems: 1,
-    totalAmount: 150.00,
-    midweek: false,
-    createdAt: new Date('2024-01-14T11:20:00'),
-    sentAt: new Date('2024-01-14T12:00:00'),
-    receivedAt: new Date('2024-01-15T08:00:00'),
-    shortages: [
-      { productId: 'prod-9', qty: 4, received: 3 }
-    ]
-  }
-];
+  totalProducts: number;
+  hasShortages: boolean;
+  createdAt: Date;
+  sentAt?: Date;
+  receivedAt?: Date;
+  invoiceUrl?: string;
+}
 
-const mockProducts: Record<string, { name: string; unit: string; emoji: string }> = {
-  'prod-1': { name: 'עגבניות', unit: 'kg', emoji: '🍅' },
-  'prod-2': { name: 'מלפפונים', unit: 'kg', emoji: '🥒' },
-  'prod-3': { name: 'חסה', unit: 'pcs', emoji: '🥬' },
-  'prod-4': { name: 'גבינה צהובה', unit: 'kg', emoji: '🧀' },
-  'prod-5': { name: 'חלב', unit: 'liter', emoji: '🥛' },
-  'prod-6': { name: 'סלמון', unit: 'kg', emoji: '🐟' },
-  'prod-7': { name: 'טונה', unit: 'kg', emoji: '🐟' },
-  'prod-8': { name: 'אטלנטי', unit: 'kg', emoji: '🐟' },
-  'prod-9': { name: 'בשר בקר', unit: 'kg', emoji: '🥩' }
+const statusNames: Record<string, string> = {
+  pending: 'ממתין',
+  sent: 'נשלח',
+  delivered: 'נמסר'
+};
+
+const categoryNames: Record<string, string> = {
+  vegetables: 'ירקות',
+  fruits: 'פירות',
+  fish: 'דגים',
+  meat: 'בשר',
+  dairy: 'מחלבה',
+  alcohol: 'אלכוהול',
+  oliveOil: 'שמן זית',
+  disposables: 'כלים חד פעמיים',
+  dessert: 'קינוחים',
+  juices: 'משקאות',
+  eggs: 'ביצים',
+  bread: 'לחם',
+  coffee: 'קפה'
 };
 
 export default function OrdersPage() {
-  const [orders, setOrders] = useState(mockOrders);
+  const [data, setData] = useState(exampleDatabase);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
-  const [selectedOrder, setSelectedOrder] = useState<typeof mockOrders[0] | null>(null);
+  const [selectedRestaurant, setSelectedRestaurant] = useState<string>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedOrder, setSelectedOrder] = useState<EnhancedOrder | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [sortBy, setSortBy] = useState<'date' | 'amount' | 'status'>('date');
+  const [sortBy, setSortBy] = useState<'date' | 'restaurant' | 'status' | 'items'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const { toast } = useToast();
 
-  const filteredOrders = orders
-    .filter(order => {
-      const matchesSearch = order.restaurantName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           order.supplierName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           order.id.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus = selectedStatus === 'all' || order.status === selectedStatus;
+  // Extract and enhance order data from the actual database
+  const enhancedOrders = useMemo((): EnhancedOrder[] => {
+    try {
+      const orders: EnhancedOrder[] = [];
+
+      Object.entries(data.restaurants).forEach(([restaurantId, restaurant]) => {
+        Object.entries(restaurant.orders).forEach(([orderId, order]) => {
+          const supplier = restaurant.suppliers[order.supplierId];
+          if (!supplier) return; // Skip orders with missing suppliers
+
+          // Get enhanced items with product details
+          const enhancedItems = order.items.map(item => {
+            const product = supplier.products[item.productId];
+            return {
+              productId: item.productId,
+              productName: product?.name || 'מוצר לא זמין',
+              productEmoji: product?.emoji || '📦',
+              productUnit: product?.unit || 'יח׳',
+              qty: item.qty,
+              parMidweek: product?.parMidweek || 0,
+              parWeekend: product?.parWeekend || 0
+            };
+          });
+
+          // Get enhanced shortages with product details
+          const enhancedShortages = order.shortages.map(shortage => {
+            const product = supplier.products[shortage.productId];
+            return {
+              productId: shortage.productId,
+              productName: product?.name || 'מוצר לא זמין',
+              productEmoji: product?.emoji || '📦',
+              qty: shortage.qty,
+              received: shortage.received
+            };
+          });
+
+          orders.push({
+            id: order.id,
+            restaurantId,
+            restaurantName: restaurant.name,
+            supplierId: order.supplierId,
+            supplierName: supplier.name,
+            supplierCategory: supplier.category,
+            status: order.status,
+            midweek: order.midweek,
+            items: enhancedItems,
+            shortages: enhancedShortages,
+            totalItems: order.items.reduce((sum, item) => sum + item.qty, 0),
+            totalProducts: order.items.length,
+            hasShortages: order.shortages.length > 0,
+            createdAt: order.createdAt.toDate(),
+            sentAt: order.sentAt?.toDate(),
+            receivedAt: order.receivedAt?.toDate(),
+            invoiceUrl: order.invoiceUrl
+          });
+        });
+      });
+
+      return orders;
+    } catch (error) {
+      console.error('Error processing orders:', error);
+      return [];
+    }
+  }, [data]);
+
+  // Filter orders based on search and filters
+  const filteredOrders = useMemo(() => {
+    return enhancedOrders
+      .filter(order => {
+        const matchesSearch = order.restaurantName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                             order.supplierName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                             order.id.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesStatus = selectedStatus === 'all' || order.status === selectedStatus;
+        const matchesRestaurant = selectedRestaurant === 'all' || order.restaurantId === selectedRestaurant;
+        const matchesCategory = selectedCategory === 'all' || order.supplierCategory === selectedCategory;
+        
+        return matchesSearch && matchesStatus && matchesRestaurant && matchesCategory;
+      })
+      .sort((a, b) => {
+        let comparison = 0;
+        switch (sortBy) {
+          case 'date':
+            comparison = a.createdAt.getTime() - b.createdAt.getTime();
+            break;
+          case 'restaurant':
+            comparison = a.restaurantName.localeCompare(b.restaurantName);
+            break;
+          case 'status':
+            comparison = a.status.localeCompare(b.status);
+            break;
+          case 'items':
+            comparison = a.totalItems - b.totalItems;
+            break;
+        }
+        return sortOrder === 'desc' ? -comparison : comparison;
+      });
+  }, [enhancedOrders, searchTerm, selectedStatus, selectedRestaurant, selectedCategory, sortBy, sortOrder]);
+
+  // Calculate statistics from real data
+  const stats = useMemo(() => {
+    try {
+      const total = enhancedOrders.length;
+      const pending = enhancedOrders.filter(o => o.status === 'pending').length;
+      const sent = enhancedOrders.filter(o => o.status === 'sent').length;
+      const delivered = enhancedOrders.filter(o => o.status === 'delivered').length;
+      const withShortages = enhancedOrders.filter(o => o.hasShortages).length;
+      const totalItems = enhancedOrders.reduce((sum, o) => sum + o.totalItems, 0);
       
-      return matchesSearch && matchesStatus;
-    })
-    .sort((a, b) => {
-      let comparison = 0;
-      switch (sortBy) {
-        case 'date':
-          comparison = a.createdAt.getTime() - b.createdAt.getTime();
-          break;
-        case 'amount':
-          comparison = (a.totalAmount || 0) - (b.totalAmount || 0);
-          break;
-        case 'status':
-          comparison = a.status.localeCompare(b.status);
-          break;
-      }
-      return sortOrder === 'desc' ? -comparison : comparison;
-    });
+      // Category distribution
+      const categoryStats = enhancedOrders.reduce((acc, order) => {
+        acc[order.supplierCategory] = (acc[order.supplierCategory] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      // Restaurant activity
+      const restaurantStats = enhancedOrders.reduce((acc, order) => {
+        if (!acc[order.restaurantId]) {
+          acc[order.restaurantId] = {
+            name: order.restaurantName,
+            orderCount: 0,
+            totalItems: 0,
+            shortageCount: 0
+          };
+        }
+        acc[order.restaurantId].orderCount++;
+        acc[order.restaurantId].totalItems += order.totalItems;
+        if (order.hasShortages) acc[order.restaurantId].shortageCount++;
+        return acc;
+      }, {} as Record<string, any>);
+
+      return {
+        total,
+        pending,
+        sent,
+        delivered,
+        withShortages,
+        totalItems,
+        categoryStats,
+        restaurantStats,
+        deliveryRate: total > 0 ? Math.round((delivered / total) * 100) : 0,
+        shortageRate: total > 0 ? Math.round((withShortages / total) * 100) : 0
+      };
+    } catch (error) {
+      console.error('Error calculating stats:', error);
+      return {
+        total: 0,
+        pending: 0,
+        sent: 0,
+        delivered: 0,
+        withShortages: 0,
+        totalItems: 0,
+        categoryStats: {},
+        restaurantStats: {},
+        deliveryRate: 0,
+        shortageRate: 0
+      };
+    }
+  }, [enhancedOrders]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
-        return <Badge variant="secondary"><Clock className="w-3 h-3 ml-1" />ממתין</Badge>;
+        return <Badge variant="secondary" className="text-orange-600 border-orange-600"><Clock className="w-3 h-3 ml-1" />ממתין</Badge>;
       case 'sent':
-        return <Badge className="bg-blue-500"><Truck className="w-3 h-3 ml-1" />נשלח</Badge>;
+        return <Badge variant="outline" className="text-blue-600 border-blue-600"><Truck className="w-3 h-3 ml-1" />נשלח</Badge>;
       case 'delivered':
-        return <Badge variant="default" className="bg-green-500"><CheckCircle className="w-3 h-3 ml-1" />נמסר</Badge>;
+        return <Badge variant="outline" className="text-green-600 border-green-600"><CheckCircle className="w-3 h-3 ml-1" />נמסר</Badge>;
       default:
         return <Badge variant="destructive"><XCircle className="w-3 h-3 ml-1" />בעיה</Badge>;
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending': return 'text-orange-600';
-      case 'sent': return 'text-blue-600';
-      case 'delivered': return 'text-green-600';
-      default: return 'text-red-600';
-    }
+  const getCategoryBadge = (category: string) => {
+    const colors: Record<string, string> = {
+      vegetables: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+      fruits: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+      fish: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+      meat: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+      dairy: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+      bread: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
+      coffee: 'bg-brown-100 text-brown-800 dark:bg-brown-900 dark:text-brown-200'
+    };
+    
+    return (
+      <Badge className={colors[category] || 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'}>
+        {categoryNames[category] || category}
+      </Badge>
+    );
   };
 
-  const OrderCard = ({ order }: { order: typeof mockOrders[0] }) => (
-    <Card className="hover:shadow-lg transition-shadow">
+  const getRelativeTime = (date: Date): string => {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffHours < 1) return 'לפני פחות משעה';
+    if (diffHours < 24) return `לפני ${diffHours} שעות`;
+    if (diffDays === 1) return 'אתמול';
+    if (diffDays < 7) return `לפני ${diffDays} ימים`;
+    if (diffDays < 30) return `לפני ${Math.floor(diffDays / 7)} שבועות`;
+    return `לפני ${Math.floor(diffDays / 30)} חודשים`;
+  };
+
+  const OrderCard = ({ order }: { order: EnhancedOrder }) => (
+    <Card className="hover:shadow-lg transition-shadow flex flex-col justify-between">
       <CardHeader className="pb-4">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
@@ -191,87 +325,82 @@ export default function OrdersPage() {
             </div>
             <div>
               <CardTitle className="text-lg">הזמנה #{order.id}</CardTitle>
-              <CardDescription>{order.restaurantName} ← {order.supplierName}</CardDescription>
+              <CardDescription className="flex items-center gap-1">
+                <Store className="w-3 h-3" />
+                {order.restaurantName}
+              </CardDescription>
             </div>
           </div>
-          {getStatusBadge(order.status)}
+          <div className="flex flex-col gap-2 items-end">
+            {getStatusBadge(order.status)}
+            {/* {getCategoryBadge(order.supplierCategory)} */}
+          </div>
         </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Truck className="w-4 h-4" />
+            <span>{order.supplierName}</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Calendar className="w-4 h-4" />
             <span>{order.createdAt.toLocaleDateString('he-IL')} {order.createdAt.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
-          {order.sentAt && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Truck className="w-4 h-4" />
-              <span>נשלח: {order.sentAt.toLocaleDateString('he-IL')} {order.sentAt.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
-            </div>
-          )}
-          {order.receivedAt && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <CheckCircle className="w-4 h-4" />
-              <span>נמסר: {order.receivedAt.toLocaleDateString('he-IL')} {order.receivedAt.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
-            </div>
-          )}
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Package className="w-4 h-4" />
-            <span>{order.totalItems} פריטים</span>
+            <span>{order.totalItems} פריטים ({order.totalProducts} מוצרים)</span>
           </div>
-          {order.totalAmount && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <DollarSign className="w-4 h-4" />
-              <span>₪{order.totalAmount.toFixed(2)}</span>
-            </div>
-          )}
-          {order.shortages.length > 0 && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Clock className="w-4 h-4" />
+            <span>{order.midweek ? 'אמצע שבוע' : 'סוף שבוע'}</span>
+          </div>
+          {order.hasShortages && (
             <div className="flex items-center gap-2 text-sm text-red-600">
               <AlertTriangle className="w-4 h-4" />
               <span>{order.shortages.length} חסרים</span>
             </div>
           )}
+          <div className="text-xs text-muted-foreground">
+            {getRelativeTime(order.createdAt)}
+          </div>
         </div>
-        <div className="flex gap-2 mt-4">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setSelectedOrder(order);
-                  setIsDialogOpen(true);
-                }}
-              >
-                <Eye className="w-4 h-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>צפייה בפרטים</p>
-            </TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Edit className="w-4 h-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>עריכה</p>
-            </TooltipContent>
-          </Tooltip>
-          {order.invoiceUrl && (
+        <div className="mt-4 flex justify-between items-center">
+          <div className="flex gap-2">
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <Download className="w-4 h-4" />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedOrder(order);
+                    setIsDialogOpen(true);
+                  }}
+                >
+                  <Eye className="w-4 h-4" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>הורד חשבונית</p>
+                <p>צפייה בפרטים</p>
               </TooltipContent>
             </Tooltip>
-          )}
+            {order.invoiceUrl && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Download className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>הורד חשבונית</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </div>
+          <div className="flex flex-col gap-2 items-end">
+            {/* {getStatusBadge(order.status)} */}
+            {getCategoryBadge(order.supplierCategory)}
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -316,62 +445,15 @@ export default function OrdersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">הזמנות</h1>
-          <p className="text-muted-foreground">נהל את כל ההזמנות במערכת</p>
+          <p className="text-muted-foreground">
+            נהל את כל ההזמנות במערכת ({stats.total} הזמנות, {stats.totalItems} פריטים)
+          </p>
         </div>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 ml-2" />
-              הזמנה חדשה
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>צור הזמנה חדשה</DialogTitle>
-              <DialogDescription>
-                צור הזמנה חדשה עבור מסעדה
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="restaurant">מסעדה</Label>
-                  <select className="w-full p-2 border rounded-md">
-                    <option value="">בחר מסעדה</option>
-                    <option value="rest-1">בית קפה הדרך</option>
-                    <option value="rest-2">פיצה רומא</option>
-                    <option value="rest-3">סושי יאמה</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="supplier">ספק</Label>
-                  <select className="w-full p-2 border rounded-md">
-                    <option value="">בחר ספק</option>
-                    <option value="sup-1">ירקות השדה</option>
-                    <option value="sup-2">מחלבת הגולן</option>
-                    <option value="sup-3">דגי הים התיכון</option>
-                  </select>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>פריטים להזמנה</Label>
-                <div className="border rounded-md p-4 space-y-2">
-                  <p className="text-sm text-muted-foreground">בחר מוצרים וכמויות</p>
-                  {/* Add product selection here */}
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline">ביטול</Button>
-              <Button>צור הזמנה</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
 
       {/* Search and Filters */}
-      <div className="flex gap-4 mb-6">
-        <div className="relative flex-1">
+      <div className="flex gap-4 mb-6 flex-wrap">
+        <div className="relative flex-1 min-w-64">
           <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
           <Input
             placeholder="חיפוש לפי מסעדה, ספק או מספר הזמנה..."
@@ -382,84 +464,217 @@ export default function OrdersPage() {
         </div>
         <div className="flex items-center gap-2">
           <Filter className="w-4 h-4 text-muted-foreground" />
-          <select 
-            value={selectedStatus} 
-            onChange={(e) => setSelectedStatus(e.target.value)}
-            className="p-2 border rounded-md"
-          >
-            <option value="all">כל הסטטוסים</option>
-            <option value="pending">ממתין</option>
-            <option value="sent">נשלח</option>
-            <option value="delivered">נמסר</option>
-          </select>
+          <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="כל הסטטוסים" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">כל הסטטוסים</SelectItem>
+              <SelectItem value="pending">ממתין</SelectItem>
+              <SelectItem value="sent">נשלח</SelectItem>
+              <SelectItem value="delivered">נמסר</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
+        <Select value={selectedRestaurant} onValueChange={setSelectedRestaurant}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="כל המסעדות" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">כל המסעדות</SelectItem>
+            {Object.entries(data.restaurants).map(([id, restaurant]) => (
+              <SelectItem key={id} value={id}>{restaurant.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="כל הקטגוריות" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">כל הקטגוריות</SelectItem>
+            {Object.entries(categoryNames).map(([key, value]) => (
+              <SelectItem key={key} value={key}>{value}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <div className="flex items-center gap-2">
           <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
-          <select 
+          <Select 
             value={`${sortBy}-${sortOrder}`}
-            onChange={(e) => {
-              const [field, order] = e.target.value.split('-');
+            onValueChange={(value) => {
+              const [field, order] = value.split('-');
               setSortBy(field as any);
               setSortOrder(order as any);
             }}
-            className="p-2 border rounded-md"
           >
-            <option value="date-desc">תאריך (חדש→ישן)</option>
-            <option value="date-asc">תאריך (ישן→חדש)</option>
-            <option value="amount-desc">סכום (גבוה→נמוך)</option>
-            <option value="amount-asc">סכום (נמוך→גבוה)</option>
-            <option value="status-asc">סטטוס</option>
-          </select>
+            <SelectTrigger className="w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="date-desc">תאריך (חדש→ישן)</SelectItem>
+              <SelectItem value="date-asc">תאריך (ישן→חדש)</SelectItem>
+              <SelectItem value="restaurant-asc">מסעדה (א→ת)</SelectItem>
+              <SelectItem value="restaurant-desc">מסעדה (ת→א)</SelectItem>
+              <SelectItem value="items-desc">פריטים (רב→מעט)</SelectItem>
+              <SelectItem value="items-asc">פריטים (מעט→רב)</SelectItem>
+              <SelectItem value="status-asc">סטטוס</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+      {/* Enhanced Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">סה״כ הזמנות</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <ShoppingCart className="w-4 h-4" />
+              סה״כ הזמנות
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{orders.length}</div>
+            <div className="text-2xl font-bold">{stats.total}</div>
+            <Progress value={100} className="mt-2" />
           </CardContent>
         </Card>
+        
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">ממתינות</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Clock className="w-4 h-4" />
+              ממתינות
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">
-              {orders.filter(o => o.status === 'pending').length}
+            <div className="text-2xl font-bold text-orange-600">{stats.pending}</div>
+            <Progress value={stats.total > 0 ? (stats.pending / stats.total) * 100 : 0} className="mt-2" />
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Truck className="w-4 h-4" />
+              נשלחו
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">{stats.sent}</div>
+            <Progress value={stats.total > 0 ? (stats.sent / stats.total) * 100 : 0} className="mt-2" />
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <CheckCircle className="w-4 h-4" />
+              נמסרו
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{stats.delivered}</div>
+            <Progress value={stats.total > 0 ? (stats.delivered / stats.total) * 100 : 0} className="mt-2" />
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Package className="w-4 h-4" />
+              סה״כ פריטים
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-purple-600">{stats.totalItems}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              ממוצע {stats.total > 0 ? Math.round(stats.totalItems / stats.total) : 0} להזמנה
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4" />
+              עם חסרים
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">{stats.withShortages}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {stats.shortageRate}% מההזמנות
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Analytics Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        {/* Category Distribution */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="w-5 h-5" />
+              התפלגות לפי קטגוריות
+            </CardTitle>
+            <CardDescription>
+              התפלגות ההזמנות לפי קטגוריות ספקים
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {Object.entries(stats.categoryStats)
+                .sort(([,a], [,b]) => b - a)
+                .map(([category, count]) => (
+                  <div key={category} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {getCategoryBadge(category)}
+                      <span className="text-sm">{categoryNames[category] || category}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Progress 
+                        value={(count / stats.total) * 100} 
+                        className="w-20" 
+                      />
+                      <span className="text-sm font-medium w-6 text-right">{count}</span>
+                    </div>
+                  </div>
+                ))}
             </div>
           </CardContent>
         </Card>
+
+        {/* Restaurant Activity */}
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">נשלחו</CardTitle>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5" />
+              פעילות מסעדות
+            </CardTitle>
+            <CardDescription>
+              הזמנות לפי מסעדה
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
-              {orders.filter(o => o.status === 'sent').length}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">נמסרו</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {orders.filter(o => o.status === 'delivered').length}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">סה״כ ערך</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              ₪{orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0).toFixed(0)}
+            <div className="space-y-3">
+              {Object.entries(stats.restaurantStats)
+                .sort(([,a], [,b]) => b.orderCount - a.orderCount)
+                .slice(0, 5)
+                .map(([restaurantId, restaurant]: [string, any]) => (
+                  <div key={restaurantId} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Store className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">{restaurant.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">{restaurant.totalItems} פריטים</span>
+                      <Badge variant="outline" className="text-xs">
+                        {restaurant.orderCount} הזמנות
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
             </div>
           </CardContent>
         </Card>
@@ -467,154 +682,206 @@ export default function OrdersPage() {
 
       {/* Orders Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredOrders.map((order) => (
-          <OrderCard key={order.id} order={order} />
-        ))}
+        {filteredOrders.length > 0 ? (
+          filteredOrders.map((order) => (
+            <OrderCard key={order.id} order={order} />
+          ))
+        ) : (
+          <div className="col-span-full text-center py-12">
+            <ShoppingCart className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium mb-2">לא נמצאו הזמנות</h3>
+            <p className="text-muted-foreground">נסה לשנות את מונחי החיפוש או המסנן</p>
+          </div>
+        )}
       </div>
 
-      {/* Order Details Dialog */}
+      {/* Enhanced Order Details Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-6xl max-h-[85vh] overflow-hidden p-0">
           {selectedOrder && (
             <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <ShoppingCart className="w-5 h-5" />
-                  הזמנה #{selectedOrder.id}
-                </DialogTitle>
-                <DialogDescription>
-                  פרטי הזמנה מלאים
-                </DialogDescription>
+              <DialogHeader className="p-6 pb-4 pr-16 sticky top-0 bg-background z-10 border-b">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <DialogTitle className="flex items-center gap-2">
+                      <ShoppingCart className="w-5 h-5" />
+                      הזמנה #{selectedOrder.id}
+                    </DialogTitle>
+                    <DialogDescription className="flex items-center gap-2 mt-1">
+                      <Store className="w-4 h-4" />
+                      {selectedOrder.restaurantName} ← {selectedOrder.supplierName}
+                    </DialogDescription>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="absolute top-4 left-4 h-8 w-8 p-0 bg-gray-50 hover:bg-gray-100 dark:bg-gray-900 dark:hover:bg-gray-800 rounded-md"
+                  onClick={() => setIsDialogOpen(false)}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
               </DialogHeader>
               
-              <Tabs defaultValue="general" className="w-full">
-                <TabsList className="grid w-full grid-cols-4">
-                  <TabsTrigger value="general">כללי</TabsTrigger>
-                  <TabsTrigger value="items">פריטים</TabsTrigger>
-                  <TabsTrigger value="timeline">לוח זמנים</TabsTrigger>
-                  <TabsTrigger value="issues">בעיות</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="general" className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>מסעדה</Label>
-                      <Input value={selectedOrder.restaurantName} readOnly />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>ספק</Label>
-                      <Input value={selectedOrder.supplierName} readOnly />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label>סטטוס</Label>
-                      <div className="p-2 border rounded-md">
-                        {getStatusBadge(selectedOrder.status)}
+              <div className="flex-1 overflow-y-auto p-6 pt-4">
+                <Tabs defaultValue="general" className="w-full">
+                  <TabsList className="grid w-full grid-cols-4">
+                    <TabsTrigger value="general">כללי</TabsTrigger>
+                    <TabsTrigger value="items">פריטים</TabsTrigger>
+                    <TabsTrigger value="timeline">לוח זמנים</TabsTrigger>
+                    <TabsTrigger value="issues">בעיות</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="general" className="space-y-4 mt-6">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>מסעדה</Label>
+                        <Input value={selectedOrder.restaurantName} readOnly />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>ספק</Label>
+                        <Input value={selectedOrder.supplierName} readOnly />
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label>סוג תקופה</Label>
-                      <Input value={selectedOrder.midweek ? 'אמצע שבוע' : 'סוף שבוע'} readOnly />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>סה״כ ערך</Label>
-                      <Input value={selectedOrder.totalAmount ? `₪${selectedOrder.totalAmount.toFixed(2)}` : 'לא זמין'} readOnly />
-                    </div>
-                  </div>
-                </TabsContent>
-                
-                <TabsContent value="items" className="space-y-4">
-                  <div className="space-y-3">
-                    {selectedOrder.items.map((item, index) => {
-                      const product = mockProducts[item.productId];
-                      return (
-                        <div key={index} className="flex items-center justify-between p-3 border rounded-md">
-                          <div className="flex items-center gap-3">
-                            <span className="text-2xl">{product?.emoji || '📦'}</span>
-                            <div>
-                              <div className="font-medium">{product?.name || `מוצר ${item.productId}`}</div>
-                              <div className="text-sm text-muted-foreground">{product?.unit || 'יחידות'}</div>
-                            </div>
-                          </div>
-                          <div className="text-lg font-semibold">
-                            {item.qty} {product?.unit || 'יח׳'}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </TabsContent>
-                
-                <TabsContent value="timeline" className="space-y-4">
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3 p-3 border rounded-md">
-                      <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                      <div>
-                        <div className="font-medium">הזמנה נוצרה</div>
-                        <div className="text-sm text-muted-foreground">
-                          {selectedOrder.createdAt.toLocaleDateString('he-IL')} {selectedOrder.createdAt.toLocaleTimeString('he-IL')}
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label>סטטוס</Label>
+                        <div className="p-2 border rounded-md">
+                          {getStatusBadge(selectedOrder.status)}
                         </div>
                       </div>
+                      <div className="space-y-2">
+                        <Label>קטגוריה</Label>
+                        <div className="p-2 border rounded-md">
+                          {getCategoryBadge(selectedOrder.supplierCategory)}
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>תקופה</Label>
+                        <Input value={selectedOrder.midweek ? 'אמצע שבוע' : 'סוף שבוע'} readOnly />
+                      </div>
                     </div>
-                    {selectedOrder.sentAt && (
-                      <div className="flex items-center gap-3 p-3 border rounded-md">
-                        <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-                        <div>
-                          <div className="font-medium">הזמנה נשלחה לספק</div>
-                          <div className="text-sm text-muted-foreground">
-                            {selectedOrder.sentAt.toLocaleDateString('he-IL')} {selectedOrder.sentAt.toLocaleTimeString('he-IL')}
-                          </div>
-                        </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>סה״כ פריטים</Label>
+                        <Input value={selectedOrder.totalItems.toString()} readOnly />
                       </div>
-                    )}
-                    {selectedOrder.receivedAt && (
-                      <div className="flex items-center gap-3 p-3 border rounded-md">
-                        <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                        <div>
-                          <div className="font-medium">הזמנה נמסרה</div>
-                          <div className="text-sm text-muted-foreground">
-                            {selectedOrder.receivedAt.toLocaleDateString('he-IL')} {selectedOrder.receivedAt.toLocaleTimeString('he-IL')}
-                          </div>
-                        </div>
+                      <div className="space-y-2">
+                        <Label>מוצרים שונים</Label>
+                        <Input value={selectedOrder.totalProducts.toString()} readOnly />
                       </div>
-                    )}
-                  </div>
-                </TabsContent>
-                
-                <TabsContent value="issues" className="space-y-4">
-                  {selectedOrder.shortages.length > 0 ? (
-                    <div className="space-y-3">
-                      <h4 className="font-medium text-red-600">חסרים בהזמנה:</h4>
-                      {selectedOrder.shortages.map((shortage, index) => {
-                        const product = mockProducts[shortage.productId];
-                        return (
-                          <div key={index} className="flex items-center justify-between p-3 border border-red-200 rounded-md bg-red-50 dark:bg-red-950">
-                            <div className="flex items-center gap-3">
-                              <AlertTriangle className="w-5 h-5 text-red-500" />
-                              <div>
-                                <div className="font-medium">{product?.name || `מוצר ${shortage.productId}`}</div>
-                                <div className="text-sm text-muted-foreground">
-                                  הוזמן: {shortage.qty} {product?.unit} | נמסר: {shortage.received} {product?.unit}
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="items" className="space-y-4 mt-6">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-medium">פריטים בהזמנה ({selectedOrder.totalProducts})</h3>
+                      </div>
+                      <div className="space-y-3">
+                        {selectedOrder.items.map((item, index) => (
+                          <Card key={index}>
+                            <CardContent className="p-4">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                  <span className="text-2xl">{item.productEmoji}</span>
+                                  <div>
+                                    <div className="font-medium">{item.productName}</div>
+                                    <div className="text-sm text-muted-foreground">יחידה: {item.productUnit}</div>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-lg font-semibold">
+                                    {item.qty} {item.productUnit}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    יעד: {selectedOrder.midweek ? item.parMidweek : item.parWeekend} {item.productUnit}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                            <div className="text-red-600 font-semibold">
-                              חסר: {shortage.qty - shortage.received} {product?.unit}
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="timeline" className="space-y-4 mt-6">
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-3 p-3 border rounded-md">
+                        <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                        <div>
+                          <div className="font-medium">הזמנה נוצרה</div>
+                          <div className="text-sm text-muted-foreground">
+                            {selectedOrder.createdAt.toLocaleDateString('he-IL')} {selectedOrder.createdAt.toLocaleTimeString('he-IL')}
+                          </div>
+                        </div>
+                      </div>
+                      {selectedOrder.sentAt && (
+                        <div className="flex items-center gap-3 p-3 border rounded-md">
+                          <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+                          <div>
+                            <div className="font-medium">הזמנה נשלחה לספק</div>
+                            <div className="text-sm text-muted-foreground">
+                              {selectedOrder.sentAt.toLocaleDateString('he-IL')} {selectedOrder.sentAt.toLocaleTimeString('he-IL')}
                             </div>
                           </div>
-                        );
-                      })}
+                        </div>
+                      )}
+                      {selectedOrder.receivedAt && (
+                        <div className="flex items-center gap-3 p-3 border rounded-md">
+                          <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                          <div>
+                            <div className="font-medium">הזמנה נמסרה</div>
+                            <div className="text-sm text-muted-foreground">
+                              {selectedOrder.receivedAt.toLocaleDateString('he-IL')} {selectedOrder.receivedAt.toLocaleTimeString('he-IL')}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  ) : (
-                    <div className="text-center text-muted-foreground">
-                      <CheckCircle className="w-12 h-12 mx-auto mb-2 text-green-500" />
-                      <p>אין בעיות בהזמנה זו</p>
-                      <p className="text-sm">כל הפריטים נמסרו במלואם</p>
-                    </div>
-                  )}
-                </TabsContent>
-              </Tabs>
+                  </TabsContent>
+                  
+                  <TabsContent value="issues" className="space-y-4 mt-6">
+                    {selectedOrder.hasShortages ? (
+                      <div className="space-y-4">
+                        <h4 className="font-medium text-red-600 flex items-center gap-2">
+                          <AlertTriangle className="w-5 h-5" />
+                          חסרים בהזמנה ({selectedOrder.shortages.length})
+                        </h4>
+                        <div className="space-y-3">
+                          {selectedOrder.shortages.map((shortage, index) => (
+                            <Card key={index} className="border-red-200 bg-red-50 dark:bg-red-950/40">
+                              <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-lg">{shortage.productEmoji}</span>
+                                    <div>
+                                      <div className="font-medium">{shortage.productName}</div>
+                                      <div className="text-sm text-red-600">
+                                        הוזמן: {shortage.qty} | נמסר: {shortage.received}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="text-red-600 font-semibold">
+                                    חסר: {shortage.qty - shortage.received}
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center text-muted-foreground py-8">
+                        <CheckCircle className="w-12 h-12 mx-auto mb-4 text-green-500" />
+                        <h3 className="text-lg font-medium mb-2">אין בעיות בהזמנה</h3>
+                        <p className="text-sm">כל הפריטים נמסרו במלואם</p>
+                      </div>
+                    )}
+                  </TabsContent>
+                </Tabs>
+              </div>
             </>
           )}
         </DialogContent>

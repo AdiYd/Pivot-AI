@@ -1,20 +1,20 @@
 "use client";
 
 import { ReactNode } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { FirebaseAppProvider } from "@/lib/firebaseClient";
+// import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+// import { FirebaseAppProvider } from "@/lib/firebaseClient";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 // Create a client
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
-    },
-  },
-});
+// const queryClient = new QueryClient({
+//   defaultOptions: {
+//     queries: {
+//       retry: 1,
+//       refetchOnWindowFocus: false,
+//     },
+//   },
+// });
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
@@ -24,13 +24,13 @@ export function Providers({ children }: { children: ReactNode }) {
       enableSystem
       disableTransitionOnChange
     >
-      <QueryClientProvider client={queryClient}>
+      {/* <QueryClientProvider client={queryClient}> */}
         <TooltipProvider>
-          <FirebaseAppProvider>
+          {/* <FirebaseAppProvider> */}
             {children}
-          </FirebaseAppProvider>
+          {/* </FirebaseAppProvider> */}
         </TooltipProvider>
-      </QueryClientProvider>
+      {/* </QueryClientProvider> */}
     </ThemeProvider>
   );
 }
