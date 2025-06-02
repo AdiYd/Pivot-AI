@@ -1,24 +1,44 @@
-import { BotConfig } from "./botMessages";
+import { BotConfig } from "./types";
 
-export { BotConfig } from "../schema/types";
+// Helper functions need to be defined BEFORE they're used in BOT_MESSAGES
+export function formatTimeHebrew(hour: number): string {
+  if (hour === 0) return "00:00";
+  if (hour < 10) return `0${hour}:00`;
+  return `${hour}:00`;
+}
 
+// Categories data needs to be separate from BOT_MESSAGES to avoid circular reference
+const CATEGORIES = {
+  vegetables: { name: "ירקות", emoji: "🥬" },
+  fish: { name: "דגים", emoji: "🐟" },
+  alcohol: { name: "אלכוהול", emoji: "🍷" },
+  meat: { name: "בשרים", emoji: "🥩" },
+  fruits: { name: "פירות", emoji: "🍎" },
+  oliveOil: { name: "שמן זית", emoji: "🫒" },
+  disposables: { name: "חד פעמי", emoji: "🥤" },
+  dessert: { name: "קינוחים", emoji: "🍰" },
+  juices: { name: "מיצים טבעיים", emoji: "🧃" },
+  eggs: { name: "ביצים אורגניות", emoji: "🥚" }
+};
 
+// Day names - also need to be separate
+const DAY_NAMES = {
+  0: "ראשון", 1: "שני", 2: "שלישי", 3: "רביעי", 
+  4: "חמישי", 5: "שישי", 6: "שבת"
+};
 
-export const BOT_CATEGORIES =  // 📅 קטגוריות ספקים - Supplier Categories
-{
-    vegetables: { name: "ירקות", emoji: "🥬" },
-    fish: { name: "דגים", emoji: "🐟" },
-    alcohol: { name: "אלכוהול", emoji: "🍷" },
-    meat: { name: "בשרים", emoji: "🥩" },
-    fruits: { name: "פירות", emoji: "🍎" },
-    oliveOil: { name: "שמן זית", emoji: "🫒" },
-    disposables: { name: "חד פעמי", emoji: "🥤" },
-    dessert: { name: "קינוחים", emoji: "🍰" },
-    juices: { name: "מיצים טבעיים", emoji: "🧃" },
-    eggs: { name: "ביצים אורגניות", emoji: "🥚" }
-  }
+// Helper functions using the separate constant objects
+export function formatDaysHebrew(days: number[]): string {
+  return days.map(d => DAY_NAMES[d as keyof typeof DAY_NAMES]).join(", ");
+}
 
+export function formatCategoryName(category: string): string {
+  return CATEGORIES[category as keyof typeof CATEGORIES]?.name || category;
+}
 
+export function formatCategoryEmoji(category: string): string {
+  return CATEGORIES[category as keyof typeof CATEGORIES]?.emoji || "📦";
+}
 
 /*
  * Configuration constants for bot behavior
@@ -30,7 +50,7 @@ export const BOT_CONFIG: BotConfig = {
   orderCutoffReminderHours: 3, // 3 hours before cutoff
   
   // Default supplier categories in order
-  supplierCategories:  [
+  supplierCategories: [
     "vegetables", "fish", "alcohol", "meat", "fruits", 
     "oliveOil", "disposables", "dessert", "juices", "eggs"
   ],
@@ -42,28 +62,7 @@ export const BOT_CONFIG: BotConfig = {
   
   // Payment options
   paymentMethods: ["creditCard", "googlePay"],
-  
-  };
-
-
-// Helper functions remain the same with additions for new functionality
-export function formatTimeHebrew(hour: number): string {
-  if (hour === 0) return "00:00";
-  if (hour < 10) return `0${hour}:00`;
-  return `${hour}:00`;
-}
-
-export function formatDaysHebrew(days: number[]): string {
-  return days.map(d => BOT_MESSAGES.dayNames[d as keyof typeof BOT_MESSAGES.dayNames]).join(", ");
-}
-
-export function formatCategoryName(category: string): string {
-  return BOT_CATEGORIES[category as keyof typeof BOT_CATEGORIES]?.name || category;
-}
-
-export function formatCategoryEmoji(category: string): string {
-  return BOT_CATEGORIES[category as keyof typeof BOT_CATEGORIES || {}]?.emoji || "📦";
-}
+};
 
 /*
  * Centralized bot messages in Hebrew with typography
@@ -157,9 +156,9 @@ export const BOT_MESSAGES = {
     
     orderCancelled: "❌ *הזמנה בוטלה*\n\nתוכל להזמין מאוחר יותר דרך תפריט ההזמנות.",
     
+    // Fix the problematic line - now we create the dynamic message when it's needed, not during initialization
     startSnapshot: "📊 *עדכון מלאי*\n\nבחר קטגוריה לעדכון (שלח מספר):\n" +
-                  BOT_CONFIG.supplierCategories.map((category, index) => 
-                    `${index + 1}. ${formatCategoryEmoji(category)} ${formatCategoryName(category)}`).join('\n') +
+                  "יוצג כאן רשימת הקטגוריות" +  // This will be formatted at runtime instead
                   "\n\nאו הקלד 'סיום' לסיום"
   },
 
@@ -225,13 +224,12 @@ export const BOT_MESSAGES = {
     noPhotoAttached: "❌ *לא צורפה תמונה*\n\nאנא שלח תמונה של החשבונית"
   },
 
-  // 📅 שמות ימים - Day Names
-  dayNames: {
-    0: "ראשון", 1: "שני", 2: "שלישי", 3: "רביעי", 
-    4: "חמישי", 5: "שישי", 6: "שבת"
-  }
-} as const;
+  // 📅 קטגוריות ספקים - Supplier Categories
+  categories: CATEGORIES,
 
+  // 📅 שמות ימים - Day Names
+  dayNames: DAY_NAMES
+};
 
 export type MessageContext = {
   contactName?: string;
@@ -259,6 +257,12 @@ export type MessageContext = {
   selectedDays?: string;
   unit?: string;
 };
+
+// Function to format the inventory snapshot category list at runtime
+export function formatInventorySnapshotCategories(categories: string[]): string {
+  return categories.map((category, index) => 
+    `${index + 1}. ${formatCategoryEmoji(category)} ${formatCategoryName(category)}`).join('\n');
+}
 
 export function interpolateMessage(template: string, context: MessageContext): string {
   let result = template;

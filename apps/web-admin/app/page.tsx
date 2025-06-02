@@ -359,7 +359,7 @@ export default function DashboardPage() {
           <TabsTrigger value="system">סטטוס מערכת</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="activity" className="space-y-4">
+        <TabsContent dir="rtl" value="activity" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -398,7 +398,7 @@ export default function DashboardPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="alerts" className="space-y-4">
+        <TabsContent dir="rtl" value="alerts" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -503,7 +503,7 @@ export default function DashboardPage() {
           </div>
         </TabsContent> */}
 
-        <TabsContent value="system" className="space-y-4">
+        <TabsContent dir="rtl" value="system" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

@@ -6,7 +6,6 @@ import {
   Supplier,
   Product,
   BotState,
-  // ItemLine,
   ItemShortage,
   StockLine,
   SupplierCategory,
@@ -18,6 +17,12 @@ if (!admin.apps?.length) {
   admin.initializeApp({ projectId: 'pivot-chatbot-fdfe0' });
 }
 const firestore = admin.firestore();
+console.log(`[Firestore] Initialized Firestore with project ID: ${firestore.databaseId}`);
+
+// Helper function to get collection name based on simulator mode
+function getCollectionName(baseName: string, isSimulator: boolean = false): string {
+  return isSimulator ? `${baseName}_simulator` : baseName;
+}
 
 // ==== ZOD SCHEMAS FOR DATA VALIDATION ====
 
@@ -56,7 +61,7 @@ const SupplierSchema = z.object({
   category: z.string(),
   deliveryDays: z.array(z.number().min(0).max(6)),
   cutoffHour: z.number().min(0).max(23),
-  rating: z.number().min(1).max(5).optional().default(0)
+  rating: z.number().min(1).max(5).optional()
 });
 
 // Product schema for validation
@@ -116,6 +121,7 @@ export type ConversationData = z.infer<typeof ConversationStateSchema>;
 /**
  * Create a new restaurant
  * @param data Restaurant data
+ * @param isSimulator Whether to use simulator collections
  * @returns The ID of the created restaurant
  */
 export async function createRestaurant(data: {
@@ -129,8 +135,8 @@ export async function createRestaurant(data: {
   contactEmail?: string;
   paymentMethod: string;
   phone: string;
-}): Promise<string> {
-  console.log(`[Firestore] Creating restaurant:`, {
+}, isSimulator: boolean = false): Promise<string> {
+  console.log(`[Firestore] Creating restaurant${isSimulator ? ' (simulator)' : ''}:`, {
     legalId: data.legalId,
     businessName: data.companyName,
     name: data.name
@@ -162,8 +168,11 @@ export async function createRestaurant(data: {
       createdAt: FieldValue.serverTimestamp()
     };
 
+    // Use the correct collection based on simulator mode
+    const collectionName = getCollectionName('restaurants', isSimulator);
+    
     // Use the legalId as the restaurant document ID
-    await firestore.collection('restaurants').doc(data.legalId).set(restaurantDoc);
+    await firestore.collection(collectionName).doc(data.legalId).set(restaurantDoc);
     
     console.log(`[Firestore] ✅ Restaurant "${data.name}" created successfully with ID ${data.legalId}`);
     return data.legalId;
@@ -176,11 +185,13 @@ export async function createRestaurant(data: {
 /**
  * Get a restaurant by ID
  * @param restaurantId Restaurant ID (legalId)
+ * @param isSimulator Whether to use simulator collections
  * @returns Restaurant data or null if not found
  */
-export async function getRestaurant(restaurantId: string): Promise<Restaurant | null> {
+export async function getRestaurant(restaurantId: string, isSimulator: boolean = false): Promise<Restaurant | null> {
   try {
-    const doc = await firestore.collection('restaurants').doc(restaurantId).get();
+    const collectionName = getCollectionName('restaurants', isSimulator);
+    const doc = await firestore.collection(collectionName).doc(restaurantId).get();
     
     if (!doc.exists) {
       console.log(`[Firestore] No restaurant found with ID: ${restaurantId}`);
@@ -197,14 +208,19 @@ export async function getRestaurant(restaurantId: string): Promise<Restaurant | 
 /**
  * Get a restaurant by phone number
  * @param phone Phone number
+ * @param isSimulator Whether to use simulator collections
  * @returns Restaurant reference and data or null if not found
  */
-export async function getRestaurantByPhone(phone: string): Promise<{id: string, data: Restaurant, ref: DocumentReference} | null> {
+export async function getRestaurantByPhone(
+  phone: string, 
+  isSimulator: boolean = false
+): Promise<{id: string, data: Restaurant, ref: DocumentReference} | null> {
   try {
     console.log(`[Firestore] Looking up restaurant by phone: ${phone}`);
     
+    const collectionName = getCollectionName('restaurants', isSimulator);
     const snapshot = await firestore
-      .collection('restaurants')
+      .collection(collectionName)
       .where('primaryContact.whatsapp', '==', phone)
       .limit(1)
       .get();
@@ -254,8 +270,11 @@ export async function updateRestaurantActivation(restaurantId: string, isActivat
  * @param data Supplier data
  * @returns The supplier ID (whatsapp number)
  */
-export async function updateSupplier(data: SupplierData): Promise<string> {
-  console.log(`[Firestore] Adding/updating supplier to restaurant:`, {
+export async function updateSupplier(
+  data: SupplierData, 
+  isSimulator: boolean = false
+): Promise<string> {
+  console.log(`[Firestore] Adding/updating supplier to restaurant${isSimulator ? ' (simulator)' : ''}:`, {
     restaurantId: data.restaurantId,
     name: data.name,
     whatsapp: data.whatsapp
@@ -265,8 +284,11 @@ export async function updateSupplier(data: SupplierData): Promise<string> {
     // Validate input data
     const validData = SupplierSchema.parse(data);
     
+    // Use correct collection based on simulator mode
+    const restaurantsCollection = getCollectionName('restaurants', isSimulator);
+    
     // Check if restaurant exists
-    const restaurantRef = firestore.collection('restaurants').doc(validData.restaurantId);
+    const restaurantRef = firestore.collection(restaurantsCollection).doc(validData.restaurantId);
     const restaurantDoc = await restaurantRef.get();
     
     if (!restaurantDoc.exists) {
@@ -276,7 +298,7 @@ export async function updateSupplier(data: SupplierData): Promise<string> {
     // Use the whatsapp number as the supplier document ID for easy reference
     const supplierRef = restaurantRef.collection('suppliers').doc(validData.whatsapp);
     
-    console.log(`[Firestore] Writing to restaurants/${validData.restaurantId}/suppliers/${validData.whatsapp}...`);
+    console.log(`[Firestore] Writing to ${restaurantsCollection}/${validData.restaurantId}/suppliers/${validData.whatsapp}...`);
 
     const supplierDoc = {
       name: validData.name,
@@ -744,14 +766,19 @@ export async function getLatestInventorySnapshot(
 /**
  * Get conversation state by phone number
  * @param phone The phone number (without whatsapp: prefix)
+ * @param isSimulator Whether to use simulator collections
  * @returns The conversation state or null if not found
  */
-export async function getConversationState(phone: string): Promise<ConversationData | null> {
+export async function getConversationState(
+  phone: string,
+  isSimulator: boolean = false
+): Promise<ConversationData | null> {
   try {
     console.log(`[Firestore] Getting conversation state for phone: ${phone}`);
     
+    const collectionName = getCollectionName('conversations', isSimulator);
     const doc = await firestore
-      .collection('conversations')
+      .collection(collectionName)
       .doc(phone)
       .get();
       
@@ -777,27 +804,33 @@ export async function getConversationState(phone: string): Promise<ConversationD
  * @param phone Phone number without whatsapp prefix
  * @param restaurantId Restaurant ID
  * @param initialState Initial bot state
+ * @param isSimulator Whether to use simulator collections
  * @returns The created conversation state
  */
 export async function initializeConversationState(
   phone: string,
   restaurantId: string,
-  initialState: BotState = "INIT"
+  initialState: BotState = "INIT",
+  isSimulator: boolean = false
 ): Promise<ConversationData> {
   try {
     console.log(`[Firestore] Initializing conversation state for phone: ${phone}`);
     
+    // Use correct collections based on simulator mode
+    const restaurantsCollection = getCollectionName('restaurants', isSimulator);
+    const conversationsCollection = getCollectionName('conversations', isSimulator);
+    
     // Get a reference to the restaurant
-    const restaurantRef = firestore.collection('restaurants').doc(restaurantId);
+    const restaurantRef = firestore.collection(restaurantsCollection).doc(restaurantId);
     
     const newState: ConversationData = {
       restaurantId,
       currentState: initialState,
-      context: {}
+      context: { isSimulator }
     };
     
     await firestore
-      .collection('conversations')
+      .collection(conversationsCollection)
       .doc(phone)
       .set({
         ...newState,
@@ -817,22 +850,31 @@ export async function initializeConversationState(
  * Save conversation state using phone number as document ID
  * @param phone The phone number (without whatsapp: prefix)
  * @param state The conversation state to save
+ * @param isSimulator Whether to use simulator collections
  */
-export async function saveConversationState(phone: string, state: ConversationData): Promise<void> {
+export async function saveConversationState(
+  phone: string, 
+  state: ConversationData,
+  isSimulator: boolean = false
+): Promise<void> {
   try {
     console.log(`[Firestore] Saving conversation state for phone: ${phone}`, {
       currentState: state.currentState,
       contextKeys: Object.keys(state.context || {})
     });
     
+    // Use correct collections based on simulator mode
+    const restaurantsCollection = getCollectionName('restaurants', isSimulator);
+    const conversationsCollection = getCollectionName('conversations', isSimulator);
+    
     // Get restaurant reference if it doesn't exist in the update
     let restaurantRef;
     if (state.restaurantId) {
-      restaurantRef = firestore.collection('restaurants').doc(state.restaurantId);
+      restaurantRef = firestore.collection(restaurantsCollection).doc(state.restaurantId);
     }
     
     await firestore
-      .collection('conversations')
+      .collection(conversationsCollection)
       .doc(phone)
       .set({
         ...state,
@@ -853,18 +895,22 @@ export async function saveConversationState(phone: string, state: ConversationDa
  * @param message The message content
  * @param direction 'incoming' or 'outgoing'
  * @param currentState The current bot state when message was processed
+ * @param isSimulator Whether to use simulator collections
  */
 export async function logMessage(
   phone: string, 
   message: string, 
   direction: 'incoming' | 'outgoing',
-  currentState?: string
+  currentState?: string,
+  isSimulator: boolean = false
 ): Promise<void> {
   try {
     console.log(`[Firestore] Logging ${direction} message for phone: ${phone}`);
     
+    const conversationsCollection = getCollectionName('conversations', isSimulator);
+    
     await firestore
-      .collection('conversations')
+      .collection(conversationsCollection)
       .doc(phone)
       .collection('messages')
       .add({

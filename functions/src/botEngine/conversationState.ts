@@ -17,7 +17,10 @@ export function conversationStateReducer(
   currentState: ConversationState,
   message: IncomingMessage
 ): StateTransition {
-  console.log(`[BotEngine] Processing message in state: ${currentState.currentState}`, {
+  // Extract simulator flag from context if present
+  const isSimulator = !!currentState.context?.isSimulator;
+  
+  console.log(`[BotEngine] Processing message in state: ${currentState.currentState} ${isSimulator ? '(simulator)' : ''}`, {
     from: message.from,
     bodyLength: message.body?.length || 0,
     currentContextKeys: Object.keys(currentState.context || {})
@@ -27,7 +30,7 @@ export function conversationStateReducer(
   // Create new state preserving existing context
   let newState = { 
     ...currentState,
-    context: { ...currentState.context } // Ensure context is preserved
+    context: { ...currentState.context } // Ensure context is preserved including isSimulator flag
   };
 
   try {
@@ -1335,7 +1338,7 @@ export function conversationStateReducer(
     };
   }
 
-  console.log(`[BotEngine] State transition: ${currentState.currentState} -> ${newState.currentState}`, {
+  console.log(`[BotEngine] State transition: ${currentState.currentState} -> ${newState.currentState} ${isSimulator ? '(simulator)' : ''}`, {
     actionsCount: actions.length,
     contextKeys: Object.keys(newState.context),
   });

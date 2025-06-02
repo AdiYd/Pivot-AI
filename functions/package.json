@@ -1,8 +1,10 @@
 {
   "name": "functions",
   "scripts": {
+    "dev": "firebase emulators:start",
+    "serve:emulators": "firebase emulators:start --only functions",
     "build": "tsc",
-    "watch": "tsc --watch",
+    "watch": "tsc --watch && npm run build && npm run serve:emulators",
     "lint": "eslint src/**/*.ts"
   },
   "engines": {

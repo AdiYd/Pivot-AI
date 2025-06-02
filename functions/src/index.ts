@@ -11,57 +11,89 @@ if (!admin.apps?.length) {
   admin.initializeApp({ projectId: 'pivot-chatbot-fdfe0' });
 }
 
+const simulatorDoc = 'conversations_simulator'; //'conversations_simulator'; // Collection for simulator conversations
+const restaurantDoc = 'restaurants_simulator'; // Collection for real restaurant conversations
 const firestore = admin.firestore();
-console.log("Firebase Admin initialized");
+
+
+// API Key for admin simulator authentication
+const ADMIN_API_KEY = process.env.ADMIN_SIMULATOR_API_KEY || 'simulator-dev-key';
 
 // Process incoming WhatsApp messages from Twilio
 /**
  * Main WhatsApp webhook handler
  * Processes incoming messages from Twilio and manages conversation flow
+ * Also handles simulator requests from admin app
  */
 exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
   try {
+    // Set CORS headers for all requests
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, x-simulator-api-key');
 
-    // Only process POST requests
+    // Handle CORS preflight request
+    if (req.method === 'OPTIONS') {
+      res.status(200).send('');
+      return;
+    }
+
+    // Only process POST requests for actual webhook handling
+    
     if (req.method !== 'POST') {
       res.status(405).send('Method Not Allowed');
       return;
     }
 
-    // Validate that the request is coming from Twilio
-    if (!validateTwilioWebhook(req)) {
+    // Check if this is a simulator request from admin app
+    const isSimulator = req.headers['x-simulator-api-key'] === ADMIN_API_KEY;
+
+    // For regular Twilio requests, validate the webhook signature
+    // Skip validation for simulator requests with valid API key
+    if (!isSimulator && !validateTwilioWebhook(req)) {
       console.error("Invalid Twilio signature");
       res.status(403).send("Forbidden");
       return;
     }
 
-    // Extract message details from Twilio request
-    const from = req.body.From;
-    const body = req.body.Body || '';
-    // const mediaUrl = req.body.MediaUrl0;
+    // Extract message details from request body
+    // If simulator, use different field names than Twilio's
+    const from = isSimulator ? 
+      req.body.phone : // Admin app format
+      req.body.From;  // Twilio format
+    const body = isSimulator ? 
+      req.body.message : // Admin app format
+      req.body.Body || ''; // Twilio format
+    const mediaUrl = isSimulator ?
+      req.body.mediaUrl : // Admin app format
+      req.body.MediaUrl0; // Twilio format
     
     if (!from) {
-      console.error('Missing From field in request body');
-      res.status(400).send('Bad Request: Missing From field');
+      console.error('Missing From/phone field in request body');
+      res.status(400).send('Bad Request: Missing sender phone number');
       return;
     }
 
-    console.log(`[WhatsApp] Received message from ${from}: "${body}"`);
+    console.log(`[${isSimulator ? 'Simulator' : 'WhatsApp'}] Received message from ${from}: "${body}"`);
 
     // Extract phone number without whatsapp: prefix for document ID
-    const phoneNumber = from.replace("whatsapp:", "");
-    
+    // For simulator, the phone number should already be in clean format
+    const phoneNumber = isSimulator ? from : from.replace("whatsapp:", "");
     // Log incoming message for audit trail
-    await firestore.collection('conversations').doc(phoneNumber).collection('messages').add({
-      body,
-      direction: 'incoming',
-      createdAt: FieldValue.serverTimestamp()
-    });
+    await firestore.collection(isSimulator ? simulatorDoc : 'conversations')
+      ?.doc(phoneNumber)
+      ?.collection('messages')
+      ?.add({
+        body,
+        direction: 'incoming',
+        createdAt: FieldValue.serverTimestamp()
+      });
 
     // Create the incoming message object
     const message: IncomingMessage = {
-      from,
+      from: isSimulator ? `whatsapp:${from}` : from, // Ensure from has whatsapp: prefix for state machine
       body,
+      mediaUrl
     };
 
     /**
@@ -72,29 +104,33 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
     let restaurantId = "";
 
     // Get existing conversation state by phone number
-    const conversationRef = firestore.collection("conversations").doc(phoneNumber);
+    const conversationsCollection = isSimulator ? simulatorDoc : 'conversations';
+    const conversationRef = firestore.collection(conversationsCollection).doc(phoneNumber);
     const conversationDoc = await conversationRef.get();
 
     if (!conversationDoc.exists) {
+      console.log(`[${isSimulator ? 'Simulator' : 'WhatsApp'}] No existing conversation found for phone: ${phoneNumber}`);
       // New conversation - check if restaurant already exists for this phone
+      const restaurantsCollection = isSimulator ? restaurantDoc : 'restaurants';
       const restaurantRef = await firestore
-        .collection("restaurants")
-        .where("primaryContact.phone", "==", phoneNumber)
+        .collection(restaurantsCollection)
+        .where("primaryContact.whatsapp", "==", phoneNumber)
         .limit(1)
         .get();
 
       if (restaurantRef.empty) {
         // Completely new user - start onboarding
-        restaurantId = firestore.collection("restaurants").doc().id;
+        restaurantId = firestore.collection(restaurantsCollection).doc().id;
         conversationState = {
           restaurantId,
           currentState: "INIT",
           context: {
             contactNumber: phoneNumber,
+            isSimulator
           },
           lastMessageTimestamp: Timestamp.now(),
         };
-        console.log(`[WhatsApp] New user starting onboarding - phone: ${phoneNumber}, restaurantId: ${restaurantId}`);
+        console.log(`[${isSimulator ? 'Simulator' : 'WhatsApp'}] New user starting onboarding - phone: ${phoneNumber}, restaurantId: ${restaurantId}`);
       } else {
         // Existing restaurant, new conversation
         const restaurantDoc = restaurantRef.docs[0];
@@ -107,10 +143,11 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
           context: {
             restaurantName: restaurantData.name,
             contactName: restaurantData.primaryContact.name,
+            isSimulator
           },
           lastMessageTimestamp: Timestamp.now(),
         };
-        console.log(`[WhatsApp] Existing restaurant, new conversation - phone: ${phoneNumber}, restaurantId: ${restaurantId}`);
+        console.log(`[${isSimulator ? 'Simulator' : 'WhatsApp'}] Existing restaurant, new conversation - phone: ${phoneNumber}, restaurantId: ${restaurantId}`);
       }
     } else {
       // Existing conversation - load state
@@ -118,10 +155,13 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
       conversationState = {
         restaurantId: data?.restaurantId || "",
         currentState: data?.currentState || "IDLE",
-        context: data?.context || {},
+        context: {
+          ...data?.context || {},
+          isSimulator
+        },
         lastMessageTimestamp: Timestamp.now(),
       };
-      console.log(`[WhatsApp] Continuing existing conversation`, {
+      console.log(`[${isSimulator ? 'Simulator' : 'WhatsApp'}] Continuing existing conversation`, {
         phone: phoneNumber,
         restaurantId: conversationState.restaurantId,
         currentState: conversationState.currentState,
@@ -138,7 +178,7 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
       message
     );
 
-    console.log(`[WhatsApp] State machine result:`, {
+    console.log(`[${isSimulator ? 'Simulator' : 'WhatsApp'}] State machine result:`, {
       phone: phoneNumber,
       oldState: conversationState.currentState,
       newState: newState.currentState,
@@ -159,19 +199,34 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
     };
 
     await conversationRef.set(firestoreState);
-    console.log(`[WhatsApp] ✅ Conversation state saved for phone: ${phoneNumber}`);
+    console.log(`[${isSimulator ? 'Simulator' : 'WhatsApp'}] ✅ Conversation state saved for phone: ${phoneNumber}`);
 
     /**
      * Execute all actions generated by the state machine
-     * Pass phone number for message logging
+     * For simulator mode, collect responses instead of sending via Twilio
      */
-    await processActions(actions, from);
+    const responses = await processActions(actions, message.from, isSimulator);
 
-    // Send a successful response back to Twilio
-    res.status(200).send("OK");
+    // If this is a simulator request, return the bot responses directly
+    if (isSimulator) {
+      res.status(200).json({
+        success: true,
+        responses: responses, // This will contain the messages that would be sent via WhatsApp
+        newState: {
+          currentState: newState.currentState,
+          context: Object.keys(newState.context || {})
+        }
+      });
+    } else {
+      // For regular Twilio webhook, just send an OK response
+      res.status(200).send("OK");
+    }
   } catch (error) {
-    console.error("Error processing whatsapp webhook:", error);
-    res.status(500).send("Internal Server Error");
+    console.error("Error processing webhook:", error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : "Internal Server Error"
+    });
   }
 });
 

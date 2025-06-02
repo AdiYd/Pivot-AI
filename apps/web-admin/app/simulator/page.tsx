@@ -1,0 +1,652 @@
+'use client';
+
+import { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { doc, getDoc, collection, query, orderBy, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebaseClient';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { 
+  MessageCircle, 
+  Send, 
+  Phone, 
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  Trash2,
+  RotateCcw,
+  Bot,
+  User,
+  Wifi,
+  WifiOff,
+  Play,
+  Square
+} from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
+import { cn } from '@/lib/utils';
+import axios from 'axios';
+import { Icon } from '@iconify/react/dist/iconify.js';
+
+// Types
+interface Message {
+  id: string;
+  content: string;
+  timestamp: Date;
+  isBot: boolean;
+  status?: 'sending' | 'sent' | 'delivered' | 'failed';
+}
+
+interface ConversationState {
+  currentState: string;
+  context: Record<string, any>;
+}
+
+interface SimulatorSession {
+  phoneNumber: string;
+  messages: Message[];
+  conversationState?: ConversationState;
+  isConnected: boolean;
+  isLoading: boolean;
+}
+
+// Configuration
+const FUNCTION_URL = process.env.NODE_ENV === 'development' 
+  ? 'https://5a7b-2a0d-6fc2-60e0-c200-d58b-4381-8350-686a.ngrok-free.app/pivot-chatbot-fdfe0/us-central1/whatsappWebhook'
+  : 'https://us-central1-pivot-chatbot-fdfe0.cloudfunctions.net/whatsappWebhook';
+
+const SIMULATOR_API_KEY = process.env.NEXT_PUBLIC_SIMULATOR_API_KEY;
+
+// Predefined test scenarios
+const TEST_SCENARIOS = [
+  {
+    id: 'onboarding',
+    name: 'רישום מסעדה חדשה',
+    phone: '0501234567',
+    messages: [
+      'שלום',
+      'מסעדת הבית',
+      '123456789',
+      'הבית',
+      '5',
+      'יוסי כהן',
+      'yossi@example.com',
+      '1'
+    ]
+  },
+  {
+    id: 'inventory',
+    name: 'עדכון מלאי',
+    phone: '0509876543',
+    messages: [
+      'מלאי',
+      '1',
+      '15',
+      'כן'
+    ]
+  },
+  {
+    id: 'order',
+    name: 'ביצוע הזמנה',
+    phone: '0507654321',
+    messages: [
+      'הזמנה',
+      'כן',
+      'אישור'
+    ]
+  }
+];
+
+export default function SimulatorPage() {
+  const [session, setSession] = useState<SimulatorSession>({
+    phoneNumber: '0505555555',
+    messages: [],
+    isConnected: false,
+    isLoading: false
+  });
+  const [newMessage, setNewMessage] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [session.messages]);
+
+  // Focus input when connected
+  useEffect(() => {
+    if (session.isConnected && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [session.isConnected, session.messages]);
+
+  // Validate phone number
+  const validatePhoneNumber = (phone: string): boolean => {
+    const cleanPhone = phone.replace(/\s|-/g, '');
+    return /^05\d{8}$/.test(cleanPhone) || /^\+972\d{9}$/.test(cleanPhone);
+  };
+
+  // Start new session
+  const startSession = async () => {
+    console.log('Starting session with phone:', session);
+    if (!session.phoneNumber.trim()) {
+      toast({
+        title: "שגיאה",
+        description: "אנא הזן מספר טלפון",
+      });
+      return;
+    }
+
+    if (!validatePhoneNumber(session.phoneNumber)) {
+      toast({
+        title: "מספר טלפון לא תקין",
+        description: "אנא הזן מספר טלפון ישראלי תקין (05xxxxxxxxx)",
+      });
+      return;
+    }
+
+    const cleanPhone = session.phoneNumber.replace(/\s|-/g, '');
+    const loadedSession = await loadSession(cleanPhone);
+    console.log('Loaded session:', loadedSession);
+    setSession(prev => ({
+      ...prev,
+      messages: loadedSession?.messages || [],
+      conversationState: loadedSession?.conversationState || undefined,
+      isConnected: true,
+      isLoading: false,
+    }));
+
+    toast({
+    title: loadedSession ? "שיחה נטענה בהצלחה" : "התחברת בהצלחה",
+    description: `מתחיל שיחה עם ${cleanPhone}${loadedSession ? ' (נטען היסטוריה)' : ''}`,
+  });
+  };
+
+  // Send message to bot
+  const sendMessage = async (messageContent: string, isUserMessage = true) => {
+    if (!session.isConnected || !messageContent.trim()) return;
+
+    const messageId = Date.now().toString();
+    const userMessage: Message = {
+      id: messageId,
+      content: messageContent.trim(),
+      timestamp: new Date(),
+      isBot: false,
+      status: 'sending'
+    };
+
+    // Add user message to UI if it's a user message
+    if (isUserMessage) {
+      setSession(prev => ({
+        ...prev,
+        messages: [...prev.messages, userMessage],
+        isLoading: true
+      }));
+    }
+
+    try {
+      
+      const response = await axios.post(FUNCTION_URL, {
+        phone: session.phoneNumber.replace(/\s|-/g, ''),
+        message: messageContent,
+        mediaUrl: undefined
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'x-simulator-api-key': SIMULATOR_API_KEY || 'simulator-dev-key'
+        },
+        timeout: 30000,
+        // Explicitly handle CORS for development
+        withCredentials: false
+      });
+
+      // Update user message status
+      if (isUserMessage) {
+        setSession(prev => ({
+          ...prev,
+          messages: prev.messages.map(msg => 
+            msg.id === messageId ? { ...msg, status: 'delivered' } : msg
+          )
+        }));
+      }
+
+      // Process bot responses
+      if (response.data.success && response.data.responses) {
+        const botMessages: Message[] = response.data.responses.map((content: string, index: number) => ({
+          id: `bot-${Date.now()}-${index}`,
+          content,
+          timestamp: new Date(Date.now() + index * 100), // Slight delay between multiple responses
+          isBot: true,
+          status: 'delivered'
+        }));
+        // Add bot messages with animation delay
+        for (let i = 0; i < botMessages.length; i++) {
+          setTimeout(() => {
+            setSession(prev => ({
+              ...prev,
+              messages: [...prev.messages, botMessages[i]],
+              conversationState: response.data.newState,
+              isLoading: i === botMessages.length - 1 ? false : prev.isLoading
+            }));
+          }, i * 500);
+        }
+      } else {
+        throw new Error(response.data.error || 'תגובה לא צפויה מהשרת');
+      }
+
+    } catch (error) {
+      console.error('Error sending message:', error);
+      
+      // Update user message status to failed
+      if (isUserMessage) {
+        setSession(prev => ({
+          ...prev,
+          messages: prev.messages.map(msg => 
+            msg.id === messageId ? { ...msg, status: 'failed' } : msg
+          ),
+          isLoading: false
+        }));
+      }
+
+      let errorMessage = 'שגיאה לא ידועה';
+      
+      if (axios.isAxiosError(error)) {
+        if (error.code === 'ECONNREFUSED') {
+          errorMessage = 'לא ניתן להתחבר לשרת הפיתוח. ודא שהפונקציות פועלות (firebase emulators:start)';
+        } else if (error.response?.status === 404) {
+          errorMessage = 'הפונקציה לא נמצאה. ודא שה-URL נכון';
+        } else if (error.response?.status === 403) {
+          errorMessage = 'אין הרשאה לגשת לפונקציה';
+        } else {
+          errorMessage = error.response?.data?.error || error.message;
+        }
+      }
+
+      toast({
+        title: "שגיאה בשליחת הודעה",
+        description: errorMessage,
+      });
+    }
+  };
+
+  // Handle form submission
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMessage.trim() || session.isLoading) return;
+
+    const message = newMessage;
+    setNewMessage('');
+    await sendMessage(message);
+  };
+
+
+
+  // Clear conversation
+  const clearConversation = () => {
+    setSession(prev => ({
+      ...prev,
+      messages: [],
+      conversationState: undefined
+    }));
+    
+    toast({
+      title: "השיחה נוקתה",
+      description: "כל ההודעות נמחקו",
+    });
+  };
+
+  // Disconnect session
+  const disconnectSession = () => {
+    setSession({
+      phoneNumber: '',
+      messages: [],
+      isConnected: false,
+      isLoading: false
+    });
+    setNewMessage('');
+    
+    toast({
+      title: "התנתקת",
+      description: "הסימולטור נותק בהצלחה",
+    });
+  };
+
+  // Get status icon for message
+  const getMessageStatusIcon = (status?: string) => {
+    switch (status) {
+      case 'sending':
+        return <Clock className="w-3 h-3 text-gray-400 animate-pulse" />;
+      case 'sent':
+        return <CheckCircle2 className="w-3 h-3 text-gray-400" />;
+      case 'delivered':
+        return <CheckCircle2 className="w-3 h-3 text-blue-500" />;
+      case 'failed':
+        return <AlertCircle className="w-3 h-3 text-red-500" />;
+      default:
+        return null;
+    }
+  };
+
+  // Get state badge color
+  const getStateBadgeColor = (state: string) => {
+    if (state.includes('ONBOARDING')) return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+    if (state.includes('INVENTORY')) return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+    if (state.includes('ORDER')) return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
+    if (state.includes('DELIVERY')) return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
+    if (state === 'IDLE') return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
+    return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+  };
+
+  return (
+    <div className="p-6 pt-0 max-h-full space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <Icon icon="logos:whatsapp-icon" width="1.3em" height="1.3em" />
+            סימולטור WhatsApp
+          </h1>
+          <p className="text-muted-foreground">בדוק את הבוט במצב סימולציה מבלי לשלוח הודעות אמיתיות</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {session.isConnected ? (
+            <Badge variant="default" className="bg-green-500">
+              <Wifi className="w-3 h-3 ml-1" />
+              מחובר
+            </Badge>
+          ) : (
+            <Badge variant="secondary">
+              <WifiOff className="w-3 h-3 ml-1" />
+              לא מחובר
+            </Badge>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Control Panel */}
+        <div className="lg:col-span-1 space-y-4">
+          {/* Connection */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">התחברות</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {!session.isConnected ? (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">מספר טלפון</Label>
+                    <Input
+                      id="phone"
+                      placeholder="050-1234567"
+                      value={session.phoneNumber}
+                      onChange={(e) => setSession(prev => ({ ...prev, phoneNumber: e.target.value }))}
+                      onKeyPress={(e) => e.key === 'Enter' && startSession()}
+                    />
+                  </div>
+                  <Button onClick={startSession} className="w-full">
+                    התחבר
+                    <Phone className="w-4 h-4 ml-2" />
+                  </Button>
+                </>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">מחובר:</span>
+                    <span className="text-sm">{session.phoneNumber}</span>
+                  </div>
+                  <Button onClick={disconnectSession} variant="outline" className="w-full">
+                    התנתק
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Conversation State */}
+          {session.conversationState && (
+            <Card className='max-h-[55vh]'>
+              <CardHeader className='py-1'>
+                <CardTitle className="text-lg">מצב השיחה</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1 overflow-y-auto">
+                <div>
+                  <Label className="text-sm">מצב נוכחי</Label>
+                  <Badge 
+                    className={cn("mt-1 font-mono text-xs", getStateBadgeColor(session.conversationState.currentState))}
+                  >
+                    {session.conversationState.currentState}
+                  </Badge>
+                </div>
+                
+                {Object.keys(session.conversationState.context).length > 0 && (
+                  <div>
+                    <Label className="text-sm">נתוני שיחה</Label>
+                    <div className="mt-1 space-y-1">
+                      {Object.entries(session.conversationState.context).map(([key, value]) => (
+                        <div key={key} className="text-xs bg-muted p-2 rounded">
+                          <span className="font-medium">{key}:</span> {JSON.stringify(value)}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Chat Window */}
+        <div className="lg:col-span-3">
+          <Card className="h-[600px] overflow-hidden flex flex-col ">
+            {/* Chat Header */}
+            <CardHeader className="py-2 absolute bg-card/50 backdrop-blur-lg w-full z-10">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                    <Bot className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">בוט Pivot</CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      {session.isConnected ? 'מחובר' : 'לא מחובר'}
+                      {session.conversationState && ` • ${session.conversationState.currentState}`}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+
+            {/* Messages Area */}
+            <CardContent className="flex-1 chat-whatsApp overflow-y-auto flex flex-col p-0">
+              <ScrollArea className="flex-1 p-4 pt-0">
+                <div dir='rtl' className="space-y-4 my-20">
+                  <AnimatePresence>
+                    {session.messages.map((message) => (
+                      <motion.div
+                        key={message.id}
+                        initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                        transition={{ duration: 0.3, ease: "easeOut" }}
+                        className={cn(
+                          "flex flex-row-reverse gap-3",
+                          message.isBot ? "justify-start" : "justify-end ml-auto"
+                        )}
+                      >
+                        {message.isBot && (
+                          <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                            <Bot className="w-4 h-4 text-white" />
+                          </div>
+                        )}
+                        
+                        <div className={cn(
+                          "rounded-2xl min-w-[30%]* px-4 py-2 max-w-full break-words",
+                          message.isBot 
+                            ? "bg-muted" 
+                            : "bg-gradient-to-r text-start from-green-700/80 to-green-600/80 backdrop-blur-md text-white"
+                        )}>
+                          <p className="text-sm whitespace-pre-wrap">
+                            {message.content.split(/(\*[^*]+\*)/g).map((part, index) => {
+                              if (part.startsWith('*') && part.endsWith('*')) {
+                                return <strong key={index}>{part.slice(1, -1)}</strong>;
+                              }
+                              return part;
+                            })}
+                          </p>
+                          <div className={cn(
+                            "flex items-center gap-2 mt-1",
+                            message.isBot ? "justify-start" : "justify-end"
+                          )}>
+                            <span className={cn(
+                              "text-xs",
+                              message.isBot ? "text-muted-foreground" : "text-blue-900"
+                            )}>
+                              {message.timestamp.toLocaleTimeString('he-IL', { 
+                                hour: '2-digit', 
+                                minute: '2-digit' 
+                              })}
+                            </span>
+                            {!message.isBot && getMessageStatusIcon(message.status)}
+                          </div>
+                        </div>
+
+                        {!message.isBot && (
+                          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+                            <User className="w-4 h-4 text-white" />
+                          </div>
+                        )}
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+
+                  {/* Typing Indicator */}
+                  {session.isLoading && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      className="flex justify-end gap-3"
+                    >
+                      <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                        <Bot className="w-4 h-4 text-white" />
+                      </div>
+                      <div className="bg-muted rounded-2xl px-4 py-2">
+                        <div className="flex gap-1">
+                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* Empty State */}
+                  {session.messages.length === 0 && !session.isLoading && (
+                    <div className="text-center py-8 bg-card/90 w-fit m-auto p-8 rounded-2xl backdrop-blur-lg">
+                      <Icon icon="mdi:message-text" width="2em" height="2em" className="text-muted-foreground mb-4 mx-auto" />
+                      <h3 className="text-lg font-medium mb-2">
+                        {session.isConnected ? 'התחל שיחה' : 'התחבר כדי להתחיל'}
+                      </h3>
+                      <p className="text-muted-foreground">
+                        {session.isConnected 
+                          ? 'שלח הודעה כדי להתחיל לבדוק את הבוט'
+                          : 'הזן מספר טלפון והתחבר כדי להתחיל סימולציה'
+                        }
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <div ref={messagesEndRef} />
+              </ScrollArea>
+
+              {/* Input Area */}
+              {session.isConnected && (
+                <div className=" z-10 p-4 absolute bottom-0 left-0 right-0 ">
+                  <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+                    <Input
+                      ref={inputRef}
+                      placeholder="הקלד הודעה..."
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      disabled={session.isLoading}
+                      className="flex-1 h-10 rounded-full bg-muted focus-visible:ring-zinc-500/40 "
+                    />
+                    <Button 
+                      type="submit" 
+                      disabled={!newMessage.trim() || session.isLoading}
+                      size="icon"
+                    >
+                      <Icon icon="mdi:send" rotate={90} width="1.2em" height="1.2em" />
+                    </Button>
+                  </form>
+                
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+const loadSession = async (phoneNumber: string): Promise<SimulatorSession | null> => {
+  try {
+    // Clean phone number format
+    const cleanPhone = phoneNumber.replace(/\s|-/g, '');
+    
+    // Reference to the conversation document
+    const conversationRef = doc(db, 'conversations_simulator', cleanPhone);
+    const conversationDoc = await getDoc(conversationRef);
+    
+    // If no conversation exists yet, return null
+    if (!conversationDoc.exists()) {
+      return null;
+    }
+    
+    // Get conversation state
+    const conversationData = conversationDoc.data();
+    const conversationState: ConversationState = {
+      currentState: conversationData.currentState || 'INIT',
+      context: conversationData.context || {}
+    };
+    
+    // Get previous messages
+    const messagesQuery = query(
+      collection(conversationRef, 'messages'),
+      orderBy('createdAt', 'asc')
+    );
+    
+    const messagesSnapshot = await getDocs(messagesQuery);
+    const messages: Message[] = [];
+    
+    messagesSnapshot.forEach((messageDoc) => {
+      const messageData = messageDoc.data();
+      messages.push({
+        id: messageDoc.id,
+        content: messageData.body || '',
+        timestamp: messageData.createdAt?.toDate() || new Date(),
+        isBot: messageData.direction === 'outgoing',
+        status: 'delivered'
+      });
+    });
+    
+    // Return the session data
+    return {
+      phoneNumber: cleanPhone,
+      messages,
+      conversationState,
+      isConnected: true,
+      isLoading: false
+    };
+  } catch (error) {
+    console.error('Error loading conversation:', error);
+    return null;
+  }
+};

@@ -29,7 +29,8 @@ const UpdateSupplierPayloadSchema = z.object({
   whatsapp: z.string().min(10),
   deliveryDays: z.array(z.number().min(0).max(6)),
   cutoffHour: z.number().min(0).max(23),
-  category: z.string().optional().default("general")
+  category: z.string().optional().default("general"),
+  rating: z.number().min(1).max(5).optional(),
 });
 
 /**
@@ -37,27 +38,45 @@ const UpdateSupplierPayloadSchema = z.object({
  * Each action is executed and logged appropriately
  * @param actions Array of bot actions to execute
  * @param phone Phone number for logging context
+ * @param isSimulator Whether to use simulator mode (don't send real WhatsApp messages)
+ * @returns Array of message responses (only used in simulator mode)
  */
-export async function processActions(actions: BotAction[], phone?: string): Promise<void> {
-  console.log(`[BotActions] Processing ${actions.length} bot actions for phone: ${phone}`);
+export async function processActions(
+  actions: BotAction[],
+  phone?: string,
+  isSimulator: boolean = false
+): Promise<string[]> {
+  console.log(`[BotActions] Processing ${actions.length} bot actions for phone: ${phone} ${isSimulator ? '(simulator)' : ''}`);
+  
+  // For simulator mode, collect responses instead of sending them
+  const responses: string[] = [];
 
   for (const action of actions) {
     try {
       console.log(`[BotActions] Executing action: ${action.type}`, {
         payloadKeys: Object.keys(action.payload || {}),
-        phone
+        phone,
+        isSimulator
       });
 
       switch (action.type) {
         case "SEND_MESSAGE":
           try {
             const validPayload = SendMessagePayloadSchema.parse(action.payload);
-            await sendWhatsAppMessage(validPayload.to, validPayload.body);
+            
+            // In simulator mode, collect the message but don't send it
+            if (isSimulator) {
+              responses.push(validPayload.body);
+              console.log(`[BotActions] 📱 Simulator message: ${validPayload.body.substring(0, 50)}...`);
+            } else {
+              // Real Twilio messages for production
+              await sendWhatsAppMessage(validPayload.to, validPayload.body);
+            }
             
             // Log outgoing message
             if (phone) {
               const phoneNumber = phone.replace("whatsapp:", "");
-              await logMessage(phoneNumber, validPayload.body, 'outgoing');
+              await logMessage(phoneNumber, validPayload.body, 'outgoing', undefined, isSimulator);
             }
           } catch (validationError) {
             if (validationError instanceof z.ZodError) {
@@ -70,7 +89,7 @@ export async function processActions(actions: BotAction[], phone?: string): Prom
         case "CREATE_RESTAURANT":
           try {
             const validPayload = CreateRestaurantPayloadSchema.parse(action.payload);
-            await createRestaurant(validPayload);
+            await createRestaurant(validPayload, isSimulator);
           } catch (validationError) {
             if (validationError instanceof z.ZodError) {
               console.error(`[BotActions] ❌ Invalid CREATE_RESTAURANT payload:`, validationError.errors);
@@ -83,7 +102,7 @@ export async function processActions(actions: BotAction[], phone?: string): Prom
         case "UPDATE_SUPPLIER":
           try {
             const validPayload = UpdateSupplierPayloadSchema.parse(action.payload);
-            await updateSupplier(validPayload);
+            await updateSupplier(validPayload, isSimulator);
           } catch (validationError) {
             if (validationError instanceof z.ZodError) {
               throw new Error(`Invalid UPDATE_SUPPLIER payload: ${validationError.errors.map(e => e.message).join(', ')}`);
@@ -93,18 +112,18 @@ export async function processActions(actions: BotAction[], phone?: string): Prom
           break;
 
         case "UPDATE_PRODUCT":
-          // TODO: Implement product update logic with Zod validation
-          console.log("[BotActions] UPDATE_PRODUCT action not yet implemented", action.payload);
+          // TODO: Implement product update logic with Zod validation and simulator support
+          console.log(`[BotActions] UPDATE_PRODUCT action ${isSimulator ? '(simulator)' : ''} not yet implemented`, action.payload);
           break;
 
         case "SEND_ORDER":
-          // TODO: Implement order sending logic with Zod validation
-          console.log("[BotActions] SEND_ORDER action not yet implemented", action.payload);
+          // TODO: Implement order sending logic with Zod validation and simulator support
+          console.log(`[BotActions] SEND_ORDER action ${isSimulator ? '(simulator)' : ''} not yet implemented`, action.payload);
           break;
 
         case "LOG_DELIVERY":
-          // TODO: Implement delivery logging logic with Zod validation
-          console.log("[BotActions] LOG_DELIVERY action not yet implemented", action.payload);
+          // TODO: Implement delivery logging logic with Zod validation and simulator support
+          console.log(`[BotActions] LOG_DELIVERY action ${isSimulator ? '(simulator)' : ''} not yet implemented`, action.payload);
           break;
 
         default:
@@ -116,18 +135,24 @@ export async function processActions(actions: BotAction[], phone?: string): Prom
       console.error(`[BotActions] ❌ Error executing action ${action.type}:`, {
         error: error instanceof Error ? error.message : error,
         payload: action.payload,
-        phone
+        phone,
+        isSimulator
       });
       
       // For critical errors, try to send an error message to the user
+      const errorMessage = "⚠️ משהו השתבש בעת עיבוד הבקשה שלך. אנא נסה שוב מאוחר יותר או צור קשר עם התמיכה.";
+      
       if (action.type !== "SEND_MESSAGE" && phone) {
-        try {
-          await sendWhatsAppMessage(
-            phone,
-            "⚠️ משהו השתבש בעת עיבוד הבקשה שלך. אנא נסה שוב מאוחר יותר או צור קשר עם התמיכה."
-          );
-        } catch (notificationError) {
-          console.error("[BotActions] Failed to send error notification:", notificationError);
+        if (isSimulator) {
+          // For simulator, add error message to responses
+          responses.push(errorMessage);
+        } else {
+          // For real WhatsApp, send the message via Twilio
+          try {
+            await sendWhatsAppMessage(phone, errorMessage);
+          } catch (notificationError) {
+            console.error("[BotActions] Failed to send error notification:", notificationError);
+          }
         }
       }
       
@@ -136,4 +161,5 @@ export async function processActions(actions: BotAction[], phone?: string): Prom
   }
 
   console.log(`[BotActions] Finished processing ${actions.length} actions`);
+  return responses;
 }

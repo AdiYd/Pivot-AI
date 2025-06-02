@@ -24,6 +24,7 @@ import { useFirebase } from "@/lib/firebaseClient";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Icon } from "@iconify/react/dist/iconify.js";
 
 interface NavItemProps {
   href: string;
@@ -159,7 +160,7 @@ export function SideNav() {
               />
               <NavItem 
                 href="/restaurants" 
-                icon={<Users size={16} />} 
+                icon={<Icon icon='ic:baseline-restaurant' width={16} height={16} />}
                 title="מסעדות"
                 isCollapsed={isCollapsed}
               />
@@ -177,8 +178,14 @@ export function SideNav() {
               />
               <NavItem 
                 href="/conversations" 
-                icon={<MessageSquare size={16} />} 
+                icon={<MessageSquare size={16} />}
                 title="שיחות"
+                isCollapsed={isCollapsed}
+              />
+              <NavItem 
+                href="/simulator" 
+                icon={<Icon icon='ic:baseline-whatsapp' width={16} height={16} />}
+                title="סימולטור צ'אט"
                 isCollapsed={isCollapsed}
               />
               <NavItem 
@@ -269,7 +276,7 @@ export function SideNav() {
             />
             <NavItem 
               href="/restaurants" 
-              icon={<Users size={16} />} 
+              icon={<Icon icon='ic:baseline-restaurant' width={16} height={16} />}
               title="מסעדות" 
               isCollapsed={false}
             />
@@ -287,8 +294,14 @@ export function SideNav() {
             />
             <NavItem 
               href="/conversations" 
-              icon={<MessageSquare size={16} />} 
+              icon={<MessageSquare size={16} />}
               title="שיחות" 
+              isCollapsed={false}
+            />
+            <NavItem 
+              href="/simulator" 
+              icon={<Icon icon='ic:baseline-whatsapp' width={16} height={16} />}
+              title="סימולטור צ'אט" 
               isCollapsed={false}
             />
             <NavItem 

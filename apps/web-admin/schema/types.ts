@@ -190,6 +190,7 @@ export interface ConversationDoc {
 }
 
 export interface MessageDoc {
+  id?: string; // This is also the message's document ID in Firestore
   body: string;
   direction: "incoming" | "outgoing";
   currentState: BotState;

@@ -701,7 +701,7 @@ export const exampleConversations: {
                 createdAt: daysAgo(5)
             },
             "msg-202": {
-                body: "שלום! ברוך הבא ל-RestaurantBot. אני אעזור לך להגדיר את המסעדה שלך. מה שם החברה או העסק שלך?",
+                body: "שלום! ברוך הבא ל-Pivot. אני אעזור לך להגדיר את המסעדה שלך. מה שם החברה או העסק שלך?",
                 direction: "outgoing",
                 currentState: "ONBOARDING_COMPANY_NAME",
                 createdAt: daysAgo(5)

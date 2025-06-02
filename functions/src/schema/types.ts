@@ -43,6 +43,7 @@ export interface Inventory {
 // Represents a supplier with its details and products
 export interface Supplier extends Contact {
   // The contact's WhatsApp number is used as the supplier ID in Firestore
+  restaurantId: string; // ref→ /restaurants/{id}
   category: SupplierCategory;
   deliveryDays: number[];
   cutoffHour: number;    // 0–23 local

@@ -25,9 +25,9 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase once
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+export const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
+export const db = getFirestore(app);
 
 // Context interface with only what we need
 interface FirebaseContextValue {

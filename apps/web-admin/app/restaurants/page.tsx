@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,7 +37,7 @@ import {
   Save,
   X
 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Timestamp } from 'firebase/firestore';
 
@@ -78,6 +78,7 @@ export default function RestaurantsPage() {
     paymentProvider: 'Stripe'
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const editingRestaurantRef = useRef<any | null>(null);
   const { toast } = useToast();
 
   // Validation function for new restaurant
@@ -223,8 +224,8 @@ export default function RestaurantsPage() {
       });
 
       setIsEditing(false);
-      setEditingRestaurant(null);
-      
+      editingRestaurantRef.current = null;
+
     } catch (error) {
       console.error('Error updating restaurant:', error);
       toast({
@@ -241,7 +242,7 @@ export default function RestaurantsPage() {
   const handleDelete = async (restaurantId: string) => {
     try {
       setIsLoading(true);
-      
+      console.log('Deleting restaurant:', restaurantId);
       // Simulate API call delay
       await new Promise(resolve => setTimeout(resolve, 500));
       
@@ -293,7 +294,7 @@ export default function RestaurantsPage() {
       
       toast({
         title: isActivated ? "מסעדה הופעלה" : "מסעדה בוטלה",
-        description: `המסעדה ${isActivated ? 'הופעלה' : 'בוטלה'} בהצלחה`,
+        description: `המסעדה ${isActivated ? 'הופעלה' : 'הושהתה'} בהצלחה`,
       });
     } catch (error) {
       console.error('Error toggling activation:', error);
@@ -376,11 +377,11 @@ export default function RestaurantsPage() {
 
   const getStatusBadge = (restaurant: any) => {
     if (restaurant.isActivated && restaurant.payment.status) {
-      return <Badge variant="default" className="bg-green-500"><CheckCircle className="w-3 h-3 ml-1" />פעיל</Badge>;
+      return <Badge variant="default" className="bg-green-500 mx-auto text-nowrap"><CheckCircle className="w-3 h-3 ml-1" />פעיל</Badge>;
     } else if (!restaurant.payment.status) {
-      return <Badge variant="secondary"><Clock className="w-3 h-3 ml-1" />ממתין לתשלום</Badge>;
+      return <Badge className='mx-auto text-nowrap' variant="secondary"><Clock className="w-3 h-3 ml-1" />ממתין לתשלום</Badge>;
     } else {
-      return <Badge variant="destructive"><XCircle className="w-3 h-3 ml-1" />לא פעיל</Badge>;
+      return <Badge className='mx-auto text-nowrap' variant="destructive"><XCircle className="w-3 h-3 ml-1" />לא פעיל</Badge>;
     }
   };
 
@@ -410,7 +411,7 @@ export default function RestaurantsPage() {
   };
 
   const RestaurantCard = ({ restaurant }: { restaurant: any }) => (
-    <Card className="hover:shadow-lg transition-shadow flex flex-col justify-between">
+    <Card className="hover:shadow-lg cursor-default transition-shadow flex flex-col justify-between">
       <CardHeader className="pb-4">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
@@ -497,7 +498,7 @@ export default function RestaurantsPage() {
                 variant="outline" 
                 size="sm"
                 onClick={() => {
-                  setEditingRestaurant({ ...restaurant });
+                  editingRestaurantRef.current = { ...restaurant };
                   setIsEditing(true);
                   setSelectedRestaurant(restaurant);
                   setIsDialogOpen(true);
@@ -515,7 +516,9 @@ export default function RestaurantsPage() {
             <AlertDialogTrigger asChild>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
+                  <Button 
+                  onClick={(e) => { e.stopPropagation(); handleDelete(restaurant.legalId)}}
+                  variant="outline" size="sm" className="text-red-600 hover:text-red-700">
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </TooltipTrigger>
@@ -570,19 +573,45 @@ export default function RestaurantsPage() {
     type?: string;
     disabled?: boolean;
     error?: string;
-  }) => (
-    <div className="space-y-2">
-      <Label>{label}</Label>
-      <Input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(type === "number" ? Number(e.target.value) : e.target.value)}
-        disabled={disabled}
-        className={error ? "border-red-500" : ""}
-      />
-      {error && <p className="text-sm text-red-500">{error}</p>}
-    </div>
-  );
+  }) => {
+    // Create a ref to track the input element
+    const inputRef = useRef<HTMLInputElement>(null);
+    
+    // Create a local state to manage the input value
+    const [localValue, setLocalValue] = useState(value);
+    
+    // Update local value when prop changes
+    useEffect(() => {
+      setLocalValue(value);
+    }, [value]);
+    
+    // Handle changes locally first, then propagate up only when necessary
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      e.stopPropagation();
+      const newValue = type === "number" ? Number(e.target.value) : e.target.value;
+      setLocalValue(newValue);
+      onChange(newValue);
+    };
+
+    return (
+      <div className="space-y-2">
+        <Label htmlFor={`input-${label}`}>{label}</Label>
+        <Input
+          id={`input-${label}`}
+          ref={inputRef}
+          type={type}
+          value={localValue}
+          onChange={handleChange}
+          disabled={disabled}
+          className={error ? "border-red-500" : ""}
+          // Prevent event bubbling to Dialog
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        />
+        {error && <p className="text-sm text-red-500">{error}</p>}
+      </div>
+    );
+  };
 
   if (isLoading && !data) {
     return (
@@ -622,7 +651,7 @@ export default function RestaurantsPage() {
               הוסף מסעדה
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogContent  className="max-w-2xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>הוסף מסעדה חדשה</DialogTitle>
               <DialogDescription>
@@ -782,9 +811,11 @@ export default function RestaurantsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{overallStats.active}</div>
+            <div className='flex gap-2'>
+              <div className="text-2xl font-bold text-green-600">{overallStats.active}</div>
+              <p className="text-xs text-muted-foreground mt-1">{overallStats.activePercentage}% מהמסעדות</p>
+            </div>
             <Progress value={overallStats.activePercentage} className="mt-2" />
-            <p className="text-xs text-muted-foreground mt-1">{overallStats.activePercentage}% מהמסעדות</p>
           </CardContent>
         </Card>
         
@@ -863,11 +894,15 @@ export default function RestaurantsPage() {
           setIsDialogOpen(open);
           if (!open) {
             setIsEditing(false);
-            setEditingRestaurant(null);
+            editingRestaurantRef.current = null;
           }
         }}
       >
-        <DialogContent className="max-w-6xl max-h-[85vh] overflow-hidden p-0">
+        <DialogContent className="max-w-6xl max-h-[85vh] overflow-y-auto p-0"
+          // Prevent dialog from stealing focus
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
           {selectedRestaurant && (
             <>
               <DialogHeader className="p-6 pb-0 sticky top-0 bg-background z-10">
@@ -883,7 +918,7 @@ export default function RestaurantsPage() {
                           variant="outline"
                           size="sm"
                           onClick={() => {
-                            setEditingRestaurant({ ...selectedRestaurant });
+                            editingRestaurantRef.current = { ...selectedRestaurant };
                             setIsEditing(true);
                           }}
                         >
@@ -895,7 +930,7 @@ export default function RestaurantsPage() {
                           size="sm"
                           onClick={() => handleToggleActivation(selectedRestaurant.legalId, !selectedRestaurant.isActivated)}
                         >
-                          {selectedRestaurant.isActivated ? 'בטל הפעלה' : 'הפעל'}
+                          {selectedRestaurant.isActivated ? 'השהה' : 'הפעל'}
                         </Button>
                       </>
                     )}
@@ -924,43 +959,38 @@ export default function RestaurantsPage() {
                     <TabsTrigger value="settings">הגדרות</TabsTrigger>
                   </TabsList>
                   
-                  <TabsContent value="general" className="space-y-4 mt-6">
+                  <TabsContent dir='rtl' value="general" className="space-y-4 mt-6">
                     {isEditing ? (
                       <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
                           <EditableField
                             label="שם המסעדה"
-                            value={editingRestaurant?.name || ''}
-                            onChange={(value) => setEditingRestaurant((prev: any) => ({ ...prev, name: value }))
-                          }
+                            value={editingRestaurantRef.current?.name || ''}
+                            onChange={(value) => editingRestaurantRef.current = { ...editingRestaurantRef.current, name: value }}
                           />
                           <EditableField
                             label="ח.פ"
-                            value={editingRestaurant?.legalId || ''}
-                            onChange={(value) => setEditingRestaurant((prev: any) => ({ ...prev, legalId: value }))
-                            }
+                            value={editingRestaurantRef.current?.legalId || ''}
+                            onChange={(value) => editingRestaurantRef.current = { ...editingRestaurantRef.current, legalId: value }}
                             disabled
                           />
                         </div>
                         <EditableField
                           label="שם עסקי מלא"
-                          value={editingRestaurant?.businessName || ''}
-                          onChange={(value) => setEditingRestaurant((prev: any) => ({ ...prev, businessName: value }))
-                          }
+                          value={editingRestaurantRef.current?.businessName || ''}
+                          onChange={(value) => editingRestaurantRef.current = { ...editingRestaurantRef.current, businessName: value }}
                         />
                         <EditableField
                           label="שנות פעילות"
-                          value={editingRestaurant?.yearsActive || 0}
-                          onChange={(value) => setEditingRestaurant((prev: any) => ({ ...prev, yearsActive: value }))
-                          }
+                          value={editingRestaurantRef.current?.yearsActive || 0}
+                          onChange={(value) => editingRestaurantRef.current = { ...editingRestaurantRef.current, yearsActive: value }}
                           type="number"
                         />
                         
-                        <div className="flex items-center space-x-2">
-                          <Switch 
-                            checked={editingRestaurant?.isActivated || false}
-                            onCheckedChange={(checked) => setEditingRestaurant((prev: any) => ({ ...prev, isActivated: checked }))
-                            }
+                        <div dir='ltr' className="flex items-center space-x-2">
+                          <Switch
+                            checked={editingRestaurantRef.current?.isActivated || false}
+                            onCheckedChange={(checked) => editingRestaurantRef.current = { ...editingRestaurantRef.current, isActivated: checked }}
                           />
                           <Label>מסעדה פעילה</Label>
                         </div>
@@ -970,14 +1000,14 @@ export default function RestaurantsPage() {
                             variant="outline"
                             onClick={() => {
                               setIsEditing(false);
-                              setEditingRestaurant(null);
+                              editingRestaurantRef.current = null;
                             }}
                           >
                             <X className="w-4 h-4 mr-1" />
                             ביטול
                           </Button>
                           <Button
-                            onClick={() => handleEdit(selectedRestaurant.legalId, editingRestaurant)}
+                            onClick={() => handleEdit(selectedRestaurant.legalId, editingRestaurantRef.current)}
                             disabled={isLoading}
                           >
                             <Save className="w-4 h-4 mr-1" />
@@ -1042,28 +1072,27 @@ export default function RestaurantsPage() {
                     )}
                   </TabsContent>
                   
-                  <TabsContent value="contact" className="space-y-4 mt-6">
+                  <TabsContent dir='rtl' value="contact" className="space-y-4 mt-6">
                     {isEditing ? (
                       <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
                           <EditableField
                             label="שם"
-                            value={editingRestaurant?.primaryContact?.name || ''}
-                            onChange={(value) => setEditingRestaurant((prev: any) => ({
-                              ...prev, 
-                              primaryContact: { ...prev.primaryContact, name: value }
-                            }))
-                          }
+                            value={editingRestaurantRef.current?.primaryContact?.name || ''}
+                            onChange={(value) => editingRestaurantRef.current = {
+                              ...editingRestaurantRef.current,
+                              primaryContact: { ...editingRestaurantRef.current.primaryContact, name: value }
+                            }}
                           />
                           <div className="space-y-2">
                             <Label>תפקיד</Label>
                             <Select
-                              value={editingRestaurant?.primaryContact?.role || 'Owner'}
+                              value={editingRestaurantRef.current?.primaryContact?.role || 'Owner'}
                               onValueChange={(value: "Owner" | "Manager" | "Shift" | "Other") => 
-                                setEditingRestaurant((prev: any) => ({
-                                  ...prev, 
-                                  primaryContact: { ...prev.primaryContact, role: value }
-                                }))
+                                editingRestaurantRef.current = {
+                                  ...editingRestaurantRef.current,
+                                  primaryContact: { ...editingRestaurantRef.current.primaryContact, role: value }
+                                }
                               }
                             >
                               <SelectTrigger>
@@ -1081,23 +1110,40 @@ export default function RestaurantsPage() {
                         <div className="grid grid-cols-2 gap-4">
                           <EditableField
                             label="WhatsApp"
-                            value={editingRestaurant?.primaryContact?.whatsapp || ''}
-                            onChange={(value) => setEditingRestaurant((prev: any) => ({
-                              ...prev, 
-                              primaryContact: { ...prev.primaryContact, whatsapp: value }
-                            }))
-                          }
+                            value={editingRestaurantRef.current?.primaryContact?.whatsapp || ''}
+                            onChange={(value) => editingRestaurantRef.current = {
+                              ...editingRestaurantRef.current,
+                              primaryContact: { ...editingRestaurantRef.current.primaryContact, whatsapp: value }
+                            }}
                           />
                           <EditableField
                             label="אימייל"
-                            value={editingRestaurant?.primaryContact?.email || ''}
-                            onChange={(value) => setEditingRestaurant((prev: any) => ({
-                              ...prev, 
-                              primaryContact: { ...prev.primaryContact, email: value }
-                            }))
-                            }
+                            value={editingRestaurantRef.current?.primaryContact?.email || ''}
+                            onChange={(value) => editingRestaurantRef.current = {
+                              ...editingRestaurantRef.current,
+                              primaryContact: { ...editingRestaurantRef.current.primaryContact, email: value }
+                            }}
                             type="email"
                           />
+                        </div>
+                        <div className="flex justify-end gap-2 pt-4 border-t">
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              setIsEditing(false);
+                              editingRestaurantRef.current = null;
+                            }}
+                          >
+                            <X className="w-4 h-4 mr-1" />
+                            ביטול
+                          </Button>
+                          <Button
+                            onClick={() => handleEdit(selectedRestaurant.legalId, editingRestaurantRef.current)}
+                            disabled={isLoading}
+                          >
+                            <Save className="w-4 h-4 mr-1" />
+                            שמור שינויים
+                          </Button>
                         </div>
                       </div>
                     ) : (
@@ -1142,7 +1188,7 @@ export default function RestaurantsPage() {
                     )}
                   </TabsContent>
 
-                  <TabsContent value="suppliers" className="space-y-4 mt-6">
+                  <TabsContent dir='rtl' value="suppliers" className="space-y-4 mt-6">
                     <div className="space-y-4">
                       {Object.values(selectedRestaurant.suppliers).map((supplier: any) => (
                         <Card key={supplier.whatsapp}>
@@ -1184,7 +1230,7 @@ export default function RestaurantsPage() {
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="orders" className="space-y-4 mt-6">
+                  <TabsContent dir='rtl' value="orders" className="space-y-4 mt-6">
                     <div className="space-y-4">
                       {Object.values(selectedRestaurant.orders).length > 0 ? (
                         Object.values(selectedRestaurant.orders).map((order: any) => {

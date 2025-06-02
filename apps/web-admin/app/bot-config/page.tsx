@@ -188,7 +188,7 @@ export default function BotConfigPage() {
           <div className="flex items-center gap-2">
             {hasChanges && (
               <Badge variant="secondary" className="animate-pulse">
-                <AlertTriangle className="h-3 w-3 ml-1" />
+                <AlertTriangle className="h-3 w-3 mr-1" />
                 יש שינויים לא שמורים
               </Badge>
             )}

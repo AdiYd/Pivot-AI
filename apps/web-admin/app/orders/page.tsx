@@ -36,7 +36,7 @@ import {
   TrendingUp,
   BarChart3
 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 
 // Import the actual database
 import exampleDatabase from '@/schema/example';
@@ -273,13 +273,13 @@ export default function OrdersPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
-        return <Badge variant="secondary" className="text-orange-600 border-orange-600"><Clock className="w-3 h-3 ml-1" />ממתין</Badge>;
+        return <Badge variant="secondary" className="text-orange-600 border-orange-600"><Clock className="w-3 h-3 mr-1" />ממתין</Badge>;
       case 'sent':
-        return <Badge variant="outline" className="text-blue-600 border-blue-600"><Truck className="w-3 h-3 ml-1" />נשלח</Badge>;
+        return <Badge variant="outline" className="text-blue-600 border-blue-600"><Truck className="w-3 h-3 mr-1" />נשלח</Badge>;
       case 'delivered':
-        return <Badge variant="outline" className="text-green-600 border-green-600"><CheckCircle className="w-3 h-3 ml-1" />נמסר</Badge>;
+        return <Badge variant="outline" className="text-green-600 border-green-600"><CheckCircle className="w-3 h-3 mr-1" />נמסר</Badge>;
       default:
-        return <Badge variant="destructive"><XCircle className="w-3 h-3 ml-1" />בעיה</Badge>;
+        return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />בעיה</Badge>;
     }
   };
 
@@ -324,7 +324,7 @@ export default function OrdersPage() {
               <ShoppingCart className="w-5 h-5 text-purple-600 dark:text-purple-400" />
             </div>
             <div>
-              <CardTitle className="text-lg">הזמנה #{order.id}</CardTitle>
+              <CardTitle className="text-lg">#{order.id}</CardTitle>
               <CardDescription className="flex items-center gap-1">
                 <Store className="w-3 h-3" />
                 {order.restaurantName}
@@ -705,7 +705,7 @@ export default function OrdersPage() {
                   <div>
                     <DialogTitle className="flex items-center gap-2">
                       <ShoppingCart className="w-5 h-5" />
-                      הזמנה #{selectedOrder.id}
+                       #{selectedOrder.id}
                     </DialogTitle>
                     <DialogDescription className="flex items-center gap-2 mt-1">
                       <Store className="w-4 h-4" />
@@ -732,7 +732,7 @@ export default function OrdersPage() {
                     <TabsTrigger value="issues">בעיות</TabsTrigger>
                   </TabsList>
                   
-                  <TabsContent value="general" className="space-y-4 mt-6">
+                  <TabsContent dir="rtl" value="general" className="space-y-4 mt-6">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>מסעדה</Label>
@@ -773,7 +773,7 @@ export default function OrdersPage() {
                     </div>
                   </TabsContent>
                   
-                  <TabsContent value="items" className="space-y-4 mt-6">
+                  <TabsContent dir="rtl" value="items" className="space-y-4 mt-6">
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <h3 className="text-lg font-medium">פריטים בהזמנה ({selectedOrder.totalProducts})</h3>
@@ -806,7 +806,7 @@ export default function OrdersPage() {
                     </div>
                   </TabsContent>
                   
-                  <TabsContent value="timeline" className="space-y-4 mt-6">
+                  <TabsContent dir="rtl" value="timeline" className="space-y-4 mt-6">
                     <div className="space-y-4">
                       <div className="flex items-center gap-3 p-3 border rounded-md">
                         <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
@@ -842,7 +842,7 @@ export default function OrdersPage() {
                     </div>
                   </TabsContent>
                   
-                  <TabsContent value="issues" className="space-y-4 mt-6">
+                  <TabsContent dir="rtl" value="issues" className="space-y-4 mt-6">
                     {selectedOrder.hasShortages ? (
                       <div className="space-y-4">
                         <h4 className="font-medium text-red-600 flex items-center gap-2">

@@ -27,10 +27,8 @@ function getTwilioClient(): Twilio {
  * @param {string} body The message body to send
  */
 export async function sendWhatsAppMessage(to: string, body: string): Promise<void> {
-  
   try {
     const twilioClient = getTwilioClient();
-    // console.log(`[Twilio] Client initialized, creating message...`);
     
     await twilioClient.messages.create({
       from: `whatsapp:${process.env.TWILIO_WHATSAPP_NUMBER}`,
@@ -58,11 +56,19 @@ export async function sendWhatsAppMessage(to: string, body: string): Promise<voi
  * @return {boolean} True if the request is valid, false otherwise
  */
 export function validateTwilioWebhook(request: Request): boolean {
+  // Check if this is a simulator request with the API key header
+  const simulatorApiKey = request.headers['x-simulator-api-key'];
+  const adminApiKey = process.env.ADMIN_SIMULATOR_API_KEY || 'simulator-dev-key';
+  
+  if (simulatorApiKey === adminApiKey) {
+    console.log('[Twilio] 🔓 Admin simulator request - bypassing Twilio validation');
+    return true;
+  }
+  
   console.log(`[Twilio] Validating webhook request from ${request.ip}`);
   
   // For development environments, you might want to bypass validation
   if (process.env.NODE_ENV === 'development') {
-    // console.log('[Twilio] 🔓 Development mode: bypassing webhook validation');
     return true;
   }
 

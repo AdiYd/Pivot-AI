@@ -27,12 +27,10 @@ import {
   Store,
   Filter,
   TrendingUp,
-  Users,
-  AlertCircle,
-  CheckCircle,
+
   X
 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 
 // Import the actual database
 import exampleDatabase from '@/schema/example';
@@ -294,7 +292,7 @@ export default function SuppliersPage() {
               <p>צפייה בפרטים</p>
             </TooltipContent>
           </Tooltip>
-          <Tooltip>
+          {/* <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="outline" size="sm">
                 <Edit className="w-4 h-4" />
@@ -313,7 +311,7 @@ export default function SuppliersPage() {
             <TooltipContent>
               <p>מחיקה</p>
             </TooltipContent>
-          </Tooltip>
+          </Tooltip> */}
         </div>
       </CardContent>
     </Card>
@@ -403,10 +401,10 @@ export default function SuppliersPage() {
               </div>
               <div className="space-y-2">
                 <Label>ימי משלוח</Label>
-                <div className="grid grid-cols-7 gap-2">
+                <div className="grid grid-cols-7 gap-1">
                   {dayNames.map((day, index) => (
                     <div key={index} className="flex items-center space-x-2">
-                      <input type="checkbox" id={`day-${index}`} />
+                      <input type="checkbox" className='mx-1' id={`day-${index}`} />
                       <Label htmlFor={`day-${index}`} className="text-sm">{day}</Label>
                     </div>
                   ))}
@@ -564,7 +562,7 @@ export default function SuppliersPage() {
 
       {/* Enhanced Supplier Details Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-6xl max-h-[85vh] overflow-hidden p-0">
+        <DialogContent className="max-w-6xl max-h-[85vh] overflow-y-auto p-0">
           {selectedSupplier && (
             <>
               <DialogHeader className="p-6 pb-4 pr-16 sticky top-0 bg-background z-10 border-b">
@@ -599,7 +597,7 @@ export default function SuppliersPage() {
                     <TabsTrigger value="analytics">נתונים</TabsTrigger>
                   </TabsList>
                   
-                  <TabsContent value="general" className="space-y-4 mt-6">
+                  <TabsContent dir='rtl' value="general" className="space-y-4 mt-6">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>שם הספק</Label>
@@ -643,45 +641,94 @@ export default function SuppliersPage() {
                     </div>
                   </TabsContent>
                   
-                  <TabsContent value="schedule" className="space-y-4 mt-6">
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label>ימי משלוח</Label>
-                        <div className="grid grid-cols-7 gap-2">
-                          {dayNames.map((day, index) => (
-                            <div key={index} className="text-center">
-                              <div className={`p-3 rounded-md text-sm font-medium ${
-                                selectedSupplier.deliveryDays.includes(index) 
-                                  ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
-                                  : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
-                              }`}>
+                  <TabsContent dir='rtl' value="schedule" className="space-y-6 mt-6">
+                    <div className="space-y-6">
+                      <div>
+                        <h3 className="text-lg font-medium mb-4">לוח זמני משלוח שבועי</h3>
+                        <div className="border rounded-xl overflow-hidden shadow-sm">
+                          <div className="grid grid-cols-7 bg-muted/20">
+                            {dayNames.map((day, index) => (
+                              <div key={index} className="text-center p-2 border-b font-medium">
                                 {day}
                               </div>
-                            </div>
-                          ))}
+                            ))}
+                          </div>
+                          <div className="grid grid-cols-7">
+                            {dayNames.map((day, index) => {
+                              const isDeliveryDay = selectedSupplier.deliveryDays.includes(index);
+                              return (
+                                <div 
+                                  key={index} 
+                                  className={` flex flex-col items-center justify-center p-4 border-l last:border-r-0 relative ${
+                                    isDeliveryDay 
+                                      ? 'bg-green-50 dark:bg-green-900/30' 
+                                      : ''
+                                  }`}
+                                >
+                                  {isDeliveryDay ? (
+                                    <>
+                                      <Truck className="w-8 h-8 text-green-600 dark:text-green-400 mb-2" />
+                                      <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border-green-200">
+                                        יום משלוח
+                                      </Badge>
+                                      {index === selectedSupplier.deliveryDays[0] && (
+                                        <div className="absolute top-2 right-2 w-2 h-2 bg-green-500 rounded-full" />
+                                      )}
+                                    </>
+                                  ) : (
+                                    <span className="text-muted-foreground text-sm">אין משלוח</span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label>שעת סגירת הזמנות</Label>
-                          <Input value={`${selectedSupplier.cutoffHour}:00`} readOnly />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>תאריך הצטרפות</Label>
-                          <Input value={selectedSupplier.createdAt.toLocaleDateString('he-IL')} readOnly />
-                        </div>
+
+                      <div className="flex justify-center">
+                        <Card>
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium flex items-center gap-2">
+                              <Clock className="w-4 h-4" />
+                              שעת סגירת הזמנות:
+                                  <div className="relative font-bold">{selectedSupplier.cutoffHour}:00</div>
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="flex items-center justify-center pt-2">
+                              <div className="relative w-24 h-24">
+                                <div className="w-full h-full rounded-full border-4 border-muted flex items-center justify-center">
+                                </div>
+                                <div 
+                                  className="absolute w-[2px] h-12 bg-blue-500/20 rounded-full origin-bottom" 
+                                  style={{ 
+                                    bottom: '50%', 
+                                    left: 'calc(50% - 1px)', 
+                                    transform: `rotate(${(selectedSupplier.cutoffHour / 12) * 360}deg)` 
+                                  }}
+                                />
+                                <div className="absolute top-0 left-0 right-0 bottom-0 flex items-center justify-center">
+                                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                                </div>
+                              </div>
+                            </div>
+                            <p className="text-center text-sm text-muted-foreground mt-4">
+                              יש לשלוח הזמנות לפני השעה {selectedSupplier.cutoffHour}:00
+                            </p>
+                          </CardContent>
+                        </Card>
                       </div>
                     </div>
                   </TabsContent>
                   
-                  <TabsContent value="products" className="space-y-4 mt-6">
+                  <TabsContent dir='rtl' value="products" className="space-y-4 mt-6">
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <h3 className="text-lg font-medium">מוצרים ({selectedSupplier.productCount})</h3>
-                        <Button variant="outline" size="sm">
+                        {/* <Button variant="outline" size="sm">
                           <Plus className="w-4 h-4 mr-1" />
                           הוסף מוצר
-                        </Button>
+                        </Button> */}
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {selectedSupplier.products.map((product) => (
@@ -692,7 +739,7 @@ export default function SuppliersPage() {
                                   <span className="text-lg">{product.emoji}</span>
                                   <div>
                                     <div className="font-medium">{product.name}</div>
-                                    <div className="text-sm text-muted-foreground">יחידה: {product.unit}</div>
+                                    <div className="text-sm text-muted-foreground"> {product.unit}</div>
                                   </div>
                                 </div>
                                 <div className="text-right text-sm">
@@ -707,7 +754,7 @@ export default function SuppliersPage() {
                     </div>
                   </TabsContent>
                   
-                  <TabsContent value="analytics" className="space-y-4 mt-6">
+                  <TabsContent dir='rtl' value="analytics" className="space-y-4 mt-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <Card>
                         <CardHeader>

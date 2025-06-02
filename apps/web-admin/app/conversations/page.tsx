@@ -5,40 +5,26 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import {Icon} from '@iconify/react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Search, 
   MessageCircle, 
-  Calendar,
   Clock,
   User,
   Bot,
-  Eye,
-  Edit,
-  Trash2,
   Filter,
   ArrowUpDown,
   Phone,
-  AlertCircle,
-  CheckCircle,
-  Pause,
-  Play,
   MessageSquare,
-  UserCheck,
-  Building,
   X,
-  TrendingUp,
-  BarChart3,
-  Send,
   RefreshCw
 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 
 // Import the actual database
 import exampleDatabase from '@/schema/example';
@@ -53,7 +39,6 @@ interface EnhancedConversation {
   context: Record<string, any>;
   lastMessageTimestamp: Date;
   messages: Array<{
-    id: string;
     body: string;
     direction: 'incoming' | 'outgoing';
     currentState: string;
@@ -61,7 +46,6 @@ interface EnhancedConversation {
   }>;
   messageCount: number;
   createdAt: Date;
-  isActive: boolean;
   stateCategory: 'onboarding' | 'setup' | 'inventory' | 'order' | 'delivery' | 'idle' | 'other';
 }
 
@@ -99,6 +83,22 @@ const stateNames: Record<string, string> = {
   'IDLE': 'רגיל'
 };
 
+export const whatsappColors = {
+  light: {
+    right: '#FFFFFF', // Light green
+    textColor: '#000', // Black
+    left: '#DCF8C6', // Light greenish for sender
+    background: 'rgb(235 211 184 / 10%)',
+  },
+  dark: {
+    left: 'rgb(0, 92, 75)', // Dark green
+    textColor: 'rgb(233, 237, 239)', // White
+    right: '#202c33', // Slightly brighter dark green for sender
+    background: 'rgba(16, 29, 37, 0.85)',
+  },
+};
+
+
 const getStateCategory = (state: string): 'onboarding' | 'setup' | 'inventory' | 'order' | 'delivery' | 'idle' | 'other' => {
   if (state.startsWith('ONBOARDING') || state === 'WAITING_FOR_PAYMENT') return 'onboarding';
   if (state.startsWith('SETUP') || state.startsWith('SUPPLIER') || state.startsWith('PRODUCT')) return 'setup';
@@ -129,8 +129,6 @@ export default function ConversationsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [sortBy, setSortBy] = useState<'activity' | 'created' | 'messages'>('activity');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [newMessage, setNewMessage] = useState('');
-  const { toast } = useToast();
 
   // Extract and enhance conversation data from the actual database
   const enhancedConversations = useMemo((): EnhancedConversation[] => {
@@ -142,7 +140,7 @@ export default function ConversationsPage() {
         if (!restaurant) return; // Skip conversations with missing restaurants
 
         // Get messages for this conversation
-        const messages = Object.values(conversation.messages).map(message => ({
+        const messages = Object.values(conversation.messages).map((message) => ({
           id: message.id,
           body: message.body,
           direction: message.direction,
@@ -165,7 +163,6 @@ export default function ConversationsPage() {
           messages,
           messageCount: messages.length,
           createdAt: messages.length > 0 ? messages[0].createdAt : conversation.lastMessageTimestamp.toDate(),
-          isActive,
           stateCategory
         });
       });
@@ -211,7 +208,6 @@ export default function ConversationsPage() {
   const stats = useMemo(() => {
     try {
       const total = enhancedConversations.length;
-      const active = enhancedConversations.filter(c => c.isActive).length;
       const idle = enhancedConversations.filter(c => c.currentState === 'IDLE').length;
       const totalMessages = enhancedConversations.reduce((sum, c) => sum + c.messageCount, 0);
       
@@ -242,13 +238,11 @@ export default function ConversationsPage() {
 
       return {
         total,
-        active,
         idle,
         totalMessages,
         categoryStats,
         restaurantStats,
         averageMessages: total > 0 ? Math.round(totalMessages / total) : 0,
-        activePercentage: total > 0 ? Math.round((active / total) * 100) : 0
       };
     } catch (error) {
       console.error('Error calculating stats:', error);
@@ -265,7 +259,7 @@ export default function ConversationsPage() {
     }
   }, [enhancedConversations]);
 
-  const getStateBadge = (state: string, isActive: boolean) => {
+  const getStateBadge = (state: string) => {
     const category = getStateCategory(state);
     const colors: Record<string, string> = {
       onboarding: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
@@ -282,9 +276,6 @@ export default function ConversationsPage() {
         <Badge className={colors[category]}>
           {stateNames[state] || state}
         </Badge>
-        {isActive && (
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" title="פעיל" />
-        )}
       </div>
     );
   };
@@ -307,17 +298,18 @@ export default function ConversationsPage() {
 
   const ConversationCard = ({ conversation }: { conversation: EnhancedConversation }) => {
     const lastMessage = conversation.messages[conversation.messages.length - 1];
-    
+    const {toast} = useToast();
     return (
       <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => {
         setSelectedConversation(conversation);
         setIsDialogOpen(true);
+        toast({ title: `פתיחת שיחה עם ${conversation.restaurantName}`, description: `מספר: ${conversation.phone}`, duration: 2000});
       }}>
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${conversation.isActive ? 'bg-green-100 dark:bg-green-900' : 'bg-gray-100 dark:bg-gray-900'}`}>
-                <MessageCircle className={`w-5 h-5 ${conversation.isActive ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-400'}`} />
+              <div className={`p-2 rounded-lg bg-gradient-to-tr from-green-50 to-green-100 dark:from-green-900 dark:to-green-800`}>
+                <Icon icon="ic:outline-whatsapp" className="w-6 h-6 text-green-500" />
               </div>
               <div className="min-w-0 flex-1">
                 <CardTitle className="text-lg truncate">{conversation.restaurantName}</CardTitle>
@@ -327,7 +319,7 @@ export default function ConversationsPage() {
                 </CardDescription>
               </div>
             </div>
-            {getStateBadge(conversation.currentState, conversation.isActive)}
+            {getStateBadge(conversation.currentState)}
           </div>
         </CardHeader>
         <CardContent>
@@ -375,10 +367,10 @@ export default function ConversationsPage() {
         </div>
         <div className={`rounded-lg p-3 ${
           isBot 
-            ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100' 
-            : 'bg-blue-500 text-white'
+            ? 'bg-gray-100 dark:bg-gray-800 incoming text-gray-900 dark:text-gray-100' 
+            : 'bg-teal-500 text-white'
         }`}>
-          <div className="text-sm whitespace-pre-wrap">{message.body}</div>
+          <div dir='auto' className="text-sm whitespace-pre-wrap">{message.body}</div>
           <div className={`text-xs mt-1 ${
             isBot ? 'text-gray-500 dark:text-gray-400' : 'text-blue-100'
           }`}>
@@ -487,191 +479,103 @@ export default function ConversationsPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="activity-desc">פעילות (חדש→ישן)</SelectItem>
-              <SelectItem value="activity-asc">פעילות (ישן→חדש)</SelectItem>
-              <SelectItem value="created-desc">יצירה (חדש→ישן)</SelectItem>
-              <SelectItem value="created-asc">יצירה (ישן→חדש)</SelectItem>
-              <SelectItem value="messages-desc">הודעות (רבות→מעטות)</SelectItem>
-              <SelectItem value="messages-asc">הודעות (מעטות→רבות)</SelectItem>
+              <SelectItem value="activity-desc">הכי חדשות</SelectItem>
+              <SelectItem value="activity-asc">הכי ישנות</SelectItem>
+              {/* <SelectItem value="created-desc">יצירה (חדש→ישן)</SelectItem>
+              <SelectItem value="created-asc">יצירה (ישן→חדש)</SelectItem> */}
+              {/* <SelectItem value="messages-desc">הודעות (רבות→מעטות)</SelectItem>
+              <SelectItem value="messages-asc">הודעות (מעטות→רבות)</SelectItem> */}
             </SelectContent>
           </Select>
         </div>
       </div>
 
-      {/* Enhanced Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <MessageCircle className="w-4 h-4" />
-              סה״כ שיחות
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
-            <Progress value={100} className="mt-2" />
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Play className="w-4 h-4" />
-              פעילות
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.active}</div>
-            <Progress value={stats.activePercentage} className="mt-2" />
-            <p className="text-xs text-muted-foreground mt-1">{stats.activePercentage}% פעילות</p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Pause className="w-4 h-4" />
-              רגילות
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-gray-600">{stats.idle}</div>
-            <Progress value={stats.total > 0 ? (stats.idle / stats.total) * 100 : 0} className="mt-2" />
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <MessageSquare className="w-4 h-4" />
-              סה״כ הודעות
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{stats.totalMessages}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              ממוצע {stats.averageMessages} לשיחה
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Building className="w-4 h-4" />
-              מסעדות
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-purple-600">
-              {Object.keys(stats.restaurantStats).length}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">עם שיחות</p>
-          </CardContent>
-        </Card>
-      </div>
-
   
 
-      {/* Conversations Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredConversations.length > 0 ? (
-          filteredConversations.map((conversation) => (
-            <ConversationCard key={conversation.phone} conversation={conversation} />
-          ))
-        ) : (
-          <div className="col-span-full text-center py-12">
-            <MessageCircle className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium mb-2">לא נמצאו שיחות</h3>
-            <p className="text-muted-foreground">נסה לשנות את מונחי החיפוש או המסנן</p>
-          </div>
-        )}
+  {/* Conversations Grid */}
+  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+  {filteredConversations.length > 0 ? (
+  filteredConversations.map((conversation) => (
+  <ConversationCard key={conversation.phone} conversation={conversation} />
+  ))
+  ) : (
+  <div className="col-span-full text-center py-12">
+  <Icon icon='ic:outline-whatsapp' className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+  <h3 className="text-lg font-medium mb-2">לא נמצאו שיחות</h3>
+  <p className="text-muted-foreground">נסה לשנות את מונחי החיפוש או המסנן</p>
+  </div>
+  )}
+  </div>
+
+  {/* Enhanced Conversation Details Dialog */}
+  <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+  <DialogContent className="max-w-6xl max-h-[85vh] gap-0 overflow-hidden p-0">
+  {selectedConversation && (
+  <>
+  <DialogHeader className="p-6 pb-4 sticky top-0 bg-background z-10 border-b">
+  <div className="flex items-center justify-between">
+  <div>
+    <DialogTitle className="flex items-center gap-2">
+      <Icon icon="ic:outline-whatsapp" width="24" height="24" />
+      שיחה עם {selectedConversation.restaurantName}
+    </DialogTitle>
+    <DialogDescription className="flex items-center gap-2 mt-1">
+      <User className="w-4 h-4" />
+      {selectedConversation.contactName} • {selectedConversation.phone}
+    </DialogDescription>
+  </div>
+  </div>
+  <Button
+  variant="ghost"
+  size="sm"
+  className="absolute top-4 left-4 h-8 w-8 p-0 bg-gray-50 hover:bg-gray-100 dark:bg-gray-900 dark:hover:bg-gray-800 rounded-md"
+  onClick={() => setIsDialogOpen(false)}
+  >
+  <X className="w-4 h-4" />
+  </Button>
+  </DialogHeader>
+
+  <div className="flex-1 overflow-hidden relative">
+  <Tabs defaultValue="messages" className="h-full flex flex-col">
+    <div className='absolute -top-4 w-full flex justify-center'>
+      <TabsList className="grid  bg-zinc-200/50 dark:bg-zinc-800/50 backdrop-blur-xl w-[90%] grid-cols-3 mx-6 mt-4">
+      
+        <TabsTrigger value="messages">שיחה</TabsTrigger>
+        <TabsTrigger value="state">מצב נוכחי</TabsTrigger>
+        <TabsTrigger value="context">נתונים שנאספו</TabsTrigger>
+      </TabsList>
       </div>
 
-      {/* Enhanced Conversation Details Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-6xl max-h-[85vh] overflow-hidden p-0">
-          {selectedConversation && (
-            <>
-              <DialogHeader className="p-6 pb-4 pr-16 sticky top-0 bg-background z-10 border-b">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <DialogTitle className="flex items-center gap-2">
-                      <MessageCircle className="w-5 h-5" />
-                      שיחה עם {selectedConversation.restaurantName}
-                    </DialogTitle>
-                    <DialogDescription className="flex items-center gap-2 mt-1">
-                      <User className="w-4 h-4" />
-                      {selectedConversation.contactName} • {selectedConversation.phone}
-                    </DialogDescription>
+          <TabsContent value="messages" className="flex-1 whatsapp-chat-container rounded-xl backdrop-blur-lg overflow-y-auto max-h-[70vh] py-6  m-0">
+            <div className="h-full overflow-y-auto flex flex-col">
+              {/* Chat Messages */}
+              <div className="flex-1 overflow-y-auto mb-8 p-6 space-y-1">
+                {selectedConversation.messages.length > 0 ? (
+                  selectedConversation.messages.map((message, index) => (
+                    <ChatBubble 
+                      key={index} 
+                      message={message} 
+                      isBot={message.direction === 'outgoing'} 
+                    />
+                  ))
+                ) : (
+                  <div className="text-center text-muted-foreground py-8">
+                    <MessageCircle className="w-12 h-12 mx-auto mb-4" />
+                    <p>אין הודעות בשיחה זו</p>
                   </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="absolute top-4 left-4 h-8 w-8 p-0 bg-gray-50 hover:bg-gray-100 dark:bg-gray-900 dark:hover:bg-gray-800 rounded-md"
-                  onClick={() => setIsDialogOpen(false)}
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              </DialogHeader>
-              
-              <div className="flex-1 overflow-hidden">
-                <Tabs defaultValue="messages" className="h-full flex flex-col">
-                  <TabsList className="grid w-full grid-cols-3 mx-6 mt-4">
-                    <TabsTrigger value="messages">שיחה</TabsTrigger>
-                    <TabsTrigger value="state">מצב נוכחי</TabsTrigger>
-                    <TabsTrigger value="context">הקשר</TabsTrigger>
-                  </TabsList>
-                  
-                  <TabsContent value="messages" className="flex-1 overflow-hidden m-0">
-                    <div className="h-full flex flex-col">
-                      {/* Chat Messages */}
-                      <div className="flex-1 overflow-y-auto p-6 space-y-1">
-                        {selectedConversation.messages.length > 0 ? (
-                          selectedConversation.messages.map((message) => (
-                            <ChatBubble 
-                              key={message.id} 
-                              message={message} 
-                              isBot={message.direction === 'outgoing'} 
-                            />
-                          ))
-                        ) : (
-                          <div className="text-center text-muted-foreground py-8">
-                            <MessageCircle className="w-12 h-12 mx-auto mb-4" />
-                            <p>אין הודעות בשיחה זו</p>
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Message Input (Read-only for admin view) */}
-                      <div className="border-t p-4 bg-muted/20">
-                        <div className="flex gap-2">
-                          <Input 
-                            placeholder="הודעה לבוט (לצפייה בלבד)" 
-                            value={newMessage}
-                            onChange={(e) => setNewMessage(e.target.value)}
-                            disabled
-                            className="flex-1" 
-                          />
-                          <Button disabled>
-                            <Send className="w-4 h-4" />
-                          </Button>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-2">
-                          ממשק זה מיועד לצפייה בלבד. שינויים יבוצעו דרך WhatsApp.
-                        </p>
-                      </div>
+                )}
+              </div>
+      
                     </div>
                   </TabsContent>
                   
-                  <TabsContent value="state" className="space-y-4 mt-6 p-6">
+                  <TabsContent dir='rtl' value="state" className="space-y-4 mt-6 p-6">
                     <div className="space-y-4">
                       <div className="flex items-center gap-4">
                         <Label>מצב נוכחי:</Label>
-                        {getStateBadge(selectedConversation.currentState, selectedConversation.isActive)}
+                        {getStateBadge(selectedConversation.currentState)}
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div  className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label>תאריך התחלה</Label>
                           <Input value={selectedConversation.createdAt.toLocaleString('he-IL')} readOnly />
@@ -697,12 +601,12 @@ export default function ConversationsPage() {
                   <TabsContent value="context" className="space-y-4 mt-6 p-6">
                     <div className="space-y-4">
                       <div>
-                        <Label>הקשר השיחה</Label>
+                        <Label>נתונים שנאספו</Label>
                         <div className="mt-2 p-4 bg-muted rounded-md max-h-96 overflow-auto">
                           <pre className="text-sm whitespace-pre-wrap">
                             {Object.keys(selectedConversation.context).length > 0 
                               ? JSON.stringify(selectedConversation.context, null, 2)
-                              : 'אין הקשר זמין'}
+                              : 'אין נתונים זמינים'}
                           </pre>
                         </div>
                       </div>

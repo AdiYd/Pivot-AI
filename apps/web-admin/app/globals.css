@@ -79,6 +79,7 @@
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
+  
   }
 }
  
@@ -90,4 +91,10 @@
     font-family: 'Heebo', 'Roboto', sans-serif;
     @apply bg-background text-foreground;
   }
+  .chat-whatsApp {
+    background-image: url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png");
+    background-size:contain;
+    background-position: fixed;
+}
+
 }
