@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { doc, getDoc, collection, query, orderBy, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, query, orderBy, getDocs, deleteDoc, where } from 'firebase/firestore';
 import { db } from '@/lib/firebaseClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,12 +24,14 @@ import {
   Wifi,
   WifiOff,
   Play,
-  Square
+  Square,
+  Loader2
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 import axios from 'axios';
 import { Icon } from '@iconify/react/dist/iconify.js';
+import { clear } from 'console';
 
 // Types
 interface Message {
@@ -60,54 +62,18 @@ const FUNCTION_URL = process.env.NODE_ENV === 'development'
 
 const SIMULATOR_API_KEY = process.env.NEXT_PUBLIC_SIMULATOR_API_KEY;
 
-// Predefined test scenarios
-const TEST_SCENARIOS = [
-  {
-    id: 'onboarding',
-    name: 'רישום מסעדה חדשה',
-    phone: '0501234567',
-    messages: [
-      'שלום',
-      'מסעדת הבית',
-      '123456789',
-      'הבית',
-      '5',
-      'יוסי כהן',
-      'yossi@example.com',
-      '1'
-    ]
-  },
-  {
-    id: 'inventory',
-    name: 'עדכון מלאי',
-    phone: '0509876543',
-    messages: [
-      'מלאי',
-      '1',
-      '15',
-      'כן'
-    ]
-  },
-  {
-    id: 'order',
-    name: 'ביצוע הזמנה',
-    phone: '0507654321',
-    messages: [
-      'הזמנה',
-      'כן',
-      'אישור'
-    ]
-  }
-];
+
 
 export default function SimulatorPage() {
   const [session, setSession] = useState<SimulatorSession>({
-    phoneNumber: '0505555555',
+    phoneNumber: '0523456789',
     messages: [],
     isConnected: false,
     isLoading: false
   });
   const [newMessage, setNewMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [availableConversations, setAvailableConversations] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -123,6 +89,27 @@ export default function SimulatorPage() {
       inputRef.current.focus();
     }
   }, [session.isConnected, session.messages]);
+
+  // Load available conversations on mount
+  useEffect(() => {
+    const fetchAvailableConversations = async () => {
+      try {
+        const conversationsRef = collection(db, 'conversations_simulator');
+        const conversationsSnapshot = await getDocs(conversationsRef);
+        const conversations: string[] = [];
+        
+        conversationsSnapshot.forEach(doc => {
+          conversations.push(doc.id);
+        });
+        
+        setAvailableConversations(conversations);
+      } catch (error) {
+        console.error('Error loading available conversations:', error);
+      }
+    };
+
+    fetchAvailableConversations();
+  }, []);
 
   // Validate phone number
   const validatePhoneNumber = (phone: string): boolean => {
@@ -149,8 +136,7 @@ export default function SimulatorPage() {
       return;
     }
 
-    const cleanPhone = session.phoneNumber.replace(/\s|-/g, '');
-    const loadedSession = await loadSession(cleanPhone);
+    const loadedSession = await loadSession(session.phoneNumber);
     console.log('Loaded session:', loadedSession);
     setSession(prev => ({
       ...prev,
@@ -162,7 +148,7 @@ export default function SimulatorPage() {
 
     toast({
     title: loadedSession ? "שיחה נטענה בהצלחה" : "התחברת בהצלחה",
-    description: `מתחיל שיחה עם ${cleanPhone}${loadedSession ? ' (נטען היסטוריה)' : ''}`,
+    description: `מתחיל שיחה עם ${session.phoneNumber}${loadedSession ? ' (נטען היסטוריה)' : ''}`,
   });
   };
 
@@ -286,13 +272,16 @@ export default function SimulatorPage() {
 
 
   // Clear conversation
-  const clearConversation = () => {
+  const clearConversation = async (phoneNuber:string) => {
+    setLoading(true);
+    await clearSession(phoneNuber)
     setSession(prev => ({
       ...prev,
       messages: [],
       conversationState: undefined
     }));
-    
+    setAvailableConversations(prev => prev.filter(conv => conv !== phoneNuber));
+    setLoading(false);
     toast({
       title: "השיחה נוקתה",
       description: "כל ההודעות נמחקו",
@@ -388,10 +377,16 @@ export default function SimulatorPage() {
                       onKeyPress={(e) => e.key === 'Enter' && startSession()}
                     />
                   </div>
+                   {availableConversations.length > 0 && availableConversations.map((conv) => (
+                    <Badge onClick={() =>{setSession(prev => ({ ...prev, phoneNumber: conv }))}} key={conv} variant="outline" className="mr-2 cursor-pointer hover:bg-muted">
+                      {conv}
+                    </Badge>
+                  ))}
                   <Button onClick={startSession} className="w-full">
                     התחבר
                     <Phone className="w-4 h-4 ml-2" />
                   </Button>
+                 
                 </>
               ) : (
                 <div className="space-y-2">
@@ -409,9 +404,9 @@ export default function SimulatorPage() {
 
           {/* Conversation State */}
           {session.conversationState && (
-            <Card className='max-h-[55vh]'>
+            <Card className='max-h-[57vh]'>
               <CardHeader className='py-1'>
-                <CardTitle className="text-lg">מצב השיחה</CardTitle>
+                <CardTitle className="text-lg">נתוני השיחה</CardTitle>
               </CardHeader>
               <CardContent className="space-y-1 overflow-y-auto">
                 <div>
@@ -422,14 +417,13 @@ export default function SimulatorPage() {
                     {session.conversationState.currentState}
                   </Badge>
                 </div>
-                
                 {Object.keys(session.conversationState.context).length > 0 && (
-                  <div>
-                    <Label className="text-sm">נתוני שיחה</Label>
+                  <div className='overflow-hidden max-h-[fill-available]'>
+                    <Label className="text-sm">נתוני שנאספו</Label>
                     <div className="mt-1 space-y-1">
                       {Object.entries(session.conversationState.context).map(([key, value]) => (
-                        <div key={key} className="text-xs bg-muted p-2 rounded">
-                          <span className="font-medium">{key}:</span> {JSON.stringify(value)}
+                        <div key={key} className="text-xs text-wrap bg-muted p-2 rounded-xl">
+                          <span className="font-medium text-wrap ">{key}:</span> {JSON.stringify(value)}
                         </div>
                       ))}
                     </div>
@@ -444,20 +438,26 @@ export default function SimulatorPage() {
         <div className="lg:col-span-3">
           <Card className="h-[600px] overflow-hidden flex flex-col ">
             {/* Chat Header */}
-            <CardHeader className="py-2 absolute bg-card/50 backdrop-blur-lg w-full z-10">
+            <CardHeader className="py-2 flex justify-between absolute bg-card/50 backdrop-blur-lg w-full z-10">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
                     <Bot className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <CardTitle className="text-lg">בוט Pivot</CardTitle>
+                    <CardTitle className="text-base">בוט Pivot</CardTitle>
                     <p className="text-sm text-muted-foreground">
                       {session.isConnected ? 'מחובר' : 'לא מחובר'}
-                      {session.conversationState && ` • ${session.conversationState.currentState}`}
+                      {session.conversationState && ` • ${session.phoneNumber}`}
                     </p>
                   </div>
                 </div>
+                {session.isConnected && <div className="flex items-center">
+                  <Button onClick={() => clearConversation(session.phoneNumber)} variant="outline" className="w-full">
+                    נקה שיחה
+                    {loading ? <Loader2 style={{animationDuration:'1s'}} className="w-4 h-4 ml-2 animate-spin" /> : <Trash2 className="w-4 h-4 ml-2" />}
+                  </Button>
+                </div>}
               </div>
             </CardHeader>
 
@@ -530,13 +530,13 @@ export default function SimulatorPage() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -20 }}
-                      className="flex justify-end gap-3"
+                      className="flex flex-row-reverse justify-start gap-3"
                     >
                       <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
                         <Bot className="w-4 h-4 text-white" />
                       </div>
                       <div className="bg-muted rounded-2xl px-4 py-2">
-                        <div className="flex gap-1">
+                        <div className="flex relative -bottom-1 gap-1">
                           <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
                           <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
                           <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
@@ -547,7 +547,7 @@ export default function SimulatorPage() {
 
                   {/* Empty State */}
                   {session.messages.length === 0 && !session.isLoading && (
-                    <div className="text-center py-8 bg-card/90 w-fit m-auto p-8 rounded-2xl backdrop-blur-lg">
+                    <div className="text-center py-8 bg-card/90 w-fit m-auto p-8 rounded-xl backdrop-blur-lg">
                       <Icon icon="mdi:message-text" width="2em" height="2em" className="text-muted-foreground mb-4 mx-auto" />
                       <h3 className="text-lg font-medium mb-2">
                         {session.isConnected ? 'התחל שיחה' : 'התחבר כדי להתחיל'}
@@ -648,5 +648,63 @@ const loadSession = async (phoneNumber: string): Promise<SimulatorSession | null
   } catch (error) {
     console.error('Error loading conversation:', error);
     return null;
+  }
+};
+
+const clearSession = async (phoneNumber: string): Promise<void> => {
+  try {
+    if (!phoneNumber) {
+      throw new Error('Phone number is required to clear session');
+    }
+    
+    // Add confirmation dialog before proceeding with deletion
+    const isConfirmed = window.confirm('האם אתה בטוח שברצונך למחוק את השיחה? פעולה זו אינה ניתנת לביטול.');
+    
+    if (!isConfirmed) {
+      return; // User canceled the operation
+    }
+    
+    const cleanPhone = phoneNumber.replace(/\s|-/g, '');
+    const conversationRef = doc(db, 'conversations_simulator', cleanPhone);
+    const conversationDoc = await getDoc(conversationRef);
+    
+    if (conversationDoc.exists()) {
+      // First delete all messages in the subcollection
+      const messagesCollectionRef = collection(conversationRef, 'messages');
+      const messagesSnapshot = await getDocs(messagesCollectionRef);
+      
+      // Delete each message document
+      const messageDeletionPromises = messagesSnapshot.docs.map(messageDoc => 
+        deleteDoc(doc(messagesCollectionRef, messageDoc.id))
+      );
+      
+      await Promise.all(messageDeletionPromises);
+      console.log(`Deleted ${messagesSnapshot.size} message documents`);
+      
+      // Then delete the conversation document
+      await deleteDoc(conversationRef);
+      console.log(`Deleted conversation document for: ${cleanPhone}`);
+      
+      // Check and delete reference in restaurants_simulator collection if exists
+      const restaurantsRef = collection(db, 'restaurants_simulator');
+      const restaurantQuery = query(
+        restaurantsRef, 
+        where('primaryContact.whatsapp', '==', cleanPhone)
+      );
+      
+      const restaurantSnapshot = await getDocs(restaurantQuery);
+      
+      if (!restaurantSnapshot.empty) {
+        const restaurantDocs = restaurantSnapshot.docs.map(doc => 
+          deleteDoc(doc.ref)
+        );
+        await Promise.all(restaurantDocs);
+        console.log(`Deleted ${restaurantSnapshot.size} restaurant references`);
+      }
+    } else {
+      console.log(`No session found for phone number: ${cleanPhone}`);
+    }
+  } catch (error) {
+    console.error('Error clearing session:', error);
   }
 };
