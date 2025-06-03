@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { initializeApp } from "firebase/app";
+import { FirebaseApp, getApps, initializeApp } from "firebase/app";
 import { 
   getAuth, 
   onAuthStateChanged, 
@@ -9,11 +9,12 @@ import {
   sendSignInLinkToEmail as firebaseSendSignInLink, 
   isSignInWithEmailLink as firebaseIsSignInWithEmailLink,
   signInWithEmailLink as firebaseSignInWithEmailLink,
-  type User 
+  type User, 
+  Auth
 } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { Firestore, getFirestore } from "firebase/firestore";
 
-// Simple Firebase config directly from env vars
+// Firebase configuration
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -24,10 +25,19 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
-// Initialize Firebase once
-export const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app);
+// Initialize Firebase only on the client side
+let app: FirebaseApp | undefined;
+let auth: Auth;
+let db: Firestore;
+
+// Only initialize Firebase if we're in the browser and it hasn't been initialized yet
+if (typeof window !== 'undefined' && getApps().length === 0) {
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  db = getFirestore(app);
+}
+
+export { app, auth, db };
 
 // Context interface with only what we need
 interface FirebaseContextValue {
