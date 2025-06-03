@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { BotAction } from '../schema/types';
 import { sendWhatsAppMessage } from '../utils/twilio';
-import { createRestaurant, updateSupplier, logMessage } from '../utils/firestore';
+import { createRestaurant, updateSupplier, logMessage, updateProduct } from '../utils/firestore';
 
 // Zod schemas for payload validation
 const SendMessagePayloadSchema = z.object({
@@ -30,14 +30,31 @@ const CreateRestaurantPayloadSchema = z.object({
   phone: z.string().min(10)
 });
 
+// Updated schema to match the Supplier interface
 const UpdateSupplierPayloadSchema = z.object({
   restaurantId: z.string().min(1),
   name: z.string().min(2),
   whatsapp: z.string().min(10),
+  role: z.enum(["Supplier"]).default("Supplier"),
   deliveryDays: z.array(z.number().min(0).max(6)),
   cutoffHour: z.number().min(0).max(23),
-  category: z.string().optional().default("general"),
+  category: z.union([z.array(z.string()), z.string()]).transform(val => 
+    Array.isArray(val) ? val : [val]
+  ),
   rating: z.number().min(1).max(5).optional(),
+});
+
+// Add schema for product updates
+const UpdateProductPayloadSchema = z.object({
+  restaurantId: z.string().min(1),
+  supplierId: z.string().min(10),
+  id: z.string().optional(),
+  name: z.string().min(2),
+  category: z.string().default("general"),
+  emoji: z.string().optional().default("📦"),
+  unit: z.string(),
+  parMidweek: z.number().min(0).default(0),
+  parWeekend: z.number().min(0).default(0)
 });
 
 /**
@@ -119,8 +136,20 @@ export async function processActions(
           break;
 
         case "UPDATE_PRODUCT":
-          // TODO: Implement product update logic with Zod validation and simulator support
-          console.log(`[BotActions] UPDATE_PRODUCT action ${isSimulator ? '(simulator)' : ''} not yet implemented`, action.payload);
+          try {
+            const validPayload = UpdateProductPayloadSchema.parse(action.payload);
+            
+            // Extract restaurantId and supplierId from the payload
+            const { restaurantId, supplierId, ...productData } = validPayload;
+            
+            // Call the Firestore utility to update/create the product
+            await updateProduct(restaurantId, supplierId, productData);
+          } catch (validationError) {
+            if (validationError instanceof z.ZodError) {
+              throw new Error(`Invalid UPDATE_PRODUCT payload: ${validationError.errors.map(e => e.message).join(', ')}`);
+            }
+            throw validationError;
+          }
           break;
 
         case "SEND_ORDER":

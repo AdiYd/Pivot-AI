@@ -1,4 +1,4 @@
-import { ConversationState, IncomingMessage, StateTransition, BotAction } from '../schema/types';
+import { ConversationState, IncomingMessage, StateTransition, BotAction, Product } from '../schema/types';
 import { 
   STATE_MESSAGES, 
   SYSTEM_MESSAGES, 
@@ -509,27 +509,45 @@ export function conversationStateReducer(
             }
           });
         } else {
-          // All products processed, save supplier
+          // All products processed, first save supplier
           actions.push({
             type: "UPDATE_SUPPLIER",
             payload: {
               restaurantId: newState.context.legalId,
               name: newState.context.currentSupplier.name,
               whatsapp: newState.context.currentSupplier.whatsapp,
-              deliveryDays: newState.context.currentSupplier.deliveryDays,
-              cutoffHour: newState.context.currentSupplier.cutoffHour,
-              category: newState.context.currentSupplier.category,
-              products: newState.context.currentSupplier.products,
+              deliveryDays: newState.context.currentSupplier.deliveryDays || [],
+              cutoffHour: newState.context.currentSupplier.cutoffHour || 12,
+              category: newState.context.currentSupplier.category || ["general"],
               role: "Supplier"
             }
           });
+          
+          // Now create/update each product
+          if (newState.context.currentSupplier.products?.length > 0) {
+            newState.context.currentSupplier.products.forEach((product: Product) => {
+              actions.push({
+                type: "UPDATE_PRODUCT",
+                payload: {
+                  restaurantId: newState.context.legalId,
+                  supplierId: newState.context.currentSupplier.whatsapp,
+                  name: product.name,
+                  emoji: product.emoji || "📦",
+                  unit: product.unit || "יחידות",
+                  category: newState.context.currentSupplier.category?.[0] || "general",
+                  parMidweek: product.parMidweek || 0,
+                  parWeekend: product.parWeekend || 0
+                }
+              });
+            });
+          }
           
           // Send completion message and move to next category
           actions.push({
             type: "SEND_MESSAGE",
             payload: {
               to: message.from,
-              body: interpolateMessage(`✅ *ספק ${newState.context.currentSupplier.name} הוגדר בהצלחה!*\n\n📦 סה\"כ ${newState.context.currentSupplier.products.length} מוצרים\n⏰ אספקה: ${formatDeliveryDays(newState.context.currentSupplier.deliveryDays)}\n🕒 הזמנה עד: ${newState.context.currentSupplier.cutoffHour}:00\n\n➡️ עובר לקטגוריה הבאה...`, {})
+              body: interpolateMessage(`✅ *ספק ${newState.context.currentSupplier.name} הוגדר בהצלחה!*\n\n📦 סה\"כ ${newState.context.currentSupplier.products.length} מוצרים\n⏰ אספקה: ${formatDeliveryDays(newState.context.currentSupplier.deliveryDays || [])}\n🕒 הזמנה עד: ${newState.context.currentSupplier.cutoffHour || 12}:00\n\n➡️ עובר לקטגוריה הבאה...`, {})
             }
           });
           

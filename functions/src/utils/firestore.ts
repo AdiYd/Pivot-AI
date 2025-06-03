@@ -53,24 +53,30 @@ const RestaurantSchema = z.object({
   createdAt: z.any().optional() // Will be replaced with serverTimestamp
 });
 
-// Supplier schema for validation
+// Updated Supplier schema for validation to match the Supplier interface
 const SupplierSchema = z.object({
-  restaurantId: z.string(), // Parent restaurant ID
+  restaurantId: z.string().min(1), // Parent restaurant ID
   name: z.string().min(2),
   whatsapp: z.string().min(10),
-  category: z.string(),
+  role: z.enum(["Supplier"]).default("Supplier"),
+  category: z.array(z.string()).min(1).default(["general"]),
   deliveryDays: z.array(z.number().min(0).max(6)),
   cutoffHour: z.number().min(0).max(23),
-  rating: z.number().min(1).max(5).optional()
+  rating: z.number().min(1).max(5).optional(),
+  createdAt: z.any().optional() // Will be replaced with serverTimestamp
 });
 
-// Product schema for validation
+// Updated Product schema for validation to match the Product interface
 const ProductSchema = z.object({
+  id: z.string().optional(), // Generated if not provided
+  supplierId: z.string().min(10).optional(), // Will be set from parent supplier
+  category: z.string().default("general"),
   name: z.string().min(2),
-  emoji: z.string(),
-  unit: z.enum(["kg", "gram", "liter", "ml", "pcs", "box", "bottle", "jar", "pack"]),
-  parMidweek: z.number().min(0),
-  parWeekend: z.number().min(0)
+  emoji: z.string().default("📦").optional(),
+  unit: z.string(), // Allow any string as ProductUnit is a string type
+  parMidweek: z.number().min(0).default(0),
+  parWeekend: z.number().min(0).default(0),
+  createdAt: z.any().optional() // Will be replaced with serverTimestamp
 });
 
 // Order schema for validation
@@ -281,8 +287,18 @@ export async function updateSupplier(
   });
 
   try {
+    // Ensure data has all required fields with defaults
+    const supplierInput = {
+      ...data,
+      role: "Supplier",
+      // Ensure category is an array
+      category: Array.isArray(data.category) ? data.category : [data.category || "general"],
+      // Set default values for optional fields
+      rating: data.rating || 0
+    };
+    
     // Validate input data
-    const validData = SupplierSchema.parse(data);
+    const validData = SupplierSchema.parse(supplierInput);
     
     // Use correct collection based on simulator mode
     const restaurantsCollection = getCollectionName('restaurants', isSimulator);
@@ -300,20 +316,28 @@ export async function updateSupplier(
     
     console.log(`[Firestore] Writing to ${restaurantsCollection}/${validData.restaurantId}/suppliers/${validData.whatsapp}...`);
 
+    // Check if supplier already exists to merge data properly
+    const existingSupplier = await supplierRef.get();
+    
     const supplierDoc = {
+      // Base supplier fields
       name: validData.name,
       whatsapp: validData.whatsapp,
-      deliveryDays: validData.deliveryDays,
-      cutoffHour: validData.cutoffHour,
-      category: validData.category,
+      role: "Supplier",
+      restaurantId: validData.restaurantId,
+      // Ensure array fields
+      deliveryDays: validData.deliveryDays || [],
+      category: Array.isArray(validData.category) ? validData.category : [validData.category || "general"],
+      cutoffHour: validData.cutoffHour || 12, // Default to noon
       rating: validData.rating || 0,
-      products: [], // Initialize with empty products array
-      createdAt: FieldValue.serverTimestamp()
+      // Timestamp handling
+      createdAt: existingSupplier.exists ? existingSupplier.data()?.createdAt : FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp()
     };
 
     await supplierRef.set(supplierDoc, { merge: true });
     
-    console.log(`[Firestore] ✅ Supplier "${validData.name}" updated successfully`);
+    console.log(`[Firestore] ✅ Supplier "${validData.name}" ${existingSupplier.exists ? 'updated' : 'created'} successfully`);
     return validData.whatsapp;
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -386,60 +410,60 @@ export async function getSupplier(restaurantId: string, supplierId: string): Pro
  * @param restaurantId Restaurant ID
  * @param supplierId Supplier ID (whatsapp)
  * @param productData Product data
- * @returns The product ID (generated or existing)
+ * @returns The product ID
  */
 export async function updateProduct(
   restaurantId: string,
   supplierId: string,
   productData: ProductData
-): Promise<boolean> {
+): Promise<string> {
   try {
-    // Validate product data
-    const validProduct = ProductSchema.parse(productData);
+    // Generate a product ID if not provided
+    const productId = productData.id || `product_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+    // Ensure data has all required fields with defaults
+    const productInput = {
+      ...productData,
+      id: productId,
+      supplierId: supplierId,
+      emoji: productData.emoji || "📦",
+      parMidweek: productData.parMidweek || 0,
+      parWeekend: productData.parWeekend || 0,
+    };
     
-    // Get reference to the supplier document
-    const supplierRef = firestore
+    // Validate product data
+    const validProduct = ProductSchema.parse(productInput);
+    
+    // Get reference to the products subcollection
+    const productRef = firestore
       .collection('restaurants')
       .doc(restaurantId)
       .collection('suppliers')
-      .doc(supplierId);
+      .doc(supplierId)
+      .collection('products')
+      .doc(productId);
     
-    // Get the supplier document
-    const supplierDoc = await supplierRef.get();
-    if (!supplierDoc.exists) {
-      throw new Error(`Supplier ${supplierId} not found for restaurant ${restaurantId}`);
-    }
+    // Check if product already exists to handle updates properly
+    const existingProduct = await productRef.get();
     
-    const supplierData = supplierDoc.data();
-    const products = supplierData?.products || [];
+    const productDoc = {
+      id: productId,
+      supplierId: supplierId,
+      category: validProduct.category || "general",
+      name: validProduct.name,
+      emoji: validProduct.emoji || "📦",
+      unit: validProduct.unit,
+      parMidweek: validProduct.parMidweek || 0,
+      parWeekend: validProduct.parWeekend || 0,
+      createdAt: existingProduct.exists ? existingProduct.data()?.createdAt : FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp()
+    };
     
+    // Update or create the product
+    await productRef.set(productDoc, { merge: true });
     
-    // Look for existing product with same ID
-    const existingProductIndex = products.findIndex((p: any) => p.name === validProduct.name);
-    
-    if (existingProductIndex >= 0) {
-      // Update existing product
-      products[existingProductIndex] = {
-        ...validProduct,
-        updatedAt: FieldValue.serverTimestamp()
-      };
-      console.log(`[Firestore] Updating existing product "${validProduct.name}" in supplier ${supplierId}`);
-    } else {
-      // Add new product
-      products.push({
-        ...validProduct,
-        createdAt: FieldValue.serverTimestamp()
-      });
-      console.log(`[Firestore] Adding new product "${validProduct.name}" to supplier ${supplierId}`);
-    }
-    
-    // Update the supplier document with the modified products array
-    await supplierRef.update({
-      products: products
-    });
-    
-    console.log(`[Firestore] ✅ Product "${validProduct.name}" saved for supplier ${supplierId}`);
-    return true; // Return the product name as ID
+    console.log(`[Firestore] ✅ Product "${validProduct.name}" ${existingProduct.exists ? 'updated' : 'created'} for supplier ${supplierId}`);
+    return productId;
   } catch (error) {
     if (error instanceof z.ZodError) {
       console.error(`[Firestore] ❌ Invalid product data:`, error.errors);
@@ -452,13 +476,13 @@ export async function updateProduct(
 }
 
 /**
- * Add multiple products for a supplier in a batch operation
+ * Batch update or create products for a supplier
  * @param restaurantId Restaurant ID
  * @param supplierId Supplier ID (whatsapp)
  * @param products Array of product data
  * @returns Array of product IDs
  */
-export async function batchAddProducts(
+export async function batchUpdateProducts(
   restaurantId: string,
   supplierId: string,
   products: ProductData[]
@@ -471,27 +495,55 @@ export async function batchAddProducts(
     const batch = firestore.batch();
     const productIds: string[] = [];
     
-    products.forEach(product => {
+    // Get reference to supplier to ensure it exists
+    const supplierRef = firestore
+      .collection('restaurants')
+      .doc(restaurantId)
+      .collection('suppliers')
+      .doc(supplierId);
+    
+    const supplierDoc = await supplierRef.get();
+    
+    if (!supplierDoc.exists) {
+      throw new Error(`Supplier ${supplierId} not found for restaurant ${restaurantId}`);
+    }
+    
+    for (const productData of products) {
       try {
+        // Generate ID if not provided
+        const productId = productData.id || `product_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+        productIds.push(productId);
+        
+        // Ensure data has all required fields with defaults
+        const productInput = {
+          ...productData,
+          id: productId,
+          supplierId: supplierId,
+          emoji: productData.emoji || "📦",
+          parMidweek: productData.parMidweek || 0,
+          parWeekend: productData.parWeekend || 0,
+        };
+        
         // Validate each product
-        const validProduct = ProductSchema.parse(product);
+        const validProduct = ProductSchema.parse(productInput);
         
-        // Get a reference to the products subcollection
-        const productsRef = firestore
-          .collection('restaurants')
-          .doc(restaurantId)
-          .collection('suppliers')
-          .doc(supplierId)
-          .collection('products');
-        
-        // Create a new product document
-        const productRef = productsRef.doc();
-        productIds.push(productRef.id);
+        // Get a reference to the product document
+        const productRef = supplierRef
+          .collection('products')
+          .doc(productId);
         
         batch.set(productRef, {
-          ...validProduct,
-          createdAt: FieldValue.serverTimestamp()
-        });
+          id: productId,
+          supplierId: supplierId,
+          category: validProduct.category || "general",
+          name: validProduct.name,
+          emoji: validProduct.emoji || "📦",
+          unit: validProduct.unit,
+          parMidweek: validProduct.parMidweek || 0,
+          parWeekend: validProduct.parWeekend || 0,
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp()
+        }, { merge: true });
       } catch (error) {
         if (error instanceof z.ZodError) {
           console.error(`[Firestore] ❌ Skipping invalid product:`, error.errors);
@@ -499,14 +551,14 @@ export async function batchAddProducts(
           console.error(`[Firestore] ❌ Error processing product:`, error);
         }
       }
-    });
+    }
     
     await batch.commit();
     
-    console.log(`[Firestore] ✅ Added ${productIds.length} products for supplier ${supplierId}`);
+    console.log(`[Firestore] ✅ Updated ${productIds.length} products for supplier ${supplierId}`);
     return productIds;
   } catch (error) {
-    console.error(`[Firestore] ❌ Error batch adding products:`, error);
+    console.error(`[Firestore] ❌ Error batch updating products:`, error);
     throw error;
   }
 }
