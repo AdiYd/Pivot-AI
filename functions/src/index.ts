@@ -221,134 +221,134 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
 });
 
 // Generate inventory reminders hourly
-exports.generateReminders = functions.pubsub.schedule("every 1 hours")
-  .onRun(async () => {
-    try {
-      // Get all active restaurants
-      const restaurants = await firestore
-        .collection("restaurants")
-        .where("isActivated", "==", true)
-        .get();
+// exports.generateReminders = functions.pubsub.schedule("every 1 hours")
+//   .onRun(async () => {
+//     try {
+//       // Get all active restaurants
+//       const restaurants = await firestore
+//         .collection("restaurants")
+//         .where("isActivated", "==", true)
+//         .get();
 
-      for (const restaurant of restaurants.docs) {
-        const restaurantData = restaurant.data();
-        const restaurantId = restaurant.id;
+//       for (const restaurant of restaurants.docs) {
+//         const restaurantData = restaurant.data();
+//         const restaurantId = restaurant.id;
 
-        // Get all suppliers for this restaurant
-        const suppliers = await firestore
-          .collection("restaurants")
-          .doc(restaurantId)
-          .collection("suppliers")
-          .get();
+//         // Get all suppliers for this restaurant
+//         const suppliers = await firestore
+//           .collection("restaurants")
+//           .doc(restaurantId)
+//           .collection("suppliers")
+//           .get();
 
-        for (const supplier of suppliers.docs) {
-          const supplierData = supplier.data();
-          const now = new Date();
-          const currentDay = now.getDay();
-          const currentHour = now.getHours();
+//         for (const supplier of suppliers.docs) {
+//           const supplierData = supplier.data();
+//           const now = new Date();
+//           const currentDay = now.getDay();
+//           const currentHour = now.getHours();
 
-          // Check if today is a delivery day for this supplier
-          if (
-            supplierData.deliveryDays.includes(currentDay) &&
-            currentHour === supplierData.cutoffHour - 3 // 3 hours before cutoff
-          ) {
-            // TODO: Send reminder to the restaurant owner
-            console.log(`Sending reminder for ${restaurantData.name} about ${supplierData.name}`);
-          }
-        }
-      }
+//           // Check if today is a delivery day for this supplier
+//           if (
+//             supplierData.deliveryDays.includes(currentDay) &&
+//             currentHour === supplierData.cutoffHour - 3 // 3 hours before cutoff
+//           ) {
+//             // TODO: Send reminder to the restaurant owner
+//             console.log(`Sending reminder for ${restaurantData.name} about ${supplierData.name}`);
+//           }
+//         }
+//       }
 
-      return null;
-    } catch (error) {
-      console.error("Error generating reminders:", error);
-      return null;
-    }
-  });
+//       return null;
+//     } catch (error) {
+//       console.error("Error generating reminders:", error);
+//       return null;
+//     }
+//   });
 
-// Track order status changes
-exports.orderStatusSync = functions.firestore
-  .document("/restaurants/{restaurantId}/orders/{orderId}")
-  .onUpdate(async (change, context) => {
-    const {restaurantId, orderId} = context.params;
-    const newValue = change.after.data();
-    const previousValue = change.before.data();
+// // Track order status changes
+// exports.orderStatusSync = functions.firestore
+//   .document("/restaurants/{restaurantId}/orders/{orderId}")
+//   .onUpdate(async (change, context) => {
+//     const {restaurantId, orderId} = context.params;
+//     const newValue = change.after.data();
+//     const previousValue = change.before.data();
 
-    // If status changed to "delivered"
-    if (newValue.status === "delivered" && previousValue.status !== "delivered") {
-      try {
-        // Get restaurant and supplier data
-        const restaurantDoc = await firestore
-          .collection("restaurants")
-          .doc(restaurantId)
-          .get();
+//     // If status changed to "delivered"
+//     if (newValue.status === "delivered" && previousValue.status !== "delivered") {
+//       try {
+//         // Get restaurant and supplier data
+//         const restaurantDoc = await firestore
+//           .collection("restaurants")
+//           .doc(restaurantId)
+//           .get();
 
-        const supplierDoc = await firestore
-          .collection("restaurants")
-          .doc(restaurantId)
-          .collection("suppliers")
-          .doc(newValue.supplierId)
-          .get();
+//         const supplierDoc = await firestore
+//           .collection("restaurants")
+//           .doc(restaurantId)
+//           .collection("suppliers")
+//           .doc(newValue.supplierId)
+//           .get();
 
-        // TODO: Send delivery summary to restaurant owner
-        console.log(`Order ${orderId} from ${supplierDoc.data()?.name} has been delivered to ${restaurantDoc.data()?.name}`);
+//         // TODO: Send delivery summary to restaurant owner
+//         console.log(`Order ${orderId} from ${supplierDoc.data()?.name} has been delivered to ${restaurantDoc.data()?.name}`);
 
-        return null;
-      } catch (error) {
-        console.error("Error syncing order status:", error);
-        return null;
-      }
-    }
+//         return null;
+//       } catch (error) {
+//         console.error("Error syncing order status:", error);
+//         return null;
+//       }
+//     }
 
-    return null;
-  });
+//     return null;
+//   });
 
-// Export CSV report endpoint (authenticated)
-exports.exportCsv = functions.https.onRequest(async (req, res) => {
-  try {
-    // Check if user is authenticated
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      res.status(403).send("Unauthorized");
-      return;
-    }
+// // Export CSV report endpoint (authenticated)
+// exports.exportCsv = functions.https.onRequest(async (req, res) => {
+//   try {
+//     // Check if user is authenticated
+//     const authHeader = req.headers.authorization;
+//     if (!authHeader || !authHeader.startsWith("Bearer ")) {
+//       res.status(403).send("Unauthorized");
+//       return;
+//     }
 
-    // TODO: Validate the token
+//     // TODO: Validate the token
 
-    // Get restaurant ID from query params
-    const {restaurantId, reportType} = req.query;
+//     // Get restaurant ID from query params
+//     const {restaurantId, reportType} = req.query;
 
-    if (!restaurantId || !reportType) {
-      res.status(400).send("Missing required parameters");
-      return;
-    }
+//     if (!restaurantId || !reportType) {
+//       res.status(400).send("Missing required parameters");
+//       return;
+//     }
 
-    // Generate the report based on the type
-    let csvData = "";
+//     // Generate the report based on the type
+//     let csvData = "";
 
-    switch (reportType) {
-    case "orders":
-      // Generate orders report
-      csvData = "Order ID,Supplier,Date,Status,Total Items\n";
-      // TODO: Query orders and generate CSV
-      break;
+//     switch (reportType) {
+//     case "orders":
+//       // Generate orders report
+//       csvData = "Order ID,Supplier,Date,Status,Total Items\n";
+//       // TODO: Query orders and generate CSV
+//       break;
 
-    case "inventory":
-      // Generate inventory report
-      csvData = "Date,Product,Current Qty,Par Level\n";
-      // TODO: Query inventory snapshots and generate CSV
-      break;
+//     case "inventory":
+//       // Generate inventory report
+//       csvData = "Date,Product,Current Qty,Par Level\n";
+//       // TODO: Query inventory snapshots and generate CSV
+//       break;
 
-    default:
-      res.status(400).send("Invalid report type");
-      return;
-    }
+//     default:
+//       res.status(400).send("Invalid report type");
+//       return;
+//     }
 
-    // Set headers and return CSV data
-    res.setHeader("Content-Type", "text/csv");
-    res.setHeader("Content-Disposition", `attachment; filename="${reportType}_${restaurantId}.csv"`);
-    res.status(200).send(csvData);
-  } catch (error) {
-    console.error("Error exporting CSV:", error);
-    res.status(500).send("Internal Server Error");
-  }
-});
+//     // Set headers and return CSV data
+//     res.setHeader("Content-Type", "text/csv");
+//     res.setHeader("Content-Disposition", `attachment; filename="${reportType}_${restaurantId}.csv"`);
+//     res.status(200).send(csvData);
+//   } catch (error) {
+//     console.error("Error exporting CSV:", error);
+//     res.status(500).send("Internal Server Error");
+//   }
+// });
