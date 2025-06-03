@@ -65,15 +65,13 @@ export const exampleRestaurants: {
                 whatsapp: string;
                 name: string;
                 role: string;
-                category: string;
+                category: string[];
                 deliveryDays: number[];
                 cutoffHour: number;
                 rating: number;
                 createdAt: Timestamp;
                 // Sub-collections
-                products: {
-                    [productId: string]: Product
-                }
+                products: Product[]; // Array of products
             }
         },
         orders: {
@@ -112,13 +110,12 @@ export const exampleRestaurants: {
                                 whatsapp: "+972541111111",
                                 name: "תוצרת שדות טריים",
                                 role: "Supplier",
-                                category: "vegetables",
+                                category: ["vegetables", "fruits"],
                                 deliveryDays: [1, 3, 5], // Monday, Wednesday, Friday
                                 cutoffHour: 18, // 6 PM
                                 rating: 5,
                                 createdAt: daysAgo(110),
-                                products: {
-                                "prod-001": {
+                                products: [{
                                         id: "prod-001",
                                         supplierId: "+972541111111",
                                         category: "vegetables",
@@ -129,7 +126,7 @@ export const exampleRestaurants: {
                                         parWeekend: 8,
                                         createdAt: daysAgo(110)
                                 },
-                                "prod-002": {
+                                {
                                         id: "prod-002",
                                         supplierId: "+972541111111",
                                         category: "vegetables",
@@ -140,7 +137,7 @@ export const exampleRestaurants: {
                                         parWeekend: 3,
                                         createdAt: daysAgo(110)
                                 },
-                                "prod-003": {
+                                {
                                         id: "prod-003",
                                         supplierId: "+972541111111",
                                         category: "vegetables",
@@ -151,19 +148,18 @@ export const exampleRestaurants: {
                                         parWeekend: 7,
                                         createdAt: daysAgo(110)
                                 }
-                                }
+                                ]
                 },
                 "+972542222222": {
                         whatsapp: "+972542222222",
                         name: "פירות ים תיכוניים",
                         role: "Supplier",
-                        category: "fish",
+                        category: ["fish"],
                         deliveryDays: [2, 5], // Tuesday, Friday
                         cutoffHour: 16, // 4 PM
                         rating: 4,
                         createdAt: daysAgo(108),
-                        products: {
-                        "prod-004": {
+                        products: [{
                                 id: "prod-004",
                                 supplierId: "+972542222222",
                                 category: "fish",
@@ -174,7 +170,7 @@ export const exampleRestaurants: {
                                 parWeekend: 12,
                                 createdAt: daysAgo(108)
                         },
-                        "prod-005": {
+                       {
                                 id: "prod-005",
                                 supplierId: "+972542222222",
                                 category: "fish",
@@ -185,19 +181,19 @@ export const exampleRestaurants: {
                                 parWeekend: 8,
                                 createdAt: daysAgo(108)
                         }
-                        }
+                        ]
                 },
                 "+972543333333": {
                         whatsapp: "+972543333333",
                         name: "בשרים מובחרים",
                         role: "Supplier",
-                        category: "meat",
+                        category: ["meat"],
                         deliveryDays: [1, 4], // Monday, Thursday
                         cutoffHour: 15, // 3 PM
                         rating: 5,
                         createdAt: daysAgo(105),
-                        products: {
-                        "prod-006": {
+                        products: [
+                        {
                                 id: "prod-006",
                                 supplierId: "+972543333333",
                                 category: "meat",
@@ -208,7 +204,7 @@ export const exampleRestaurants: {
                                 parWeekend: 10,
                                 createdAt: daysAgo(105)
                         },
-                        "prod-007": {
+                       {
                                 id: "prod-007",
                                 supplierId: "+972543333333",
                                 category: "meat",
@@ -219,7 +215,7 @@ export const exampleRestaurants: {
                                 parWeekend: 6,
                                 createdAt: daysAgo(105)
                         }
-                        }
+                    ]
                 }
                 },
                 orders: {
@@ -327,13 +323,13 @@ export const exampleRestaurants: {
                                 whatsapp: "+972534444444",
                                 name: "מטרו תוצרת",
                                 role: "Supplier",
-                                category: "vegetables",
+                                category: ["vegetables"],
                                 deliveryDays: [2, 4, 6], // Tuesday, Thursday, Saturday
                                 cutoffHour: 17, // 5 PM
                                 rating: 4,
                                 createdAt: daysAgo(85),
-                                products: {
-                                        "prod-010": {
+                                products: [
+                                         {
                                                 id: "prod-010",
                                                 supplierId: "+972534444444",
                                                 category: "vegetables",
@@ -344,7 +340,7 @@ export const exampleRestaurants: {
                                                 parWeekend: 6,
                                                 createdAt: daysAgo(85)
                                         },
-                                        "prod-011": {
+                                        {
                                                 id: "prod-011",
                                                 supplierId: "+972534444444",
                                                 category: "vegetables",
@@ -355,19 +351,19 @@ export const exampleRestaurants: {
                                                 parWeekend: 5,
                                                 createdAt: daysAgo(85)
                                         }
-                                }
+                                    ]
                         },
                         "+972535555555": {
                                 whatsapp: "+972535555555",
                                 name: "תנובה",
                                 role: "Supplier",
-                                category: "dairy",
+                                category: ["dairy"],
                                 deliveryDays: [1, 3, 5], // Monday, Wednesday, Friday
                                 cutoffHour: 14, // 2 PM
                                 rating: 5,
                                 createdAt: daysAgo(80),
-                                products: {
-                                        "prod-012": {
+                                products: [
+                                        {
                                                 id: "prod-012",
                                                 supplierId: "+972535555555",
                                                 category: "dairy",
@@ -378,7 +374,7 @@ export const exampleRestaurants: {
                                                 parWeekend: 15,
                                                 createdAt: daysAgo(80)
                                         },
-                                        "prod-013": {
+                                       {
                                                 id: "prod-013",
                                                 supplierId: "+972535555555",
                                                 category: "dairy",
@@ -389,7 +385,7 @@ export const exampleRestaurants: {
                                                 parWeekend: 4,
                                                 createdAt: daysAgo(80)
                                         }
-                                }
+                                    ]
                         }
                 },
                 orders: {
@@ -471,13 +467,12 @@ export const exampleRestaurants: {
                                 whatsapp: "+972556666666",
                                 name: "מאפיית הלחם",
                                 role: "Supplier",
-                                category: "bread",
+                                category: ["bread"],
                                 deliveryDays: [0, 2, 4], // Sunday, Tuesday, Thursday
                                 cutoffHour: 10, // 10 AM
                                 rating: 4,
                                 createdAt: daysAgo(25),
-                                products: {
-                                        "prod-014": {
+                                products: [ {
                                                 id: "prod-014",
                                                 supplierId: "+972556666666",
                                                 category: "bread",
@@ -488,7 +483,7 @@ export const exampleRestaurants: {
                                                 parWeekend: 18,
                                                 createdAt: daysAgo(25)
                                         },
-                                        "prod-015": {
+                                         {
                                                 id: "prod-015",
                                                 supplierId: "+972556666666",
                                                 category: "bread",
@@ -499,19 +494,19 @@ export const exampleRestaurants: {
                                                 parWeekend: 30,
                                                 createdAt: daysAgo(25)
                                         }
-                                }
+                                ]
                         },
                         "+972557777777": {
                                 whatsapp: "+972557777777",
                                 name: "קפה ג׳ו",
                                 role: "Supplier",
-                                category: "coffee",
+                                category: ["coffee"],
                                 deliveryDays: [1, 3, 5], // Monday, Wednesday, Friday
                                 cutoffHour: 9, // 9 AM
                                 rating: 5,
                                 createdAt: daysAgo(20),
-                                products: {
-                                        "prod-016": {
+                                products: [
+                                         {
                                                 id: "prod-016",
                                                 supplierId: "+972557777777",
                                                 category: "coffee",
@@ -522,7 +517,7 @@ export const exampleRestaurants: {
                                                 parWeekend: 5,
                                                 createdAt: daysAgo(20)
                                         }
-                                }
+                                    ]
                         }
                 },
                 orders: {},

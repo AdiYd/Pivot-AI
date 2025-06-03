@@ -40,6 +40,7 @@ import { useToast } from '@/components/ui/use-toast';
 
 // Import the actual database
 import exampleDatabase from '@/schema/example';
+import { SupplierCategory } from '@/schema/types';
 
 // Types for enhanced order data
 interface EnhancedOrder {
@@ -48,7 +49,7 @@ interface EnhancedOrder {
   restaurantName: string;
   supplierId: string;
   supplierName: string;
-  supplierCategory: string;
+  supplierCategory: SupplierCategory[];
   status: 'pending' | 'sent' | 'delivered';
   midweek: boolean;
   items: Array<{
@@ -118,7 +119,7 @@ export default function OrdersPage() {
 
           // Get enhanced items with product details
           const enhancedItems = order.items.map(item => {
-            const product = supplier.products[item.productId];
+            const product = supplier.products.find(p => p.id === item.productId);
             return {
               productId: item.productId,
               productName: product?.name || 'מוצר לא זמין',
@@ -132,7 +133,7 @@ export default function OrdersPage() {
 
           // Get enhanced shortages with product details
           const enhancedShortages = order.shortages.map(shortage => {
-            const product = supplier.products[shortage.productId];
+            const product = supplier.products.find(p => p.id === shortage.productId);
             return {
               productId: shortage.productId,
               productName: product?.name || 'מוצר לא זמין',
@@ -180,7 +181,7 @@ export default function OrdersPage() {
                              order.id.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesStatus = selectedStatus === 'all' || order.status === selectedStatus;
         const matchesRestaurant = selectedRestaurant === 'all' || order.restaurantId === selectedRestaurant;
-        const matchesCategory = selectedCategory === 'all' || order.supplierCategory === selectedCategory;
+        const matchesCategory = selectedCategory === 'all' || order.supplierCategory.includes(selectedCategory);
         
         return matchesSearch && matchesStatus && matchesRestaurant && matchesCategory;
       })
@@ -214,11 +215,15 @@ export default function OrdersPage() {
       const withShortages = enhancedOrders.filter(o => o.hasShortages).length;
       const totalItems = enhancedOrders.reduce((sum, o) => sum + o.totalItems, 0);
       
-      // Category distribution
-      const categoryStats = enhancedOrders.reduce((acc, order) => {
-        acc[order.supplierCategory] = (acc[order.supplierCategory] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
+        // Category distribution
+        const categoryStats = enhancedOrders.reduce((acc, order) => {
+          // Loop through each category in the supplier's category array
+          order.supplierCategory.forEach(category => {
+            // Increment the count for this category
+            acc[category] = (acc[category] || 0) + 1;
+          });
+          return acc;
+        }, {} as Record<string, number>);
 
       // Restaurant activity
       const restaurantStats = enhancedOrders.reduce((acc, order) => {
@@ -394,7 +399,7 @@ export default function OrdersPage() {
           </div>
           <div className="flex flex-col gap-2 items-end">
             {/* {getStatusBadge(order.status)} */}
-            {getCategoryBadge(order.supplierCategory)}
+            {order.supplierCategory.map(category => getCategoryBadge(category))}
           </div>
         </div>
       </CardContent>
@@ -746,7 +751,7 @@ export default function OrdersPage() {
                       <div className="space-y-2">
                         <Label>קטגוריה</Label>
                         <div className="p-2 border rounded-md">
-                          {getCategoryBadge(selectedOrder.supplierCategory)}
+                          {selectedOrder.supplierCategory.map(category => getCategoryBadge(category))}
                         </div>
                       </div>
                       <div className="space-y-2">

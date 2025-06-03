@@ -34,27 +34,21 @@ import { useToast } from '@/components/ui/use-toast';
 
 // Import the actual database
 import exampleDatabase from '@/schema/example';
+import { Product, SupplierCategory } from '@/schema/types';
 
 // Types for enhanced supplier data
 interface EnhancedSupplier {
   id: string;
   whatsapp: string;
   name: string;
-  category: string;
+  category: SupplierCategory[];
   deliveryDays: number[];
   cutoffHour: number;
-  rating: number;
+  rating?: number;
   restaurantId: string;
   restaurantName: string;
   productCount: number;
-  products: Array<{
-    id: string;
-    name: string;
-    emoji: string;
-    unit: string;
-    parMidweek: number;
-    parWeekend: number;
-  }>;
+  products: Product[];
   recentOrdersCount: number;
   createdAt: Date;
 }
@@ -94,13 +88,17 @@ export default function SuppliersPage() {
       Object.entries(data.restaurants).forEach(([restaurantId, restaurant]) => {
         Object.entries(restaurant.suppliers).forEach(([supplierWhatsapp, supplier]) => {
           // Get products for this supplier
-          const products = Object.values(supplier.products).map(product => ({
+          const products = supplier.products.map(product => ({
             id: product.id,
+            supplierId: supplierWhatsapp,
+            category: product.category,
             name: product.name,
             emoji: product.emoji,
             unit: product.unit,
             parMidweek: product.parMidweek,
-            parWeekend: product.parWeekend
+            parWeekend: product.parWeekend,
+            createdAt: product.createdAt
+
           }));
 
           // Count recent orders for this supplier
@@ -119,7 +117,7 @@ export default function SuppliersPage() {
             restaurantId,
             restaurantName: restaurant.name,
             productCount: products.length,
-            products,
+            products: products,
             recentOrdersCount,
             createdAt: supplier.createdAt.toDate()
           });
@@ -139,7 +137,7 @@ export default function SuppliersPage() {
       const matchesSearch = supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            supplier.restaurantName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            supplier.whatsapp.includes(searchTerm);
-      const matchesCategory = selectedCategory === 'all' || supplier.category === selectedCategory;
+      const matchesCategory = selectedCategory === 'all' || supplier.category.includes(selectedCategory);
       
       return matchesSearch && matchesCategory;
     });
@@ -151,12 +149,14 @@ export default function SuppliersPage() {
       const totalSuppliers = enhancedSuppliers.length;
       const totalProducts = enhancedSuppliers.reduce((sum, s) => sum + s.productCount, 0);
       const averageRating = totalSuppliers > 0 
-        ? enhancedSuppliers.reduce((sum, s) => sum + s.rating, 0) / totalSuppliers 
+        ? enhancedSuppliers.reduce((sum, s) => sum + (s.rating || 0), 0) / totalSuppliers 
         : 0;
       
       // Category distribution
       const categoryStats = enhancedSuppliers.reduce((acc, supplier) => {
-        acc[supplier.category] = (acc[supplier.category] || 0) + 1;
+        supplier.category.forEach(cat => {
+          acc[cat] = (acc[cat] || 0) + 1;
+        });
         return acc;
       }, {} as Record<string, number>);
 
@@ -241,7 +241,7 @@ export default function SuppliersPage() {
               </CardDescription>
             </div>
           </div>
-          {getCategoryBadge(supplier.category)}
+          {supplier.category.map(categor => getCategoryBadge(categor))}
         </div>
       </CardHeader>
       <CardContent>
@@ -266,7 +266,7 @@ export default function SuppliersPage() {
           </div>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1">
-              {getRatingStars(supplier.rating)}
+              {getRatingStars(supplier.rating || 0)}
               <span className="text-sm text-muted-foreground mr-1">({supplier.rating})</span>
             </div>
             <div className="text-xs text-muted-foreground">
@@ -616,7 +616,7 @@ export default function SuppliersPage() {
                       <div className="space-y-2">
                         <Label>קטגוריה</Label>
                         <div className="pt-2">
-                          {getCategoryBadge(selectedSupplier.category)}
+                          {selectedSupplier.category.map((cat) => getCategoryBadge(cat))}
                         </div>
                       </div>
                     </div>
@@ -625,9 +625,9 @@ export default function SuppliersPage() {
                         <Label>דירוג</Label>
                         <div className="flex items-center gap-2">
                           <div className="flex">
-                            {getRatingStars(selectedSupplier.rating)}
+                            {getRatingStars(selectedSupplier.rating || 0)}
                           </div>
-                          <span>({selectedSupplier.rating})</span>
+                          <span>({selectedSupplier.rating || 0})</span>
                         </div>
                       </div>
                       <div className="space-y-2">

@@ -307,6 +307,7 @@ export async function updateSupplier(
       cutoffHour: validData.cutoffHour,
       category: validData.category,
       rating: validData.rating || 0,
+      products: [], // Initialize with empty products array
       createdAt: FieldValue.serverTimestamp()
     };
 
@@ -381,48 +382,71 @@ export async function getSupplier(restaurantId: string, supplierId: string): Pro
 // ==== PRODUCT OPERATIONS ====
 
 /**
- * Add or update a product for a supplier
+ * Add or update a product in the supplier's products array
  * @param restaurantId Restaurant ID
  * @param supplierId Supplier ID (whatsapp)
  * @param productData Product data
- * @returns The product ID
+ * @returns The product ID (generated or existing)
  */
 export async function updateProduct(
   restaurantId: string,
   supplierId: string,
   productData: ProductData
-): Promise<string> {
+): Promise<boolean> {
   try {
     // Validate product data
     const validProduct = ProductSchema.parse(productData);
     
-    // Get a reference to the products subcollection
-    const productsRef = firestore
+    // Get reference to the supplier document
+    const supplierRef = firestore
       .collection('restaurants')
       .doc(restaurantId)
       .collection('suppliers')
-      .doc(supplierId)
-      .collection('products');
+      .doc(supplierId);
     
-    // Create a new product ID if not updating an existing one
-    const productRef = productsRef.doc();
+    // Get the supplier document
+    const supplierDoc = await supplierRef.get();
+    if (!supplierDoc.exists) {
+      throw new Error(`Supplier ${supplierId} not found for restaurant ${restaurantId}`);
+    }
     
-    const productDoc = {
-      ...validProduct,
-      createdAt: FieldValue.serverTimestamp()
-    };
+    const supplierData = supplierDoc.data();
+    const products = supplierData?.products || [];
     
-    await productRef.set(productDoc);
     
-    console.log(`[Firestore] ✅ Product "${validProduct.name}" added for supplier ${supplierId}`);
-    return productRef.id;
+    // Look for existing product with same ID
+    const existingProductIndex = products.findIndex((p: any) => p.name === validProduct.name);
+    
+    if (existingProductIndex >= 0) {
+      // Update existing product
+      products[existingProductIndex] = {
+        ...validProduct,
+        updatedAt: FieldValue.serverTimestamp()
+      };
+      console.log(`[Firestore] Updating existing product "${validProduct.name}" in supplier ${supplierId}`);
+    } else {
+      // Add new product
+      products.push({
+        ...validProduct,
+        createdAt: FieldValue.serverTimestamp()
+      });
+      console.log(`[Firestore] Adding new product "${validProduct.name}" to supplier ${supplierId}`);
+    }
+    
+    // Update the supplier document with the modified products array
+    await supplierRef.update({
+      products: products
+    });
+    
+    console.log(`[Firestore] ✅ Product "${validProduct.name}" saved for supplier ${supplierId}`);
+    return true; // Return the product name as ID
   } catch (error) {
     if (error instanceof z.ZodError) {
       console.error(`[Firestore] ❌ Invalid product data:`, error.errors);
       throw new Error(`Invalid product data: ${error.errors.map(e => e.message).join(', ')}`);
     }
     
-    console.error(`[Firestore] ❌ Error adding product:`, error);
+    console.error(`[Firestore] ❌ Error updating product:`, error);
     throw error;
   }
 }
