@@ -17,7 +17,7 @@ const firestore = admin.firestore();
 
 
 // API Key for admin simulator authentication
-const ADMIN_API_KEY = process.env.ADMIN_SIMULATOR_API_KEY || 'simulator-dev-key';
+const ADMIN_API_KEY = process.env.ADMIN_SIMULATOR_API_KEY || 'simulator-lz123';
 
 // Process incoming WhatsApp messages from Twilio
 /**
@@ -47,6 +47,7 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
 
     // Check if this is a simulator request from admin app
     const isSimulator = req.headers['x-simulator-api-key'] === ADMIN_API_KEY;
+    console.log('Received request:', {isSimulator, header: req.headers['x-simulator-api-key'], admin: ADMIN_API_KEY});
 
     // For regular Twilio requests, validate the webhook signature
     // Skip validation for simulator requests with valid API key
