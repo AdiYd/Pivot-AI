@@ -11,41 +11,36 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
-  MessageCircle, 
-  Send, 
-  Phone, 
   Clock,
   CheckCircle2,
   AlertCircle,
   Trash2,
-  RotateCcw,
   Bot,
   User,
   Wifi,
   WifiOff,
-  Play,
-  Square,
   Loader2
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 import axios from 'axios';
 import { Icon } from '@iconify/react/dist/iconify.js';
-import { clear } from 'console';
+import { ConversationState, StateMessage } from '@/schema/types';
+import Image from 'next/image';
 
 // Types
 interface Message {
   id: string;
-  content: string;
+  content: {
+    body?: string;
+    template?: StateMessage['whatsappTemplate'];
+  };
   timestamp: Date;
   isBot: boolean;
   status?: 'sending' | 'sent' | 'delivered' | 'failed';
 }
 
-interface ConversationState {
-  currentState: string;
-  context: Record<string, any>;
-}
+
 
 interface SimulatorSession {
   phoneNumber: string;
@@ -72,6 +67,7 @@ export default function SimulatorPage() {
     isLoading: false
   });
   const [newMessage, setNewMessage] = useState('');
+  const [templateSelect, setTemplateSelect] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const [availableConversations, setAvailableConversations] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -119,7 +115,7 @@ export default function SimulatorPage() {
 
   // Start new session
   const startSession = async () => {
-    console.log('Starting session with phone:', session);
+    // console.log('Starting session with phone:', session);
     if (!session.phoneNumber.trim()) {
       toast({
         title: "שגיאה",
@@ -138,9 +134,23 @@ export default function SimulatorPage() {
 
     const loadedSession = await loadSession(session.phoneNumber);
     console.log('Loaded session:', loadedSession);
+    // For old sessions compatibility change all message's content to have a body field
+    let updatedMessages: Message[] = loadedSession?.messages.map(msg => {
+      if (typeof msg.content === 'string') {
+        return {
+          ...msg,
+          content: {
+            body: msg.content || '',
+          },
+        };
+      }
+      return msg;
+    }) || [];
+
+    console.log('Loaded sessionAfter:', loadedSession);
     setSession(prev => ({
       ...prev,
-      messages: loadedSession?.messages || [],
+      messages: updatedMessages,
       conversationState: loadedSession?.conversationState || undefined,
       isConnected: true,
       isLoading: false,
@@ -153,20 +163,20 @@ export default function SimulatorPage() {
   };
 
   // Send message to bot
-  const sendMessage = async (messageContent: string, isUserMessage = true) => {
+  const sendMessage = async (messageContent: string, isUserMessage = true, isTemplate = false) => {
     if (!session.isConnected || !messageContent.trim()) return;
 
     const messageId = Date.now().toString();
     const userMessage: Message = {
       id: messageId,
-      content: messageContent.trim(),
+      content:{body: messageContent.trim() },
       timestamp: new Date(),
       isBot: false,
       status: 'sending'
     };
 
     // Add user message to UI if it's a user message
-    if (isUserMessage) {
+    if (isUserMessage && !isTemplate) {
       setSession(prev => ({
         ...prev,
         messages: [...prev.messages, userMessage],
@@ -185,13 +195,13 @@ export default function SimulatorPage() {
           'Content-Type': 'application/json',
           'x-simulator-api-key': SIMULATOR_API_KEY || 'simulator-dev-key'
         },
-        timeout: 30000,
+        timeout: 40000,
         // Explicitly handle CORS for development
         withCredentials: false
       });
       console.log('Response from bot:', response.data);
       // Update user message status
-      if (isUserMessage) {
+      if (isUserMessage && !isTemplate) {
         setSession(prev => ({
           ...prev,
           messages: prev.messages.map(msg => 
@@ -202,7 +212,7 @@ export default function SimulatorPage() {
 
       // Process bot responses
       if (response.data.success && response.data.responses) {
-        const botMessages: Message[] = response.data.responses.map((content: string, index: number) => ({
+        const botMessages: Message[] = response.data.responses.map((content: Record<string, any>, index: number) => ({
           id: `bot-${Date.now()}-${index}`,
           content,
           timestamp: new Date(Date.now() + index * 100), // Slight delay between multiple responses
@@ -228,7 +238,7 @@ export default function SimulatorPage() {
       console.error('Error sending message:', error);
       
       // Update user message status to failed
-      if (isUserMessage) {
+      if (isUserMessage && !isTemplate) {
         setSession(prev => ({
           ...prev,
           messages: prev.messages.map(msg => 
@@ -269,7 +279,11 @@ export default function SimulatorPage() {
     await sendMessage(message);
   };
 
-
+  // Handle template selection
+  const handleTemplateSelect = (selectedId: string) => {
+    setTemplateSelect(selectedId);
+    sendMessage(selectedId, true, true);
+  };
 
   // Clear conversation
   const clearConversation = async (phoneNumber: string) => {
@@ -363,7 +377,8 @@ export default function SimulatorPage() {
                     <Label htmlFor="phone">מספר טלפון</Label>
                     <Input
                       id="phone"
-                      placeholder="050-1234567"
+                      dir='ltr'
+                      placeholder="0501234567"
                       value={session.phoneNumber}
                       onChange={(e) => setSession(prev => ({ ...prev, phoneNumber: e.target.value }))}
                       onKeyPress={(e) => e.key === 'Enter' && startSession()}
@@ -405,8 +420,8 @@ export default function SimulatorPage() {
                     {/* <Label className="text-sm">נתונים שנאספו</Label> */}
                     <div className="mt-1 self-end space-y-1">
                       {Object.entries(session.conversationState.context).map(([key, value]) => (
-                        <div key={key} className="text-xs text-wrap bg-muted p-2 overflow-auto rounded-xl">
-                          <span className="font-medium text-wrap">{key}:</span> {JSON.stringify(value)}
+                        <div dir='ltr' key={key} className="text-xs text-wrap bg-muted p-2 overflow-auto rounded-xl">
+                          <span className="text-wrap font-semibold text-zinc-800 dark:text-zinc-200">{key}:</span> {JSON.stringify(value)}
                         </div>
                       ))}
                     </div>
@@ -425,7 +440,8 @@ export default function SimulatorPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 max-sm:hidden bg-green-500 rounded-full flex items-center justify-center">
-                    <Bot className="w-5 h-5 text-white" />
+                    {/* <Bot className="w-5 h-5 text-white" /> */}
+                    <Icon icon="mingcute:ai-fill" width="24" height="24" className='text-white' />
                   </div>
                   <div className="flex gap-2">
                     <CardTitle className="text-base max-sm:hidden">Pivot</CardTitle>
@@ -483,23 +499,27 @@ export default function SimulatorPage() {
                       >
                         {message.isBot && (
                           <div className="w-8 h-8 max-sm:hidden bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
-                            <Bot className="w-4 h-4 text-white" />
+                            {/* <Bot className="w-4 h-4 text-white" /> */}
+                            <Icon icon="mingcute:ai-fill" width="24" height="24" className='text-white' />
                           </div>
                         )}
                         
-                        <div className={cn(
+                       {message.content?.body ?  
+                       <div className={cn(
                           "rounded-[10px] min-w-[30%]* px-4 py-2 max-w-full break-words",
                           message.isBot 
                             ? "bg-muted rounded-bl-none" 
                             : "text-start bg-[#DCF8C6] rounded-br-none backdrop-blur-md text-black dark:bg-[#005C4B]  dark:text-[#E9EDEF]"
                         )}>
                           <p className="text-sm whitespace-pre-wrap">
-                            {message.content.split(/(\*[^*]+\*)/g).map((part, index) => {
+                           {
+                            message.content.body.split(/(\*[^*]+\*)/g).map((part, index) => {
                               if (part.startsWith('*') && part.endsWith('*')) {
                                 return <strong key={index}>{part.slice(1, -1)}</strong>;
                               }
                               return part;
-                            })}
+                            })
+                          }
                           </p>
                           <div className={cn(
                             "flex items-center gap-2 mt-1",
@@ -516,7 +536,10 @@ export default function SimulatorPage() {
                             </span>
                             {!message.isBot && getMessageStatusIcon(message.status)}
                           </div>
-                        </div>
+                        </div> : 
+                        <div className='border rounded-lg p-2 overflow-hidden bg-muted'>
+                          <WhatsAppTemplateRenderer onSelect={handleTemplateSelect} whatsAppTemplate={message.content.template} />
+                        </div>}
 
                         {!message.isBot && (
                           <div className="w-8 h-8 bg-blue-500 max-sm:hidden rounded-full flex items-center justify-center flex-shrink-0">
@@ -536,7 +559,8 @@ export default function SimulatorPage() {
                       className="flex flex-row-reverse justify-start gap-3"
                     >
                       <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                        <Bot className="w-4 h-4 text-white" />
+                        {/* <Bot className="w-4 h-4 text-white" /> */}
+                        <Icon icon="mingcute:ai-fill" width="24" height="24" className='text-white' />
                       </div>
                       <div className="bg-muted rounded-2xl px-4 py-2">
                         <div className="flex relative -bottom-1 gap-1">
@@ -617,7 +641,9 @@ const loadSession = async (phoneNumber: string): Promise<SimulatorSession | null
     const conversationData = conversationDoc.data();
     const conversationState: ConversationState = {
       currentState: conversationData.currentState || 'INIT',
-      context: conversationData.context || {}
+      context: conversationData.context || {},
+      lastMessageTimestamp: conversationData.lastMessageTimestamp?.toDate() || new Date(),
+      
     };
     
     // Get previous messages
@@ -702,5 +728,183 @@ const clearSession = async (phoneNumber: string): Promise<void> => {
     }
   } catch (error) {
     console.error('Error clearing session:', error);
+  }
+};
+
+
+const WhatsAppTemplateRenderer = ({whatsAppTemplate, onSelect}: {whatsAppTemplate?: StateMessage['whatsappTemplate'], onSelect: (template: string) => void}): JSX.Element | null => {
+  if (!whatsAppTemplate) return null;
+  
+  // WhatsApp UI style constants
+  const styles = {
+    container: "rounded-[10px] px-4 min-h-full bg-muted rounded-bl-none overflow-hidden max-w-lg w-full",
+    header: "p-3 bg-green-500 text-white",
+    mediaHeader: "w-full h-40 bg-gray-100 dark:bg-gray-700 overflow-hidden",
+    body: "p-2 text-sm",
+    footer: "border-t border-gray-200 dark:border-gray-700",
+    buttonContainer: "grid",
+    buttonSingle: "p-3 text-center text-green-600 dark:text-green-400 font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer",
+    buttonMultiple: "p-3 text-center text-green-600 dark:text-green-400 font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer border-b last:border-b-0 border-gray-200 dark:border-gray-700",
+    listContainer: "border-gray-200 dark:border-gray-700 min-h-full overflow-y-auto",
+    listItem: "p-3 flex items-center text-sm justify-between hover:bg-gray-200/50 dark:hover:bg-gray-800 transition-colors cursor-pointer border rounded-lg my-1 flex justify-center border-gray-400 overflow-y-auto",
+    cardContainer: "p-3 space-y-2",
+    cardItem: "bg-gray-50 dark:bg-gray-800 rounded-md p-3 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer",
+  };
+
+  // Header component
+  const renderHeader = () => {
+    if (!whatsAppTemplate.header) return null;
+    
+    if (whatsAppTemplate.header.type === "media" && whatsAppTemplate.header.mediaUrl) {
+      return (
+        <div className={styles.mediaHeader}>
+          <Image
+            src={whatsAppTemplate.header.mediaUrl || 'https://via.placeholder.com/600x400'} 
+            alt="Header media" 
+            className="w-full h-full object-cover"
+          />
+        </div>
+      );
+    } else if (whatsAppTemplate.header.type === "text" && whatsAppTemplate.header.text) {
+      return (
+        <div className={styles.header}>
+          <h3 className="font-medium">{whatsAppTemplate.header.text}</h3>
+        </div>
+      );
+    }
+    
+    return null;
+  };
+
+  // Text template
+  const renderTextTemplate = () => {
+    return (
+      <div className={styles.container}>
+        {renderHeader()}
+        <div className={styles.body}>
+          {whatsAppTemplate.body.split('\n').map((line, i) => (
+            <p key={i} className={i > 0 ? 'mt-2' : ''}>
+              {line.split(/(\*[^*]+\*)/g).map((part, j) => {
+                if (part.startsWith('*') && part.endsWith('*')) {
+                  return <strong key={j}>{part.slice(1, -1)}</strong>;
+                }
+                return part;
+              })}
+            </p>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  // Button template
+  const renderButtonTemplate = () => {
+    return (
+      <div className={styles.container}>
+        {renderHeader()}
+        <div className={styles.body}>
+          {whatsAppTemplate.body.split('\n').map((line, i) => (
+            <p key={i} className={i > 0 ? 'mt-2' : ''}>
+              {line.split(/(\*[^*]+\*)/g).map((part, j) => {
+                if (part.startsWith('*') && part.endsWith('*')) {
+                  return <strong key={j}>{part.slice(1, -1)}</strong>;
+                }
+                return part;
+              })}
+            </p>
+          ))}
+        </div>
+        {whatsAppTemplate.options && whatsAppTemplate.options.length > 0 && (
+          <div className={styles.footer}>
+            <div className={styles.buttonContainer}>
+              {whatsAppTemplate.options.map((option, index) => (
+                <button 
+                  key={option.id} 
+                  onClick={() => onSelect(option.id)}
+                  className={whatsAppTemplate.options?.length === 1 ? styles.buttonSingle : styles.buttonMultiple}
+                >
+                  {option.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // List template
+  const renderListTemplate = () => {
+    return (
+      <div className={styles.container}>
+        {renderHeader()}
+        <div className={styles.body}>
+          {whatsAppTemplate.body.split('\n').map((line, i) => (
+            <p key={i} className={i > 0 ? 'mt-2' : ''}>
+              {line.split(/(\*[^*]+\*)/g).map((part, j) => {
+                if (part.startsWith('*') && part.endsWith('*')) {
+                  return <strong key={j}>{part.slice(1, -1)}</strong>;
+                }
+                return part;
+              })}
+            </p>
+          ))}
+        </div>
+        {whatsAppTemplate.options && whatsAppTemplate.options.length > 0 && (
+          <div className={styles.listContainer}>
+            {whatsAppTemplate.options.map((option) => (
+              <div key={option.id} className={styles.listItem} onClick={() => onSelect(option.id)}>
+                <span className='mx-auto'>{option.name}</span>
+                {/* <Icon icon="lucide:chevron-right" className="text-gray-400" /> */}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Card template
+  const renderCardTemplate = () => {
+    return (
+      <div className={styles.container}>
+        {renderHeader()}
+        <div className={styles.body}>
+          {whatsAppTemplate.body.split('\n').map((line, i) => (
+            <p key={i} className={i > 0 ? 'mt-2' : ''}>
+              {line.split(/(\*[^*]+\*)/g).map((part, j) => {
+                if (part.startsWith('*') && part.endsWith('*')) {
+                  return <strong key={j}>{part.slice(1, -1)}</strong>;
+                }
+                return part;
+              })}
+            </p>
+          ))}
+        </div>
+        {whatsAppTemplate.options && whatsAppTemplate.options.length > 0 && (
+          <div className={styles.cardContainer}>
+            {whatsAppTemplate.options.map((option) => (
+              <div key={option.id} className={styles.cardItem} onClick={() => onSelect(option.id)}>
+                <div className="font-medium">{option.name}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Render the appropriate template based on type
+  switch (whatsAppTemplate.type) {
+    case "text":
+      return renderTextTemplate();
+    case "button":
+      return renderButtonTemplate();
+    case "list":
+      return renderListTemplate();
+    case "card":
+      return renderCardTemplate();
+    default:
+      return renderTextTemplate();
   }
 };

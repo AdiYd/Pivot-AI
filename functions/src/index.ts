@@ -121,7 +121,6 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
       if (restaurantRef.empty) {
         // Completely new user - start onboarding
         conversationState = {
-          contactWhatsApp: phoneNumber,
           currentState: "INIT",
           context: {
             contactNumber: phoneNumber,
@@ -137,7 +136,6 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
         const restaurantData = restaurantDoc.data();
         
         conversationState = {
-          contactWhatsApp: phoneNumber,
           currentState: "IDLE",
           context: {
             legalId: restaurantId,
@@ -153,7 +151,6 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
       // Existing conversation - load state
       const data = conversationDoc.data();
       conversationState = {
-        contactWhatsApp: phoneNumber,
         currentState: data?.currentState || "IDLE",
         context: {
           ...data?.context || {},
@@ -185,7 +182,6 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
      * Using phone number as document ID
      */
     const firestoreState = {
-      contactWhatsApp: phoneNumber,
       currentState: newState.currentState,
       context: newState.context,
       lastMessageTimestamp: FieldValue.serverTimestamp(),

@@ -1,3 +1,4 @@
+import { ConversationContext } from "../schema/types";
 import { BotConfig } from "./botMessages";
 
 export { BotConfig } from "../schema/types";
@@ -233,34 +234,7 @@ export const BOT_MESSAGES = {
 } as const;
 
 
-export type MessageContext = {
-  contactName?: string;
-  companyName?: string;
-  restaurantName?: string;
-  supplierName?: string;
-  categoryName?: string;
-  categoryEmoji?: string;
-  productName?: string;
-  emoji?: string;
-  currentStock?: string;
-  targetAmount?: string;
-  orderAmount?: string;
-  percentage?: string;
-  deliveryDays?: string;
-  cutoffTime?: string;
-  paymentLink?: string;
-  orderItems?: string;
-  deliverySummary?: string;
-  hoursLeft?: string;
-  productCount?: string;
-  expectedAmount?: string;
-  originalAmount?: string;
-  increasedAmount?: string;
-  selectedDays?: string;
-  unit?: string;
-};
-
-export function interpolateMessage(template: string, context: MessageContext): string {
+export function interpolateMessage(template: string, context: ConversationContext): string {
   let result = template;
   
   Object.entries(context).forEach(([key, value]) => {

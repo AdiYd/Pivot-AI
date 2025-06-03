@@ -6,7 +6,14 @@ import { createRestaurant, updateSupplier, logMessage } from '../utils/firestore
 // Zod schemas for payload validation
 const SendMessagePayloadSchema = z.object({
   to: z.string().min(1),
-  body: z.string().min(1)
+  body: z.string().min(1).optional(),
+  template: z.object({
+    id: z.string(),
+    type: z.string(),
+    body: z.string(),
+    options: z.any(),
+    header: z.any().optional(),
+  }).optional(),
 });
 
 // Updated schema to match the extended restaurant data structure
@@ -45,11 +52,11 @@ export async function processActions(
   actions: BotAction[],
   phone?: string,
   isSimulator: boolean = false
-): Promise<string[]> {
+): Promise<Record<string, any>[]> {
   console.log(`[BotActions] Processing ${actions.length} bot actions for phone: ${phone} ${isSimulator ? '(simulator)' : ''}`);
   
   // For simulator mode, collect responses instead of sending them
-  const responses: string[] = [];
+  const responses: Record<string, any>[] = [];
 
   for (const action of actions) {
     try {
@@ -66,17 +73,17 @@ export async function processActions(
             
             // In simulator mode, collect the message but don't send it
             if (isSimulator) {
-              responses.push(validPayload.body);
-              console.log(`[BotActions] 📱 Simulator message: ${validPayload.body.substring(0, 50)}...`);
+              responses.push(validPayload);
+              console.log(`[BotActions] 📱 Simulator message: ${validPayload.body?.substring(0, 50)}...`);
             } else {
               // Real Twilio messages for production
-              await sendWhatsAppMessage(validPayload.to, validPayload.body);
+              await sendWhatsAppMessage(validPayload.to, validPayload.body || '');
             }
             
             // Log outgoing message
             if (phone) {
               const phoneNumber = phone.replace("whatsapp:", "");
-              await logMessage(phoneNumber, validPayload.body, 'outgoing', undefined, isSimulator);
+              await logMessage(phoneNumber, validPayload.body || '', 'outgoing', undefined, isSimulator);
             }
           } catch (validationError) {
             if (validationError instanceof z.ZodError) {
@@ -145,7 +152,7 @@ export async function processActions(
       if (action.type !== "SEND_MESSAGE" && phone) {
         if (isSimulator) {
           // For simulator, add error message to responses
-          responses.push(errorMessage);
+          responses.push({ body: errorMessage , to: phone });
         } else {
           // For real WhatsApp, send the message via Twilio
           try {

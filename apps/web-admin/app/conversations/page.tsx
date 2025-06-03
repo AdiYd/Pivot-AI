@@ -83,20 +83,6 @@ const stateNames: Record<string, string> = {
   'IDLE': 'רגיל'
 };
 
-export const whatsappColors = {
-  light: {
-    right: '#FFFFFF', // Light green
-    textColor: '#000', // Black
-    left: '#DCF8C6', // Light greenish for sender
-    background: 'rgb(235 211 184 / 10%)',
-  },
-  dark: {
-    left: 'rgb(0, 92, 75)', // Dark green
-    textColor: 'rgb(233, 237, 239)', // White
-    right: '#202c33', // Slightly brighter dark green for sender
-    background: 'rgba(16, 29, 37, 0.85)',
-  },
-};
 
 
 const getStateCategory = (state: string): 'onboarding' | 'setup' | 'inventory' | 'order' | 'delivery' | 'idle' | 'other' => {
@@ -141,7 +127,6 @@ export default function ConversationsPage() {
 
         // Get messages for this conversation
         const messages = Object.values(conversation.messages).map((message) => ({
-          id: message.id,
           body: message.body,
           direction: message.direction,
           currentState: message.currentState,
@@ -343,7 +328,8 @@ export default function ConversationsPage() {
                   {lastMessage.direction === 'incoming' ? (
                     <User className="w-3 h-3 text-blue-500 flex-shrink-0" />
                   ) : (
-                    <Bot className="w-3 h-3 text-green-500 flex-shrink-0" />
+                    // <Bot className="w-3 h-3 text-green-500 flex-shrink-0" />
+                    <Icon icon="mingcute:ai-fill" width="24" height="24" className='text-green-600 dark:text-green-400' />
                   )}
                   <span className="truncate">{lastMessage.body}</span>
                 </div>
@@ -360,7 +346,8 @@ export default function ConversationsPage() {
       <div className={`flex items-start gap-2 max-w-[70%] ${isBot ? 'flex-row' : 'flex-row-reverse'}`}>
         <div className={`p-2 rounded-full ${isBot ? 'bg-green-100 dark:bg-green-900' : 'bg-blue-100 dark:bg-blue-900'}`}>
           {isBot ? (
-            <Bot className="w-4 h-4 text-green-600 dark:text-green-400" />
+            // <Bot className="w-4 h-4 text-green-600 dark:text-green-400" />
+            <Icon icon="mingcute:ai-fill" width="24" height="24" className='text-green-600 dark:text-green-400' />
           ) : (
             <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
           )}
