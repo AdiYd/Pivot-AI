@@ -119,7 +119,7 @@ export function SideNav() {
         onClick={toggleMobileSidebar}
         className="fixed top-4 left-4 bg-zinc-200 dark:bg-zinc-800 z-50 lg:hidden"
       >
-        {isMobileOpen ? <X size={20} /> : <Menu size={20} />}
+        {isMobileOpen ? <X size={15} /> : <Menu size={15} />}
       </Button>
       
       {/* Sidebar for desktop */}
@@ -191,13 +191,13 @@ export function SideNav() {
               <NavItem 
                 href="/workflow" 
                 icon={<Workflow size={16} />} 
-                title="הגדרות זרימה"
+                title="Chatbot flow"
                 isCollapsed={isCollapsed}
               />
               <NavItem 
                 href="/bot-config" 
                 icon={<Settings size={16} />} 
-                title="תצורת בוט"
+                title="הגדרות"
                 isCollapsed={isCollapsed}
               />
               {/* <NavItem 
@@ -307,13 +307,13 @@ export function SideNav() {
             <NavItem 
               href="/workflow" 
               icon={<Workflow size={16} />} 
-              title="הגדרות זרימה" 
+              title="Chatbot flow"
               isCollapsed={false}
             />
             <NavItem 
               href="/bot-config" 
               icon={<Settings size={16} />} 
-              title="תצורת בוט" 
+              title="הגדרות" 
               isCollapsed={false}
             />
             <NavItem 

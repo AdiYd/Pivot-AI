@@ -293,7 +293,7 @@ export default function RestaurantsPage() {
       await handleEdit(restaurantId, { isActivated });
       
       toast({
-        title: isActivated ? "מסעדה הופעלה" : "מסעדה בוטלה",
+        title: isActivated ? "מסעדה הופעלה" : "מסעדה מושהית",
         description: `המסעדה ${isActivated ? 'הופעלה' : 'הושהתה'} בהצלחה`,
       });
     } catch (error) {
@@ -436,20 +436,12 @@ export default function RestaurantsPage() {
             <span>ח.פ: {restaurant.legalId}</span>
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Calendar className="w-4 h-4" />
-            <span>{restaurant.yearsActive} שנות פעילות</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Users className="w-4 h-4" />
             <span>{restaurant.primaryContact.name} - {restaurant.primaryContact.role}</span>
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Phone className="w-4 h-4" />
             <span>{restaurant.primaryContact.whatsapp}</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <CreditCard className="w-4 h-4" />
-            <span>{restaurant.payment.provider}</span>
           </div>
 
           {/* Quick Stats */}
@@ -637,12 +629,12 @@ export default function RestaurantsPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 max-sm:p-2 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">מסעדות</h1>
-          <p className="text-muted-foreground">נהל את כל המסעדות במערכת ({overallStats.total} מסעדות)</p>
+          <p className="text-muted-foreground">נהל את כל המסעדות במערכת</p>
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
@@ -951,12 +943,12 @@ export default function RestaurantsPage() {
               
               <div className="flex-1 overflow-y-auto p-6 pt-4">
                 <Tabs defaultValue="general" className="w-full">
-                  <TabsList className="grid w-full grid-cols-5">
+                  <TabsList className="grid w-full grid-cols-4">
                     <TabsTrigger value="general">כללי</TabsTrigger>
                     <TabsTrigger value="contact">איש קשר</TabsTrigger>
                     <TabsTrigger value="suppliers">ספקים</TabsTrigger>
                     <TabsTrigger value="orders">הזמנות</TabsTrigger>
-                    <TabsTrigger value="settings">הגדרות</TabsTrigger>
+                    {/* <TabsTrigger value="settings">הגדרות</TabsTrigger> */}
                   </TabsList>
                   
                   <TabsContent dir='rtl' value="general" className="space-y-4 mt-6">

@@ -414,13 +414,13 @@ export default function ConversationsPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 max-sm:p-2 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">שיחות</h1>
           <p className="text-muted-foreground">
-            נהל את כל השיחות עם הבוט ({stats.total} שיחות, {stats.totalMessages} הודעות)
+            נהל את כל השיחות עם הבוט
           </p>
         </div>
         <Button onClick={() => window.location.reload()}>
@@ -440,7 +440,7 @@ export default function ConversationsPage() {
             className="pr-10"
           />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center max-sm:flex-row-reverse gap-2">
           <Filter className="w-4 h-4 text-muted-foreground" />
           <Select value={selectedCategory} onValueChange={setSelectedCategory}>
             <SelectTrigger className="w-40">
@@ -465,7 +465,7 @@ export default function ConversationsPage() {
             ))}
           </SelectContent>
         </Select>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center max-sm:flex-row-reverse gap-2">
           <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
           <Select 
             value={`${sortBy}-${sortOrder}`}

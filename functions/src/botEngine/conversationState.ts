@@ -240,7 +240,7 @@ export function conversationStateReducer(
         actions.push({
           type: "CREATE_RESTAURANT",
           payload: {
-            restaurantId: currentState.restaurantId,
+            restaurantId: newState.context.restaurantId,
             companyName: newState.context.companyName,
             legalId: newState.context.legalId,
             name: newState.context.restaurantName,
@@ -351,7 +351,7 @@ export function conversationStateReducer(
       case "SUPPLIER_NAME":
         // Skip this category if requested
         if (message.body?.trim().toLowerCase() === "דלג") {
-          const nextCategoryResult = moveToNextCategory(newState, actions, currentState.restaurantId, message.from);
+          const nextCategoryResult = moveToNextCategory(newState, actions, currentState.context.legalId, message.from);
           return nextCategoryResult;
         }
         
@@ -530,7 +530,7 @@ export function conversationStateReducer(
           newState.currentState = "PRODUCT_UNIT";
         } else {
           // No products entered, move to next category
-          const nextCategoryResult = moveToNextCategory(newState, actions, currentState.restaurantId, message.from);
+          const nextCategoryResult = moveToNextCategory(newState, actions, currentState.context.legalId, message.from);
           return nextCategoryResult;
         }
         break;
@@ -689,7 +689,7 @@ export function conversationStateReducer(
           actions.push({
             type: "UPDATE_SUPPLIER",
             payload: {
-              restaurantId: currentState.restaurantId,
+              restaurantId: newState.context.legalId,
               name: newState.context.currentSupplier.name,
               whatsapp: newState.context.currentSupplier.whatsapp,
               deliveryDays: newState.context.currentSupplier.deliveryDays,
@@ -714,7 +714,7 @@ export function conversationStateReducer(
           });
           
           // Move to next category
-          const nextCategoryResult = moveToNextCategory(newState, actions, currentState.restaurantId, message.from);
+          const nextCategoryResult = moveToNextCategory(newState, actions, currentState.context.legalId, message.from);
           return nextCategoryResult;
         }
         break;
@@ -894,7 +894,7 @@ export function conversationStateReducer(
           actions.push({
             type: "CREATE_INVENTORY_SNAPSHOT",
             payload: {
-              restaurantId: currentState.restaurantId,
+              restaurantId: currentState.context.legalId,
               supplierId: newState.context.currentSupplier?.whatsapp || "",
               lines: newState.context.currentProducts
             }
@@ -992,7 +992,7 @@ export function conversationStateReducer(
           actions.push({
             type: "SEND_ORDER",
             payload: {
-              restaurantId: currentState.restaurantId,
+              restaurantId: currentState.context.legalId,
               supplierId: newState.context.currentOrder.supplierId,
               items: newState.context.currentOrder.items,
               midweek: newState.context.currentOrder.midweek
@@ -1211,7 +1211,7 @@ export function conversationStateReducer(
           actions.push({
             type: "LOG_DELIVERY",
             payload: {
-              restaurantId: currentState.restaurantId,
+              restaurantId: currentState.context.legalId,
               orderId: newState.context.currentOrder?.id || "",
               shortages: generateShortages(newState.context.deliveryResults),
               invoiceUrl: message.mediaUrl

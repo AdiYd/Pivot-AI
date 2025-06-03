@@ -68,7 +68,7 @@ const SupplierSchema = z.object({
 const ProductSchema = z.object({
   name: z.string().min(2),
   emoji: z.string(),
-  unit: z.enum(["kg", "gram", "liter", "ml", "pcs", "box", "bottle", "jar", "pack", "קילוגרם", "גרם", "ליטר", "מ\"ל", "יחידות", "קופסה", "בקבוק", "צנצנת", "אריזות"]),
+  unit: z.enum(["kg", "gram", "liter", "ml", "pcs", "box", "bottle", "jar", "pack"]),
   parMidweek: z.number().min(0),
   parWeekend: z.number().min(0)
 });

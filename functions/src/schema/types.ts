@@ -114,7 +114,7 @@ export interface InventorySnapshot {
 
 // Conversation state types for the WhatsApp bot
 export interface ConversationState {
-  restaurantId: string; //   ref→ /restaurants/{id}
+  contactWhatsApp: string; //   ref→ /conversations/{id as contactWhatsApp}
   currentState: BotState; // Current state of the bot conversation
   context: Record<string, any>;  // Additional context for the conversation, to collect information and user input
   lastMessageTimestamp: Timestamp;
@@ -129,7 +129,7 @@ export type BotState =
   | "ONBOARDING_CONTACT_NAME"     // Contact name collection
   | "ONBOARDING_CONTACT_EMAIL"   // Contact email collection (Role defaults to "Owner")
   | "ONBOARDING_PAYMENT_METHOD" // Showing Payment Link
-  | "WAITING_FOR_PAYMENT"      // Waiting for payment confirmation state - always shows the same message
+  | "WAITING_FOR_PAYMENT"      // Waiting for payment confirmation state - show until payment is confirmed
   | "SETUP_SUPPLIERS_START"          // Starting supplier setup
   | "SUPPLIER_CATEGORY"             // Supplier category collection  (Iterative for each supplier)
   | "SUPPLIER_NAME"                // Supplier name collection

@@ -120,13 +120,12 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
 
       if (restaurantRef.empty) {
         // Completely new user - start onboarding
-        restaurantId = firestore.collection(restaurantsCollection).doc().id;
         conversationState = {
-          restaurantId,
+          contactWhatsApp: phoneNumber,
           currentState: "INIT",
           context: {
             contactNumber: phoneNumber,
-            isSimulator
+            ...(isSimulator && { isSimulator })
           },
           lastMessageTimestamp: Timestamp.now(),
         };
@@ -138,12 +137,13 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
         const restaurantData = restaurantDoc.data();
         
         conversationState = {
-          restaurantId,
+          contactWhatsApp: phoneNumber,
           currentState: "IDLE",
           context: {
+            legalId: restaurantId,
             restaurantName: restaurantData.name,
             contactName: restaurantData.primaryContact.name,
-            isSimulator
+            ...(isSimulator && { isSimulator })
           },
           lastMessageTimestamp: Timestamp.now(),
         };
@@ -153,20 +153,14 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
       // Existing conversation - load state
       const data = conversationDoc.data();
       conversationState = {
-        restaurantId: data?.restaurantId || "",
+        contactWhatsApp: phoneNumber,
         currentState: data?.currentState || "IDLE",
         context: {
           ...data?.context || {},
-          isSimulator
+          ...(isSimulator && { isSimulator })
         },
         lastMessageTimestamp: Timestamp.now(),
       };
-      console.log(`[${isSimulator ? 'Simulator' : 'WhatsApp'}] Continuing existing conversation`, {
-        phone: phoneNumber,
-        restaurantId: conversationState.restaurantId,
-        currentState: conversationState.currentState,
-        contextKeys: Object.keys(conversationState.context)
-      });
     }
 
     /**
@@ -191,7 +185,7 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
      * Using phone number as document ID
      */
     const firestoreState = {
-      restaurantId: newState.restaurantId,
+      contactWhatsApp: phoneNumber,
       currentState: newState.currentState,
       context: newState.context,
       lastMessageTimestamp: FieldValue.serverTimestamp(),
@@ -214,7 +208,7 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
         responses: responses, // This will contain the messages that would be sent via WhatsApp
         newState: {
           currentState: newState.currentState,
-          context: Object.keys(newState.context || {})
+          context: newState.context || {}
         }
       });
     } else {

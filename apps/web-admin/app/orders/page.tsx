@@ -76,11 +76,6 @@ interface EnhancedOrder {
   invoiceUrl?: string;
 }
 
-const statusNames: Record<string, string> = {
-  pending: 'ממתין',
-  sent: 'נשלח',
-  delivered: 'נמסר'
-};
 
 const categoryNames: Record<string, string> = {
   vegetables: 'ירקות',
@@ -273,13 +268,13 @@ export default function OrdersPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
-        return <Badge variant="secondary" className="text-orange-600 border-orange-600"><Clock className="w-3 h-3 mr-1" />ממתין</Badge>;
+        return <Badge variant="secondary" className="text-orange-600 border-orange-600"><Clock className="w-3 h-3 ml-1" />ממתין</Badge>;
       case 'sent':
-        return <Badge variant="outline" className="text-blue-600 border-blue-600"><Truck className="w-3 h-3 mr-1" />נשלח</Badge>;
+        return <Badge variant="outline" className="text-blue-600 border-blue-600"><Truck className="w-3 h-3 ml-1" />נשלח</Badge>;
       case 'delivered':
-        return <Badge variant="outline" className="text-green-600 border-green-600"><CheckCircle className="w-3 h-3 mr-1" />נמסר</Badge>;
+        return <Badge variant="outline" className="text-green-600 border-green-600"><CheckCircle className="w-3 h-3 ml-1" />נמסר</Badge>;
       default:
-        return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />בעיה</Badge>;
+        return <Badge variant="destructive"><XCircle className="w-3 h-3 ml-1" />בעיה</Badge>;
     }
   };
 
@@ -408,7 +403,7 @@ export default function OrdersPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 space-y-6">
+      <div className="p-6 max-sm:p-2 space-y-6">
         <div className="flex items-center justify-between">
           <Skeleton className="h-8 w-32" />
           <Skeleton className="h-10 w-24" />
@@ -440,13 +435,13 @@ export default function OrdersPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 max-sm:p-2 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">הזמנות</h1>
           <p className="text-muted-foreground">
-            נהל את כל ההזמנות במערכת ({stats.total} הזמנות, {stats.totalItems} פריטים)
+            נהל את כל ההזמנות במערכת
           </p>
         </div>
       </div>
@@ -462,7 +457,7 @@ export default function OrdersPage() {
             className="pr-10"
           />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center max-sm:flex-row-reverse gap-2">
           <Filter className="w-4 h-4 text-muted-foreground" />
           <Select value={selectedStatus} onValueChange={setSelectedStatus}>
             <SelectTrigger className="w-40">
@@ -498,7 +493,7 @@ export default function OrdersPage() {
             ))}
           </SelectContent>
         </Select>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center max-sm:flex-row-reverse gap-2">
           <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
           <Select 
             value={`${sortBy}-${sortOrder}`}
@@ -516,8 +511,6 @@ export default function OrdersPage() {
               <SelectItem value="date-asc">תאריך (ישן→חדש)</SelectItem>
               <SelectItem value="restaurant-asc">מסעדה (א→ת)</SelectItem>
               <SelectItem value="restaurant-desc">מסעדה (ת→א)</SelectItem>
-              <SelectItem value="items-desc">פריטים (רב→מעט)</SelectItem>
-              <SelectItem value="items-asc">פריטים (מעט→רב)</SelectItem>
               <SelectItem value="status-asc">סטטוס</SelectItem>
             </SelectContent>
           </Select>

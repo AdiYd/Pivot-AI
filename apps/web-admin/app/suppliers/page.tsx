@@ -319,7 +319,7 @@ export default function SuppliersPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 space-y-6">
+      <div className="p-6 max-sm:p-2 space-y-6">
         <div className="flex items-center justify-between">
           <Skeleton className="h-8 w-32" />
           <Skeleton className="h-10 w-24" />
@@ -350,13 +350,13 @@ export default function SuppliersPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 max-sm:p-2 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">ספקים</h1>
           <p className="text-muted-foreground">
-            נהל את כל הספקים במערכת ({stats.totalSuppliers} ספקים, {stats.totalProducts} מוצרים)
+            נהל את כל הספקים במערכת
           </p>
         </div>
         <Dialog>
@@ -523,14 +523,14 @@ export default function SuppliersPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
+          <div className="space-y-3* flex-wrap flex justify-between">
             {Object.entries(stats.categoryStats)
               .sort(([,a], [,b]) => b - a)
               .map(([category, count]) => (
-                <div key={category} className="flex items-center justify-between">
+                <div key={category} className="flex flex-col items-center gap-4 justify-between">
                   <div className="flex items-center gap-2">
                     {getCategoryBadge(category)}
-                    <span className="text-sm">{categoryNames[category] || category}</span>
+                    {/* <span className="text-sm">{categoryNames[category] || category}</span> */}
                   </div>
                   <div className="flex items-center gap-2">
                     <Progress 

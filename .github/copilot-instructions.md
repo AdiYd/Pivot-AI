@@ -15,6 +15,12 @@ The platform must:
 * Log deliveries, shortages & invoices.
 * Provide an **Admin Panel** for ops & analytics.
 
+The state machine of the chat bot will do the following:
+1. signup new clients, get the restaurant information and store it in firestore as new restaurant (store seperatly the conversation itself)
+2. Start iterating over the restaurants suppliers and prepare the baseline inventory for the restaurant.
+3. Once all set up, the chatbot will schedule reminders for inventory snapshots, take the restaurants orders and create order. 
+4. The chatbot will initiate a message with the order to the supplier and get order approval from supplier and final approval from the restaurant.
+
 Copilot: keep this context in memory when suggesting code.
 
 ---

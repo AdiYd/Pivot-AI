@@ -189,14 +189,14 @@ export default function SimulatorPage() {
         // Explicitly handle CORS for development
         withCredentials: false
       });
-
+      console.log('Response from bot:', response.data);
       // Update user message status
       if (isUserMessage) {
         setSession(prev => ({
           ...prev,
           messages: prev.messages.map(msg => 
             msg.id === messageId ? { ...msg, status: 'delivered' } : msg
-          )
+          ),
         }));
       }
 
@@ -272,15 +272,20 @@ export default function SimulatorPage() {
 
 
   // Clear conversation
-  const clearConversation = async (phoneNuber:string) => {
+  const clearConversation = async (phoneNumber: string) => {
     setLoading(true);
-    await clearSession(phoneNuber)
+    const isConfirmed = window.confirm('האם אתה בטוח שברצונך למחוק את השיחה? פעולה זו אינה ניתנת לביטול.');
+    if (!isConfirmed) {
+      setLoading(false);
+      return; // User canceled the operation
+    }
+    await clearSession(phoneNumber);
     setSession(prev => ({
       ...prev,
       messages: [],
       conversationState: undefined
     }));
-    setAvailableConversations(prev => prev.filter(conv => conv !== phoneNuber));
+    setAvailableConversations(prev => prev.filter(conv => conv !== phoneNumber));
     setLoading(false);
     toast({
       title: "השיחה נוקתה",
@@ -331,7 +336,7 @@ export default function SimulatorPage() {
   };
 
   return (
-    <div className="p-6 pt-0 max-h-full space-y-6">
+    <div className="p-6 max-sm:p-2 pt-0 max-h-full space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -339,29 +344,16 @@ export default function SimulatorPage() {
             <Icon icon="logos:whatsapp-icon" width="1.3em" height="1.3em" />
             סימולטור WhatsApp
           </h1>
-          <p className="text-muted-foreground">בדוק את הבוט במצב סימולציה מבלי לשלוח הודעות אמיתיות</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {session.isConnected ? (
-            <Badge variant="default" className="bg-green-500">
-              <Wifi className="w-3 h-3 ml-1" />
-              מחובר
-            </Badge>
-          ) : (
-            <Badge variant="secondary">
-              <WifiOff className="w-3 h-3 ml-1" />
-              לא מחובר
-            </Badge>
-          )}
+          {/* <p className="text-muted-foreground">בדוק את הבוט במצב סימולציה מבלי לשלוח הודעות אמיתיות</p> */}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 h-[60vh]">
         {/* Control Panel */}
-        <div className="lg:col-span-1 space-y-4">
+        <div className="lg:col-span-1 flex flex-col justify-between space-y-4">
           {/* Connection */}
           <Card>
-            <CardHeader>
+            <CardHeader className='py-1'>
               <CardTitle className="text-lg">התחברות</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -378,13 +370,13 @@ export default function SimulatorPage() {
                     />
                   </div>
                    {availableConversations.length > 0 && availableConversations.map((conv) => (
-                    <Badge onClick={() =>{setSession(prev => ({ ...prev, phoneNumber: conv }))}} key={conv} variant="outline" className="mr-2 cursor-pointer hover:bg-muted">
+                    <Badge onClick={() =>{setSession(prev => ({ ...prev, phoneNumber: conv }))}} key={conv} variant={session.phoneNumber === conv ? "default" : "outline"} className="mr-2 cursor-pointer">
                       {conv}
                     </Badge>
                   ))}
-                  <Button onClick={startSession} className="w-full">
+                  <Button disabled={!session.phoneNumber || !validatePhoneNumber(session.phoneNumber)} onClick={startSession} className="w-full text-white bg-green-500 hover:bg-green-600 disabled:bg-gray-300">
                     התחבר
-                    <Phone className="w-4 h-4 ml-2" />
+                    <Icon icon="mdi:whatsapp" width="1.2em" height="1.2em" className="ml-2" />
                   </Button>
                  
                 </>
@@ -401,29 +393,20 @@ export default function SimulatorPage() {
               )}
             </CardContent>
           </Card>
-
           {/* Conversation State */}
           {session.conversationState && (
-            <Card className='max-h-[57vh]'>
+            <Card className='max-h-[62vh] h-[fill-available] justify-start gap-2  overflow-y-hidden'>
               <CardHeader className='py-1'>
                 <CardTitle className="text-lg">נתוני השיחה</CardTitle>
               </CardHeader>
               <CardContent className="space-y-1 overflow-y-auto">
-                <div>
-                  <Label className="text-sm">מצב נוכחי</Label>
-                  <Badge 
-                    className={cn("mt-1 font-mono text-xs", getStateBadgeColor(session.conversationState.currentState))}
-                  >
-                    {session.conversationState.currentState}
-                  </Badge>
-                </div>
                 {Object.keys(session.conversationState.context).length > 0 && (
-                  <div className='overflow-hidden max-h-[fill-available]'>
-                    <Label className="text-sm">נתוני שנאספו</Label>
-                    <div className="mt-1 space-y-1">
+                  <div className='overflow-hidden'>
+                    {/* <Label className="text-sm">נתונים שנאספו</Label> */}
+                    <div className="mt-1 self-end space-y-1">
                       {Object.entries(session.conversationState.context).map(([key, value]) => (
-                        <div key={key} className="text-xs text-wrap bg-muted p-2 rounded-xl">
-                          <span className="font-medium text-wrap ">{key}:</span> {JSON.stringify(value)}
+                        <div key={key} className="text-xs text-wrap bg-muted p-2 overflow-auto rounded-xl">
+                          <span className="font-medium text-wrap">{key}:</span> {JSON.stringify(value)}
                         </div>
                       ))}
                     </div>
@@ -441,28 +424,48 @@ export default function SimulatorPage() {
             <CardHeader className="py-2 flex justify-between absolute bg-card/50 backdrop-blur-lg w-full z-10">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                  <div className="w-8 h-8 max-sm:hidden bg-green-500 rounded-full flex items-center justify-center">
                     <Bot className="w-5 h-5 text-white" />
                   </div>
-                  <div>
-                    <CardTitle className="text-base">בוט Pivot</CardTitle>
+                  <div className="flex gap-2">
+                    <CardTitle className="text-base max-sm:hidden">Pivot</CardTitle>
                     <p className="text-sm text-muted-foreground">
-                      {session.isConnected ? 'מחובר' : 'לא מחובר'}
-                      {session.conversationState && ` • ${session.phoneNumber}`}
+                      {session.conversationState && `${session.phoneNumber} • `}
+                      { session.conversationState?.currentState &&  <Badge 
+                    className={cn("mt-1 mx-1 font-mono text-xs", getStateBadgeColor(session.conversationState.currentState))}
+                  >
+                    {session.conversationState.currentState}
+                  </Badge>}
                     </p>
                   </div>
                 </div>
-                {session.isConnected && <div className="flex items-center">
-                  <Button onClick={() => clearConversation(session.phoneNumber)} variant="outline" className="w-full">
-                    נקה שיחה
-                    {loading ? <Loader2 style={{animationDuration:'1s'}} className="w-4 h-4 ml-2 animate-spin" /> : <Trash2 className="w-4 h-4 ml-2" />}
-                  </Button>
-                </div>}
+    
+                 <div className="flex items-center gap-2">
+                   {session.isConnected && <div className="flex w-fit items-center">
+                      <Button title='מחיקת שיחה' size="sm" onClick={() => clearConversation(session.phoneNumber)} variant="destructive" className="w-full">
+                        {loading ? <Loader2 style={{animationDuration:'1s'}} className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                      </Button>
+                    </div>}
+                      {session.isConnected ? (
+                        <Badge variant="default" className="bg-green-500 max-sm:hidden">
+                          <Wifi className="w-3 h-3 ml-1" />
+                          מחובר
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary">
+                          <WifiOff className="w-3 h-3 ml-1" />
+                          לא מחובר
+                        </Badge>
+                      )}
+                  </div>
               </div>
             </CardHeader>
 
             {/* Messages Area */}
-            <CardContent className="flex-1 chat-whatsApp overflow-y-auto flex flex-col p-0">
+            <CardContent className={`flex-1 
+            chat-whatsApp bg-[url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png")]
+            dark:bg-none
+              overflow-y-auto flex flex-col p-0`}>
               <ScrollArea className="flex-1 p-4 pt-0">
                 <div dir='rtl' className="space-y-4 my-20">
                   <AnimatePresence>
@@ -474,21 +477,21 @@ export default function SimulatorPage() {
                         exit={{ opacity: 0, y: -20, scale: 0.95 }}
                         transition={{ duration: 0.3, ease: "easeOut" }}
                         className={cn(
-                          "flex flex-row-reverse gap-3",
+                          "flex items-end flex-row-reverse gap-3",
                           message.isBot ? "justify-start" : "justify-end ml-auto"
                         )}
                       >
                         {message.isBot && (
-                          <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                          <div className="w-8 h-8 max-sm:hidden bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
                             <Bot className="w-4 h-4 text-white" />
                           </div>
                         )}
                         
                         <div className={cn(
-                          "rounded-2xl min-w-[30%]* px-4 py-2 max-w-full break-words",
+                          "rounded-[10px] min-w-[30%]* px-4 py-2 max-w-full break-words",
                           message.isBot 
-                            ? "bg-muted" 
-                            : "bg-gradient-to-r text-start from-green-700/80 to-green-600/80 backdrop-blur-md text-white"
+                            ? "bg-muted rounded-bl-none" 
+                            : "text-start bg-[#DCF8C6] rounded-br-none backdrop-blur-md text-black dark:bg-[#005C4B]  dark:text-[#E9EDEF]"
                         )}>
                           <p className="text-sm whitespace-pre-wrap">
                             {message.content.split(/(\*[^*]+\*)/g).map((part, index) => {
@@ -504,7 +507,7 @@ export default function SimulatorPage() {
                           )}>
                             <span className={cn(
                               "text-xs",
-                              message.isBot ? "text-muted-foreground" : "text-blue-900"
+                              message.isBot ? "text-muted-foreground" : "text-gray-800/80 dark:text-gray-400"
                             )}>
                               {message.timestamp.toLocaleTimeString('he-IL', { 
                                 hour: '2-digit', 
@@ -516,7 +519,7 @@ export default function SimulatorPage() {
                         </div>
 
                         {!message.isBot && (
-                          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+                          <div className="w-8 h-8 bg-blue-500 max-sm:hidden rounded-full flex items-center justify-center flex-shrink-0">
                             <User className="w-4 h-4 text-white" />
                           </div>
                         )}
@@ -574,7 +577,7 @@ export default function SimulatorPage() {
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
                       disabled={session.isLoading}
-                      className="flex-1 h-10 rounded-full bg-muted focus-visible:ring-zinc-500/40 "
+                      className="flex-1 h-10 rounded-lg bg-muted focus-visible:ring-zinc-500/40 "
                     />
                     <Button 
                       type="submit" 
@@ -655,14 +658,7 @@ const clearSession = async (phoneNumber: string): Promise<void> => {
   try {
     if (!phoneNumber) {
       throw new Error('Phone number is required to clear session');
-    }
-    
-    // Add confirmation dialog before proceeding with deletion
-    const isConfirmed = window.confirm('האם אתה בטוח שברצונך למחוק את השיחה? פעולה זו אינה ניתנת לביטול.');
-    
-    if (!isConfirmed) {
-      return; // User canceled the operation
-    }
+    } 
     
     const cleanPhone = phoneNumber.replace(/\s|-/g, '');
     const conversationRef = doc(db, 'conversations_simulator', cleanPhone);
