@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  trailingSlash: false,
+  distDir: '.next',
   webpack: (config) => {
     // Simple fix for the undici private class fields issue
     config.resolve.alias = {
