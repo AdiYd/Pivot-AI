@@ -245,7 +245,7 @@ export default function SuppliersPage() {
           {supplier.category.map(categor => getCategoryBadge(categor))}
         </div>
       </CardHeader>
-      <CardContent className='h-[fill-available] overflow-y-auto'>
+      <CardContent className='h-[fill-available]* overflow-y-auto'>
         <div className="space-y-3">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Phone className="w-4 h-4" />

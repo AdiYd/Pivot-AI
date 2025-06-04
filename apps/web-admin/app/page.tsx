@@ -365,7 +365,7 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 pt-6">
         <div>
           <Skeleton className="h-8 w-64" />
           <Skeleton className="h-4 w-96 mt-2" />
@@ -388,7 +388,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pt-6">
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold tracking-tight">דף הבית</h1>
@@ -559,9 +559,10 @@ export default function DashboardPage() {
             <CardTitle className="flex items-center gap-2">ספקים לפי קטגוריה</CardTitle>
             <CardDescription>מספר ספקים בכל קטגוריה</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="">
             <ResponsiveContainer width="100%" height={240}>
               <BarChart 
+            
                 data={supplierBarData}
                 barGap={8}
               >
@@ -587,7 +588,7 @@ export default function DashboardPage() {
                   height={50}
                   interval={0}
                   angle={-25}
-                  textAnchor="end"
+                  textAnchor="start"
                 />
                 <YAxis 
                   allowDecimals={false} 

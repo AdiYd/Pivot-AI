@@ -34,7 +34,9 @@ import {
   User,
   X,
   TrendingUp,
-  BarChart3
+  BarChart3,
+  Grid3X3,
+  Table
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -42,6 +44,7 @@ import { useToast } from '@/components/ui/use-toast';
 import exampleDatabase from '@/schema/example';
 import { SupplierCategory } from '@/schema/types';
 import { getCategoryName } from '@/schema/messages';
+import { Icon } from '@iconify/react/dist/iconify.js';
 
 // Types for enhanced order data
 interface EnhancedOrder {
@@ -106,6 +109,7 @@ export default function OrdersPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [sortBy, setSortBy] = useState<'date' | 'restaurant' | 'status' | 'items'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
   const { toast } = useToast();
 
   // Extract and enhance order data from the actual database
@@ -271,6 +275,8 @@ export default function OrdersPage() {
     }
   }, [enhancedOrders]);
 
+
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
@@ -315,6 +321,78 @@ export default function OrdersPage() {
     if (diffDays < 30) return `לפני ${Math.floor(diffDays / 7)} שבועות`;
     return `לפני ${Math.floor(diffDays / 30)} חודשים`;
   };
+
+    const analyticSection = useMemo(() => ( 
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        {/* Category Distribution */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="w-5 h-5" />
+              התפלגות לפי קטגוריות
+            </CardTitle>
+            <CardDescription>
+              התפלגות ההזמנות לפי קטגוריות ספקים
+            </CardDescription>
+          </CardHeader>
+          <CardContent className='h-[fill-available] overflow-y-auto'>
+            <div className="space-y-3">
+              {Object.entries(stats.categoryStats)
+                .sort(([,a], [,b]) => b - a)
+                .map(([category, count]) => (
+                  <div key={category} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {getCategoryBadge(category)}
+                      <span className="text-sm">{categoryNames[category] || category}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Progress 
+                        value={(count / stats.total) * 100} 
+                        className="w-20" 
+                      />
+                      <span className="text-sm font-medium w-6 text-right">{count}</span>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Restaurant Activity */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5" />
+              פעילות מסעדות
+            </CardTitle>
+            <CardDescription>
+              הזמנות לפי מסעדה
+            </CardDescription>
+          </CardHeader>
+          <CardContent className='h-[fill-available] overflow-y-auto'>
+            <div className="space-y-3">
+              {Object.entries(stats.restaurantStats)
+                .sort(([,a], [,b]) => b.orderCount - a.orderCount)
+                .slice(0, 5)
+                .map(([restaurantId, restaurant]: [string, any]) => (
+                  <div key={restaurantId} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Store className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">{restaurant.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">{restaurant.totalItems} פריטים</span>
+                      <Badge variant="outline" className="text-xs">
+                        {restaurant.orderCount} הזמנות
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+  ), [stats]);
 
   const OrderCard = ({ order }: { order: EnhancedOrder }) => (
     <Card className="hover:shadow-lg transition-shadow flex flex-col justify-between">
@@ -407,6 +485,128 @@ export default function OrdersPage() {
     </Card>
   );
 
+  const OrderTable = ({ orders }: { orders: EnhancedOrder[] }) => (
+    <div className="border rounded-lg overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-gray-50 dark:bg-gray-900">
+            <tr className="border-b">
+              <th className="text-right p-3 font-medium text-sm">מספר הזמנה</th>
+              <th className="text-right p-3 font-medium text-sm">מסעדה</th>
+              <th className="text-right p-3 font-medium text-sm">ספק</th>
+              <th className="text-right p-3 font-medium text-sm">קטגוריות</th>
+              <th className="text-right p-3 font-medium text-sm">סטטוס</th>
+              <th className="text-right p-3 font-medium text-sm">פריטים</th>
+              <th className="text-right p-3 font-medium text-sm">תקופה</th>
+              <th className="text-right p-3 font-medium text-sm">תאריך</th>
+              <th className="text-right p-3 font-medium text-sm">חסרים</th>
+              <th className="text-right p-3 font-medium text-sm">פעולות</th>
+            </tr>
+          </thead>
+          <tbody>
+            {orders.map((order) => (
+              <tr key={order.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-900/50">
+                <td className="p-3">
+                  <div className="font-medium">#{order.id}</div>
+                </td>
+                <td className="p-3">
+                  <div className="flex items-center gap-2">
+                    <Store className="w-4 h-4 text-muted-foreground" />
+                    <span className="font-medium">{order.restaurantName}</span>
+                  </div>
+                </td>
+                <td className="p-3">
+                  <div className="flex items-center gap-2">
+                    <Truck className="w-4 h-4 text-muted-foreground" />
+                    <span>{order.supplierName}</span>
+                  </div>
+                </td>
+                <td className="p-3">
+                  <div className="flex flex-wrap gap-1">
+                    {order.supplierCategory.slice(0, 2).map(category => getCategoryBadge(category))}
+                    {order.supplierCategory.length > 2 && (
+                      <Badge variant="outline" className="text-xs">
+                        +{order.supplierCategory.length - 2}
+                      </Badge>
+                    )}
+                  </div>
+                </td>
+                <td className="p-3">
+                  {getStatusBadge(order.status)}
+                </td>
+                <td className="p-3">
+                  <div className="text-sm">
+                    <div className="font-medium">{order.totalItems} פריטים</div>
+                    <div className="text-muted-foreground">{order.totalProducts} מוצרים</div>
+                  </div>
+                </td>
+                <td className="p-3">
+                  <Badge variant="outline" className="text-xs text-nowrap">
+                    {order.midweek ? 'אמצע שבוע' : 'סוף שבוע'}
+                  </Badge>
+                </td>
+                <td className="p-3">
+                  <div className="text-sm">
+                    <div>{order.createdAt.toLocaleDateString('he-IL')}</div>
+                    <div className="text-muted-foreground text-xs">
+                      {getRelativeTime(order.createdAt)}
+                    </div>
+                  </div>
+                </td>
+                <td className="p-3">
+                  {order.hasShortages ? (
+                    <div className="flex items-center gap-1 text-red-600">
+                      <AlertTriangle className="w-4 h-4" />
+                      <span className="text-sm">{order.shortages.length}</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1 text-green-600">
+                      <CheckCircle className="w-4 h-4" />
+                      <span className="text-sm">תקין</span>
+                    </div>
+                  )}
+                </td>
+                <td className="p-3">
+                  <div className="flex gap-2">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedOrder(order);
+                            setIsDialogOpen(true);
+                          }}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>צפייה בפרטים</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    {order.invoiceUrl && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="outline" size="sm">
+                            <Download className="w-4 h-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>הורד חשבונית</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
   if (isLoading) {
     return (
       <div className="p-6 max-sm:p-2 space-y-6">
@@ -439,6 +639,8 @@ export default function OrdersPage() {
       </div>
     );
   }
+
+
 
   return (
     <div className="p-6 max-sm:p-2 space-y-6">
@@ -608,91 +810,65 @@ export default function OrdersPage() {
         </Card>
       </div>
 
-      {/* Analytics Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* Category Distribution */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="w-5 h-5" />
-              התפלגות לפי קטגוריות
-            </CardTitle>
-            <CardDescription>
-              התפלגות ההזמנות לפי קטגוריות ספקים
-            </CardDescription>
-          </CardHeader>
-          <CardContent className='h-[fill-available] overflow-y-auto'>
-            <div className="space-y-3">
-              {Object.entries(stats.categoryStats)
-                .sort(([,a], [,b]) => b - a)
-                .map(([category, count]) => (
-                  <div key={category} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {getCategoryBadge(category)}
-                      <span className="text-sm">{categoryNames[category] || category}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Progress 
-                        value={(count / stats.total) * 100} 
-                        className="w-20" 
-                      />
-                      <span className="text-sm font-medium w-6 text-right">{count}</span>
-                    </div>
-                  </div>
-                ))}
-            </div>
-          </CardContent>
-        </Card>
+      {/* {analyticSection} */}
 
-        {/* Restaurant Activity */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5" />
-              פעילות מסעדות
-            </CardTitle>
-            <CardDescription>
-              הזמנות לפי מסעדה
-            </CardDescription>
-          </CardHeader>
-          <CardContent className='h-[fill-available] overflow-y-auto'>
-            <div className="space-y-3">
-              {Object.entries(stats.restaurantStats)
-                .sort(([,a], [,b]) => b.orderCount - a.orderCount)
-                .slice(0, 5)
-                .map(([restaurantId, restaurant]: [string, any]) => (
-                  <div key={restaurantId} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Store className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">{restaurant.name}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">{restaurant.totalItems} פריטים</span>
-                      <Badge variant="outline" className="text-xs">
-                        {restaurant.orderCount} הזמנות
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Orders Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredOrders.length > 0 ? (
-          filteredOrders.map((order) => (
-            <OrderCard key={order.id} order={order} />
-          ))
-        ) : (
-          <div className="col-span-full text-center py-12">
-            <ShoppingCart className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium mb-2">לא נמצאו הזמנות</h3>
-            <p className="text-muted-foreground">נסה לשנות את מונחי החיפוש או המסנן</p>
+      {/* View Mode Toggle */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-sm opacity-80">תצוגה:</span>
+          <div className="flex flex-row-reverse items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+            <Button
+              variant={viewMode === 'cards' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('cards')}
+              className="h-8 w-8 p-0"
+            >
+              <Icon icon="mdi:id-card" width="1.5em" height="1.5em" />
+              
+            </Button>
+            <Button
+              variant={viewMode === 'table' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('table')}
+              className="h-8 w-8 p-0"
+            >
+              <Table className="w-4 h-4" />
+            </Button>
           </div>
-        )}
+        </div>
+        <div className="text-sm text-muted-foreground">
+          {filteredOrders.length} מתוך {enhancedOrders.length} הזמנות
+        </div>
       </div>
+
+      {/* Orders Display */}
+      {viewMode === 'cards' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredOrders.length > 0 ? (
+            filteredOrders.map((order) => (
+              <OrderCard key={order.id} order={order} />
+            ))
+          ) : (
+            <div className="col-span-full text-center py-12">
+              <ShoppingCart className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">לא נמצאו הזמנות</h3>
+              <p className="text-muted-foreground">נסה לשנות את מונחי החיפוש או המסנן</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div>
+          {filteredOrders.length > 0 ? (
+            <OrderTable orders={filteredOrders} />
+          ) : (
+            <div className="text-center py-12 border rounded-lg">
+              <ShoppingCart className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">לא נמצאו הזמנות</h3>
+              <p className="text-muted-foreground">נסה לשנות את מונחי החיפוש או המסנן</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Enhanced Order Details Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
