@@ -862,7 +862,7 @@ export default function RestaurantsPage() {
       </div>
 
       {/* Alerts Section */}
-      {(overallStats.pendingPayment > 0 || overallStats.inactive > 0) && (
+      {(overallStats.pendingPayment > 0 || overallStats.inactive > 0) && false && (
         <Card className="border-orange-200 bg-orange-50 dark:bg-orange-950/40">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-orange-800 dark:text-orange-200">

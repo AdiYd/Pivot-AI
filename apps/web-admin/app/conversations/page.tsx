@@ -345,7 +345,7 @@ export default function ConversationsPage() {
 
   const ChatBubble = ({ message, isBot, index }: { message: any; isBot: boolean, index: number }) => (
     <div className={`flex ${isBot ? 'justify-start' : 'justify-end'} mb-4 ${index === 0 ? 'mt-16' : ''}`}>
-      <div className={`flex items-end gap-2 max-w-[70%] ${isBot ? 'flex-row' : 'flex-row-reverse'}`}>
+      <div className={`flex my-2 items-end gap-2 max-w-[70%] ${isBot ? 'flex-row' : 'flex-row-reverse'}`}>
         <div className={`p-2 max-sm:hidden rounded-full ${isBot ? 'bg-green-100 dark:bg-green-900' : 'bg-blue-100 dark:bg-blue-900'}`}>
           {isBot ? (
             // <Bot className="w-4 h-4 text-green-600 dark:text-green-400" />
