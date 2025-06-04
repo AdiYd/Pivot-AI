@@ -377,8 +377,8 @@ export default function OrdersPage() {
       </div>
   ), [stats]);
 
-  const OrderCard = ({ order }: { order: EnhancedOrder }) => (
-    <Card className="hover:shadow-lg transition-shadow flex flex-col justify-between">
+  const OrderCard = ({ order, index }: { order: EnhancedOrder, index : number }) => (
+    <Card key={index} className="hover:shadow-lg transition-shadow flex flex-col justify-between">
       <CardHeader className="pb-4">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
@@ -637,79 +637,10 @@ export default function OrdersPage() {
         </div>
       </div>
 
-      {/* Search and Filters */}
-      <div className="flex gap-4 mb-6 flex-wrap">
-        <div className="relative flex-1 min-w-64">
-          <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-          <Input
-            placeholder="חיפוש לפי מסעדה, ספק או מספר הזמנה..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pr-10"
-          />
-        </div>
-        <div className="flex items-center max-sm:flex-row-reverse gap-2">
-          <Filter className="w-4 h-4 text-muted-foreground" />
-          <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="כל הסטטוסים" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">כל הסטטוסים</SelectItem>
-              <SelectItem value="pending">ממתין</SelectItem>
-              <SelectItem value="sent">נשלח</SelectItem>
-              <SelectItem value="delivered">נמסר</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <Select value={selectedRestaurant} onValueChange={setSelectedRestaurant}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="כל המסעדות" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">כל המסעדות</SelectItem>
-            {Object.entries(data.restaurants).map(([id, restaurant]) => (
-              <SelectItem key={id} value={id}>{restaurant.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="כל הקטגוריות" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">כל הקטגוריות</SelectItem>
-            {Object.entries(categoryNames).map(([key, value]) => (
-              <SelectItem key={key} value={key}>{value}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <div className="flex items-center max-sm:flex-row-reverse gap-2">
-          <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
-          <Select 
-            value={`${sortBy}-${sortOrder}`}
-            onValueChange={(value) => {
-              const [field, order] = value.split('-');
-              setSortBy(field as any);
-              setSortOrder(order as any);
-            }}
-          >
-            <SelectTrigger className="w-44">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="date-desc">תאריך (חדש→ישן)</SelectItem>
-              <SelectItem value="date-asc">תאריך (ישן→חדש)</SelectItem>
-              <SelectItem value="restaurant-asc">מסעדה (א→ת)</SelectItem>
-              <SelectItem value="restaurant-desc">מסעדה (ת→א)</SelectItem>
-              <SelectItem value="status-asc">סטטוס</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+     
 
       {/* Enhanced Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4 mb-6">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -795,11 +726,11 @@ export default function OrdersPage() {
 
       {/* {analyticSection} */}
 
-      {/* View Mode Toggle */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+       {/* Search and Filters */}
+      <div className="flex items-center gap-4 mb-6 flex-wrap">
+         <div className="flex items-center max-sm:hidden gap-2">
           <span className="text-sm opacity-80">תצוגה:</span>
-          <div className="flex flex-row-reverse items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+          <div className="flex gap-2 flex-row-reverse items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
             <Button
               variant={viewMode === 'cards' ? 'default' : 'ghost'}
               size="sm"
@@ -819,17 +750,110 @@ export default function OrdersPage() {
             </Button>
           </div>
         </div>
-        <div className="text-sm text-muted-foreground">
-          {filteredOrders.length} מתוך {enhancedOrders.length} הזמנות
+        <div className="relative flex-1 min-w-64">
+          <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+          <Input
+            placeholder="חיפוש לפי מסעדה, ספק או מספר הזמנה..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pr-10"
+          />
         </div>
+        {/* <div className="flex items-center max-sm:flex-row-reverse gap-2">
+          <Filter className="w-4 h-4 text-muted-foreground" />
+          <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="כל הסטטוסים" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">כל הסטטוסים</SelectItem>
+              <SelectItem value="pending">ממתין</SelectItem>
+              <SelectItem value="sent">נשלח</SelectItem>
+              <SelectItem value="delivered">נמסר</SelectItem>
+            </SelectContent>
+          </Select>
+        </div> */}
+        <Select value={selectedRestaurant} onValueChange={setSelectedRestaurant}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="כל המסעדות" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">כל המסעדות</SelectItem>
+            {Object.entries(data.restaurants).map(([id, restaurant]) => (
+              <SelectItem key={id} value={id}>{restaurant.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="כל הקטגוריות" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">כל הקטגוריות</SelectItem>
+            {Object.entries(categoryNames).map(([key, value]) => (
+              <SelectItem key={key} value={key}>{value}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <div className="flex items-center max-sm:flex-row-reverse gap-2">
+          <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
+          <Select 
+            value={`${sortBy}-${sortOrder}`}
+            onValueChange={(value) => {
+              const [field, order] = value.split('-');
+              setSortBy(field as any);
+              setSortOrder(order as any);
+            }}
+          >
+            <SelectTrigger className="w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="date-desc">תאריך (חדש→ישן)</SelectItem>
+              <SelectItem value="date-asc">תאריך (ישן→חדש)</SelectItem>
+              <SelectItem value="restaurant-asc">מסעדה (א→ת)</SelectItem>
+              <SelectItem value="restaurant-desc">מסעדה (ת→א)</SelectItem>
+              <SelectItem value="status-asc">סטטוס</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* View Mode Toggle */}
+      <div className="flex items-center justify-between md:hidden">
+        <div className="flex items-center gap-2">
+          <span className="text-sm opacity-80">תצוגה:</span>
+          <div className="flex gap-2 flex-row-reverse items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+            <Button
+              variant={viewMode === 'cards' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('cards')}
+              className="h-8 w-8 p-0"
+            >
+              <Icon icon="mdi:id-card" width="1.5em" height="1.5em" />
+              
+            </Button>
+            <Button
+              variant={viewMode === 'table' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('table')}
+              className="h-8 w-8 p-0"
+            >
+              <Table className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+        {/* <div className="text-sm text-muted-foreground">
+          {filteredOrders.length} מתוך {enhancedOrders.length} הזמנות
+        </div> */}
       </div>
 
       {/* Orders Display */}
       {viewMode === 'cards' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredOrders.length > 0 ? (
-            filteredOrders.map((order) => (
-              <OrderCard key={order.id} order={order} />
+            filteredOrders.map((order, i) => (
+              <OrderCard index={i} key={i} order={order} />
             ))
           ) : (
             <div className="col-span-full text-center py-12">

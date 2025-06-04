@@ -513,33 +513,6 @@ export default function SuppliersPage() {
         </Dialog>
       </div>
 
-      {/* Search and Filters */}
-      <div className="flex gap-4 mb-6">
-        <div className="relative flex-1">
-          <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-          <Input
-            placeholder="חיפוש לפי שם ספק, מסעדה או מספר WhatsApp..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pr-10"
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-muted-foreground" />
-          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="כל הקטגוריות" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">כל הקטגוריות</SelectItem>
-              {Object.entries(categoryNames).map(([key, value]) => (
-                <SelectItem key={key} value={key}>{value}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
       {/* Enhanced Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Card>
@@ -605,6 +578,54 @@ export default function SuppliersPage() {
         </Card>
       </div>
 
+           {/* Search and Filters */}
+      <div className="flex gap-4 mb-6">
+         <div className="flex items-center gap-2 max-sm:hidden">
+          <span className="text-sm opacity-80">תצוגה:</span>
+          <div className="flex flex-row-reverse gap-2 items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+            <Button
+              variant={viewMode === 'cards' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('cards')}
+              className="h-8 w-8 p-0"
+            >
+              <Icon icon="mdi:id-card" width="1.5em" height="1.5em" />
+            </Button>
+            <Button
+              variant={viewMode === 'table' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('table')}
+              className="h-8 w-8 p-0"
+            >
+              <Table className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+        <div className="relative flex-1">
+          <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+          <Input
+            placeholder="חיפוש לפי שם ספק, מסעדה או מספר WhatsApp..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pr-10"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Filter className="w-4 h-4 text-muted-foreground" />
+          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="כל הקטגוריות" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">כל הקטגוריות</SelectItem>
+              {Object.entries(categoryNames).map(([key, value]) => (
+                <SelectItem key={key} value={key}>{value}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
       {/* Category Distribution Chart */}
       <Card className="mb-6 hidden">
         <CardHeader>
@@ -640,10 +661,10 @@ export default function SuppliersPage() {
       </Card>
 
       {/* View Mode Toggle */}
-      <div className="flex items-center justify-between">
+      <div className="items-center justify-between md:hidden ">
         <div className="flex items-center gap-2">
           <span className="text-sm opacity-80">תצוגה:</span>
-          <div className="flex flex-row-reverse items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+          <div className="flex flex-row-reverse gap-2 items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
             <Button
               variant={viewMode === 'cards' ? 'default' : 'ghost'}
               size="sm"
@@ -661,9 +682,6 @@ export default function SuppliersPage() {
               <Table className="w-4 h-4" />
             </Button>
           </div>
-        </div>
-        <div className="text-sm text-muted-foreground">
-          {filteredSuppliers.length} מתוך {enhancedSuppliers.length} ספקים
         </div>
       </div>
 
