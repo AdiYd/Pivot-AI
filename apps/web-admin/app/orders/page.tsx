@@ -98,6 +98,24 @@ const categoryNames: Record<string, string> = {
   coffee: 'קפה'
 };
 
+export const getCategoryBadge = (category: string) => {
+    const colors: Record<string, string> = {
+      vegetables: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+      fruits: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+      fish: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+      meat: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+      dairy: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+      bread: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
+      coffee: 'bg-orange-950 text-white dark:bg-orange-950 dark:text-white',
+    };
+    
+    return (
+      <Badge className={(colors[category] || 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200') + " text-xs text-nowrap mx-[2px] cursor-default flex items-center gap-1"}>
+        {getCategoryName(category)}
+      </Badge>
+    );
+  };
+
 export default function OrdersPage() {
   const [data, setData] = useState(exampleDatabase);
   const [searchTerm, setSearchTerm] = useState('');
@@ -288,24 +306,6 @@ export default function OrdersPage() {
       default:
         return <Badge variant="destructive"><XCircle className="w-3 h-3 ml-1" />בעיה</Badge>;
     }
-  };
-
-  const getCategoryBadge = (category: string) => {
-    const colors: Record<string, string> = {
-      vegetables: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-      fruits: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
-      fish: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-      meat: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-      dairy: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-      bread: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
-      coffee: 'bg-brown-100 text-brown-800 dark:bg-brown-900 dark:text-brown-200'
-    };
-    
-    return (
-      <Badge className={colors[category] || 'bg-gray-100 text-gray-800 dark:bg-gray-900 text-nowrap mx-1 dark:text-gray-200'}>
-        {getCategoryName(category)}
-      </Badge>
-    );
   };
 
   const getRelativeTime = (date: Date): string => {

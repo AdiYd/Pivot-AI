@@ -45,7 +45,8 @@ export const BOT_CATEGORIES: Record<string, { name: string; emoji: string }> = {
   dessert: { name: "קינוחים", emoji: "🍰" },
   juices: { name: "מיצים טבעיים", emoji: "🧃" },
   eggs: { name: "ביצים אורגניות", emoji: "🥚" },
-  dairy: { name: "מוצרי חלב", emoji: "🥛" }
+  dairy: { name: "מוצרי חלב", emoji: "🥛" },
+  coffee: { name: "קפה", emoji: "☕" },
 };
 
 

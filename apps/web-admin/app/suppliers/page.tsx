@@ -36,6 +36,7 @@ import { useToast } from '@/components/ui/use-toast';
 import exampleDatabase from '@/schema/example';
 import { Product, SupplierCategory } from '@/schema/types';
 import { getCategoryName } from '@/schema/messages';
+import { getCategoryBadge } from '../orders/page';
 
 // Types for enhanced supplier data
 interface EnhancedSupplier {
@@ -186,25 +187,6 @@ export default function SuppliersPage() {
     }
   }, [enhancedSuppliers]);
 
-  const getCategoryBadge = (category: string) => {
-    const colors: Record<string, string> = {
-      vegetables: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-      fruits: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
-      fish: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-      meat: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-      dairy: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-      bread: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
-      coffee: 'bg-brown-100 text-brown-800 dark:bg-brown-900 dark:text-brown-200',
-      disposables: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-    };
-    
-    return (
-      <Badge className={(colors[category] || colors.disposables) + ' text-nowrap mx-1'}>
-        {getCategoryName(category)}
-      </Badge>
-    );
-  };
-
   const getRatingStars = (rating: number) => {
     return Array.from({ length: 5 }, (_, i) => (
       <Star 
@@ -229,7 +211,7 @@ export default function SuppliersPage() {
   const SupplierCard = ({ supplier }: { supplier: EnhancedSupplier }) => (
     <Card className="hover:shadow-lg transition-shadow">
       <CardHeader className="pb-4">
-        <div className="flex items-start justify-between">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
               <Truck className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -513,7 +495,7 @@ export default function SuppliersPage() {
       </div>
 
       {/* Category Distribution Chart */}
-      <Card className="mb-6">
+      <Card className="mb-6 hidden">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <TrendingUp className="w-5 h-5" />
