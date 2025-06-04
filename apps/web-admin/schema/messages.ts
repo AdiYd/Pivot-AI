@@ -48,6 +48,12 @@ export const BOT_CATEGORIES: Record<string, { name: string; emoji: string }> = {
   dairy: { name: "מוצרי חלב", emoji: "🥛" }
 };
 
+
+// Helper function to render supplier category names with emoji (Hebrew) from the english keys, if not found, return the key itself
+export const getCategoryName = (key: string): string => {
+  return BOT_CATEGORIES[key] ? `${BOT_CATEGORIES[key].name} ${BOT_CATEGORIES[key].emoji}` : key;
+};
+
 // Helper function to format supplier categories as a list with emojis
 export const formatCategoryList = (): string => {
   return Object.entries(BOT_CATEGORIES)

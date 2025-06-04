@@ -44,6 +44,8 @@ import { Timestamp } from 'firebase/firestore';
 // Import the actual database
 import exampleDatabase from '@/schema/example';
 import { SupplierCategory } from '@/schema/types';
+import { get } from 'http';
+import { getCategoryName } from '@/schema/messages';
 
 // Interface for new restaurant form
 interface NewRestaurantForm {
@@ -450,7 +452,7 @@ export default function RestaurantsPage() {
           </div>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className='h-[fill-available] overflow-y-auto'>
         <div className="space-y-3">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <MapPin className="w-4 h-4" />
@@ -810,7 +812,7 @@ export default function RestaurantsPage() {
               סה״כ מסעדות
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className='h-[fill-available] overflow-y-auto'>
             <div className="text-2xl font-bold">{overallStats.total}</div>
             <Progress value={100} className="mt-2" />
           </CardContent>
@@ -823,7 +825,7 @@ export default function RestaurantsPage() {
               מסעדות פעילות
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className='h-[fill-available] overflow-y-auto'>
             <div className='flex gap-2'>
               <div className="text-2xl font-bold text-green-600">{overallStats.active}</div>
               <p className="text-xs text-muted-foreground mt-1">{overallStats.activePercentage}% מהמסעדות</p>
@@ -839,7 +841,7 @@ export default function RestaurantsPage() {
               ממתינות לתשלום
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className='h-[fill-available] overflow-y-auto'>
             <div className="text-2xl font-bold text-orange-600">{overallStats.pendingPayment}</div>
             <Progress value={(overallStats.pendingPayment / overallStats.total) * 100} className="mt-2" />
           </CardContent>
@@ -868,7 +870,7 @@ export default function RestaurantsPage() {
               דורש תשומת לב
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className='h-[fill-available] overflow-y-auto'>
             <div className="space-y-2">
               {overallStats.pendingPayment > 0 && (
                 <p className="text-sm">
@@ -1211,10 +1213,12 @@ export default function RestaurantsPage() {
                                 <Package className="w-5 h-5" />
                                 {supplier.name}
                               </div>
-                              {supplier.category.map((category: SupplierCategory, i: number) => <Badge key={i} variant={`gradient${i % 7}` as BadgeVariant}>{category}</Badge>)}
+                              <div className='flex items-center gap-2'>
+                                {supplier.category.map((category: SupplierCategory, i: number) => <Badge key={i} variant={`gradient${i % 7}` as BadgeVariant}>{getCategoryName(category)}</Badge>)}
+                              </div>
                             </CardTitle>
                           </CardHeader>
-                          <CardContent>
+                          <CardContent className='h-[fill-available] overflow-y-auto'>
                             <div className="grid grid-cols-2 gap-4 mb-4">
                               <div>
                                 <Label className="text-sm">WhatsApp</Label>
@@ -1262,7 +1266,7 @@ export default function RestaurantsPage() {
                                   ספק: {supplier?.name || 'לא זמין'} | {order.createdAt.toDate().toLocaleDateString('he-IL')}
                                 </CardDescription>
                               </CardHeader>
-                              <CardContent>
+                              <CardContent className='h-[fill-available] overflow-y-auto'>
                                 <div className="space-y-2">
                                   <Label className="text-sm">פריטים</Label>
                                   <div className="space-y-1">

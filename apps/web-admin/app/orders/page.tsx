@@ -41,6 +41,7 @@ import { useToast } from '@/components/ui/use-toast';
 // Import the actual database
 import exampleDatabase from '@/schema/example';
 import { SupplierCategory } from '@/schema/types';
+import { getCategoryName } from '@/schema/messages';
 
 // Types for enhanced order data
 interface EnhancedOrder {
@@ -295,8 +296,8 @@ export default function OrdersPage() {
     };
     
     return (
-      <Badge className={colors[category] || 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'}>
-        {categoryNames[category] || category}
+      <Badge className={colors[category] || 'bg-gray-100 text-gray-800 dark:bg-gray-900 text-nowrap mx-1 dark:text-gray-200'}>
+        {getCategoryName(category)}
       </Badge>
     );
   };
@@ -331,7 +332,7 @@ export default function OrdersPage() {
               </CardDescription>
             </div>
           </div>
-          <div className="flex flex-col gap-2 items-end">
+          <div className="flex flex-col* gap-2 items-end">
             {getStatusBadge(order.status)}
             {/* {getCategoryBadge(order.supplierCategory)} */}
           </div>
@@ -397,7 +398,7 @@ export default function OrdersPage() {
               </Tooltip>
             )}
           </div>
-          <div className="flex flex-col gap-2 items-end">
+          <div className="flex flex-col* gap-2 items-end">
             {/* {getStatusBadge(order.status)} */}
             {order.supplierCategory.map(category => getCategoryBadge(category))}
           </div>
@@ -544,7 +545,7 @@ export default function OrdersPage() {
               ממתינות
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className='h-[fill-available] overflow-y-auto'>
             <div className="text-2xl font-bold text-orange-600">{stats.pending}</div>
             <Progress value={stats.total > 0 ? (stats.pending / stats.total) * 100 : 0} className="mt-2" />
           </CardContent>
@@ -557,7 +558,7 @@ export default function OrdersPage() {
               נשלחו
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className='h-[fill-available] overflow-y-auto'>
             <div className="text-2xl font-bold text-blue-600">{stats.sent}</div>
             <Progress value={stats.total > 0 ? (stats.sent / stats.total) * 100 : 0} className="mt-2" />
           </CardContent>
@@ -570,7 +571,7 @@ export default function OrdersPage() {
               נמסרו
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className='h-[fill-available] overflow-y-auto'>
             <div className="text-2xl font-bold text-green-600">{stats.delivered}</div>
             <Progress value={stats.total > 0 ? (stats.delivered / stats.total) * 100 : 0} className="mt-2" />
           </CardContent>
@@ -598,7 +599,7 @@ export default function OrdersPage() {
               עם חסרים
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className='h-[fill-available] overflow-y-auto'>
             <div className="text-2xl font-bold text-red-600">{stats.withShortages}</div>
             <p className="text-xs text-muted-foreground mt-1">
               {stats.shortageRate}% מההזמנות
@@ -620,7 +621,7 @@ export default function OrdersPage() {
               התפלגות ההזמנות לפי קטגוריות ספקים
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className='h-[fill-available] overflow-y-auto'>
             <div className="space-y-3">
               {Object.entries(stats.categoryStats)
                 .sort(([,a], [,b]) => b - a)
@@ -654,7 +655,7 @@ export default function OrdersPage() {
               הזמנות לפי מסעדה
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className='h-[fill-available] overflow-y-auto'>
             <div className="space-y-3">
               {Object.entries(stats.restaurantStats)
                 .sort(([,a], [,b]) => b.orderCount - a.orderCount)

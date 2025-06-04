@@ -35,6 +35,7 @@ import { useToast } from '@/components/ui/use-toast';
 // Import the actual database
 import exampleDatabase from '@/schema/example';
 import { Product, SupplierCategory } from '@/schema/types';
+import { getCategoryName } from '@/schema/messages';
 
 // Types for enhanced supplier data
 interface EnhancedSupplier {
@@ -198,8 +199,8 @@ export default function SuppliersPage() {
     };
     
     return (
-      <Badge className={colors[category] || colors.disposables}>
-        {categoryNames[category] || category}
+      <Badge className={(colors[category] || colors.disposables) + ' text-nowrap mx-1'}>
+        {getCategoryName(category)}
       </Badge>
     );
   };
@@ -244,7 +245,7 @@ export default function SuppliersPage() {
           {supplier.category.map(categor => getCategoryBadge(categor))}
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className='h-[fill-available] overflow-y-auto'>
         <div className="space-y-3">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Phone className="w-4 h-4" />
@@ -335,7 +336,7 @@ export default function SuppliersPage() {
                 <Skeleton className="h-6 w-3/4" />
                 <Skeleton className="h-4 w-1/2" />
               </CardHeader>
-              <CardContent>
+              <CardContent className='h-[fill-available] overflow-y-auto'>
                 <div className="space-y-2">
                   <Skeleton className="h-4 w-full" />
                   <Skeleton className="h-4 w-3/4" />
@@ -455,7 +456,7 @@ export default function SuppliersPage() {
               סה״כ ספקים
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className='h-[fill-available] overflow-y-auto'>
             <div className="text-2xl font-bold">{stats.totalSuppliers}</div>
             <Progress value={100} className="mt-2" />
           </CardContent>
@@ -468,7 +469,7 @@ export default function SuppliersPage() {
               סה״כ מוצרים
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className='h-[fill-available] overflow-y-auto'>
             <div className="text-2xl font-bold text-blue-600">{stats.totalProducts}</div>
             <p className="text-xs text-muted-foreground mt-1">
               ממוצע {Math.round(stats.totalProducts / stats.totalSuppliers)} מוצרים לספק
@@ -483,7 +484,7 @@ export default function SuppliersPage() {
               דירוג ממוצע
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className='h-[fill-available] overflow-y-auto'>
             <div className="text-2xl font-bold text-yellow-600">
               {stats.averageRating.toFixed(1)}
             </div>
@@ -500,7 +501,7 @@ export default function SuppliersPage() {
               קטגוריה פופולרית
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className='h-[fill-available] overflow-y-auto'>
             <div className="text-2xl font-bold text-green-600">
               {stats.mostPopularCategory?.count || 0}
             </div>
@@ -522,7 +523,7 @@ export default function SuppliersPage() {
             התפלגות הספקים לפי קטגוריות
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className='h-[fill-available] overflow-y-auto'>
           <div className="space-y-3* flex-wrap flex justify-between">
             {Object.entries(stats.categoryStats)
               .sort(([,a], [,b]) => b - a)
@@ -615,7 +616,7 @@ export default function SuppliersPage() {
                       </div>
                       <div className="space-y-2">
                         <Label>קטגוריה</Label>
-                        <div className="pt-2">
+                        <div className="pt-2 flex gap-2">
                           {selectedSupplier.category.map((cat) => getCategoryBadge(cat))}
                         </div>
                       </div>
@@ -694,7 +695,7 @@ export default function SuppliersPage() {
                                   <div className="relative font-bold">{selectedSupplier.cutoffHour}:00</div>
                             </CardTitle>
                           </CardHeader>
-                          <CardContent>
+                          <CardContent className='h-[fill-available] overflow-y-auto'>
                             <div className="flex items-center justify-center pt-2">
                               <div className="relative w-24 h-24">
                                 <div className="w-full h-full rounded-full border-4 border-muted flex items-center justify-center">
@@ -760,7 +761,7 @@ export default function SuppliersPage() {
                         <CardHeader>
                           <CardTitle className="text-sm">פעילות הזמנות</CardTitle>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className='h-[fill-available] overflow-y-auto'>
                           <div className="text-2xl font-bold">{selectedSupplier.recentOrdersCount}</div>
                           <p className="text-xs text-muted-foreground">הזמנות סה״כ</p>
                         </CardContent>
@@ -769,7 +770,7 @@ export default function SuppliersPage() {
                         <CardHeader>
                           <CardTitle className="text-sm">מגוון מוצרים</CardTitle>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className='h-[fill-available] overflow-y-auto'>
                           <div className="text-2xl font-bold">{selectedSupplier.productCount}</div>
                           <p className="text-xs text-muted-foreground">מוצרים זמינים</p>
                         </CardContent>

@@ -2,27 +2,26 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Progress } from "@/components/ui/progress";
 import { 
   Users, 
   Package, 
   ShoppingCart, 
   MessageSquare,
   TrendingUp,
-  Activity,
-  AlertTriangle,
-  CheckCircle,
   Store,
-  Clock,
-  DollarSign
 } from "lucide-react";
+import {
+  PieChart as RePieChart, Pie, Cell, Sector,
+  BarChart, Bar,
+  LineChart, Line,
+  XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer,
+  TooltipProps, LabelList
+} from "recharts";
 
 // Import the actual database
 import exampleDatabase  from "@/schema/example";
+import { getCategoryName } from "@/schema/messages";
 
 function StatCard({ 
   title, 
@@ -61,43 +60,68 @@ function StatCard({
   );
 }
 
-function getStatusBadge(status: string) {
-  switch (status) {
-    case "pending":
-      return <Badge variant="outline" className="text-yellow-600 border-yellow-600">ממתין</Badge>;
-    case "sent":
-      return <Badge variant="outline" className="text-blue-600 border-blue-600">נשלח</Badge>;
-    case "delivered":
-      return <Badge variant="outline" className="text-green-600 border-green-600">הועבר</Badge>;
-    case "IDLE":
-      return <Badge variant="outline" className="text-gray-600 border-gray-600">סרק</Badge>;
-    case "INVENTORY_SNAPSHOT_PRODUCT":
-      return <Badge variant="outline" className="text-blue-600 border-blue-600">בדיקת מלאי</Badge>;
-    case "ONBOARDING_PAYMENT_METHOD":
-      return <Badge variant="outline" className="text-orange-600 border-orange-600">תהליך רישום</Badge>;
-    default:
-      return <Badge variant="outline">{status}</Badge>;
-  }
-}
+// Custom active shape for pie charts for enhanced hover effect
+const renderActiveShape = (props: any) => {
+  const { cx, cy, midAngle, innerRadius, outerRadius, startAngle, endAngle, fill, payload, percent, value } = props;
+  const RADIAN = Math.PI / 180;
+  const sin = Math.sin(-RADIAN * midAngle);
+  const cos = Math.cos(-RADIAN * midAngle);
+  const sx = cx + (outerRadius + 10) * cos;
+  const sy = cy + (outerRadius + 10) * sin;
+  const mx = cx + (outerRadius + 30) * cos;
+  const my = cy + (outerRadius + 30) * sin;
+  const ex = mx + (cos >= 0 ? 1 : -1) * 22;
+  const ey = my;
+  const textAnchor = cos >= 0 ? 'start' : 'end';
 
-function getActivityIcon(type: string) {
-  switch (type) {
-    case "order":
-      return <ShoppingCart className="h-4 w-4 text-blue-600" />;
-    case "conversation":
-      return <MessageSquare className="h-4 w-4 text-green-600" />;
-    case "delivery":
-      return <Package className="h-4 w-4 text-purple-600" />;
-    case "payment":
-      return <CheckCircle className="h-4 w-4 text-emerald-600" />;
-    default:
-      return <Activity className="h-4 w-4" />;
+  return (
+    <g>
+      <Sector
+        cx={cx}
+        cy={cy}
+        innerRadius={innerRadius}
+        outerRadius={outerRadius + 6}
+        startAngle={startAngle}
+        endAngle={endAngle}
+        fill={fill}
+        opacity={0.9}
+      />
+      <text x={cx} y={cy} dy={8} textAnchor="middle" fill={fill} fontSize={14} fontWeight="bold">
+        {payload.name}
+      </text>
+      <text x={ex} y={ey} textAnchor={textAnchor} fill="#333" fontSize={12}>
+        {`${payload.name}: ${value}`}
+      </text>
+      <text x={ex} y={ey} dy={18} textAnchor={textAnchor} fill="#999" fontSize={12}>
+        {`(${(percent * 100).toFixed(0)}%)`}
+      </text>
+    </g>
+  );
+};
+
+// Custom tooltip component with RTL support for Hebrew
+const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-white p-2 border rounded-md shadow-md text-right" dir="rtl">
+        <p className="font-bold">{label}</p>
+        {payload.map((entry, index) => (
+          <p key={index} style={{ color: entry.color }}>
+            {entry.name}: {entry.value}
+          </p>
+        ))}
+      </div>
+    );
   }
-}
+  return null;
+};
 
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(exampleDatabase);
+  const [activePieIndex, setActivePieIndex] = useState<number | null>(null);
+  const [activeOrderPieIndex, setActiveOrderPieIndex] = useState<number | null>(null);
+  const [activeConversationPieIndex, setActiveConversationPieIndex] = useState<number | null>(null);
 
   // Calculate statistics from real data
   const stats = useMemo(() => {
@@ -278,6 +302,61 @@ export default function DashboardPage() {
     }
   }, [stats]);
 
+  // --- New: Aggregate data for charts ---
+  // Pie: Restaurant status
+  const restaurantPieData = [
+    { name: "פעילות", value: stats.activeRestaurants },
+    { name: "לא פעילות", value: stats.totalRestaurants - stats.activeRestaurants }
+  ];
+  // Pie: Order status
+  const orderPieData = [
+    { name: "ממתינות", value: stats.pendingOrders },
+    { name: "נשלחו", value: stats.sentOrders },
+    { name: "נמסרו", value: stats.deliveredOrders }
+  ];
+  // Bar: Suppliers per category
+  const supplierCategoryCounts: Record<string, number> = {};
+  Object.values(data.restaurants).forEach(r =>
+    Object.values(r.suppliers).forEach(s =>
+      s.category.forEach(cat => {
+        supplierCategoryCounts[cat] = (supplierCategoryCounts[cat] || 0) + 1;
+      })
+    )
+  );
+  const supplierBarData = Object.entries(supplierCategoryCounts).map(([name, value]) => ({ name: getCategoryName(name), value }));
+
+  // Line: Orders per day (last 7 days)
+  const orderLineData: { date: string; value: number }[] = [];
+  const now = new Date();
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const label = d.toLocaleDateString('he-IL', { month: 'short', day: 'numeric' });
+    orderLineData.push({ date: label, value: 0 });
+  }
+  Object.values(data.restaurants).forEach(r =>
+    Object.values(r.orders).forEach(o => {
+      const d = o.createdAt.toDate();
+      const label = d.toLocaleDateString('he-IL', { month: 'short', day: 'numeric' });
+      const found = orderLineData.find(x => x.date === label);
+      if (found) found.value += 1;
+    })
+  );
+
+  // Pie: Conversation state
+  const conversationStateCounts: Record<string, number> = {};
+  Object.values(data.conversations).forEach(c => {
+    const state = c.currentState.startsWith("ONBOARDING") ? "רישום"
+      : c.currentState.startsWith("INVENTORY") ? "מלאי"
+      : c.currentState.startsWith("ORDER") ? "הזמנה"
+      : c.currentState === "IDLE" ? "רגיל"
+      : "אחר";
+    conversationStateCounts[state] = (conversationStateCounts[state] || 0) + 1;
+  });
+  const conversationPieData = Object.entries(conversationStateCounts).map(([name, value]) => ({ name, value }));
+
+  // --- End chart data ---
+
   useEffect(() => {
     // Simulate loading
     const timer = setTimeout(() => setLoading(false), 1000);
@@ -349,207 +428,327 @@ export default function DashboardPage() {
           trend={{ value: Math.round((stats.activeConversations / stats.totalConversations) * 100), isPositive: stats.activeConversations > 0 }}
         />
       </div>
-
-      {/* Tabs Section */}
-      <Tabs defaultValue="activity" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="activity">פעילות אחרונה</TabsTrigger>
-          <TabsTrigger value="alerts">התראות</TabsTrigger>
-          {/* <TabsTrigger value="analytics">אנליטיקה</TabsTrigger> */}
-          <TabsTrigger value="system">סטטוס מערכת</TabsTrigger>
-        </TabsList>
-
-        <TabsContent dir="rtl" value="activity" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Activity className="h-5 w-5" />
-                פעילות אחרונה
-              </CardTitle>
-              <CardDescription>
-                עדכונים אחרונים במערכת ({recentActivity.length})
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {recentActivity.length > 0 ? (
-                <div className="space-y-4">
-                  {recentActivity.map((activity) => (
-                    <div key={activity.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        {getActivityIcon(activity.type)}
-                        <div>
-                          <p className="font-medium">{activity.restaurant}</p>
-                          <p className="text-sm text-muted-foreground">{activity.action}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {getStatusBadge(activity.status)}
-                        <span className="text-xs text-muted-foreground">{activity.timestamp}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  אין פעילות אחרונה
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent dir="rtl" value="alerts" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-yellow-600" />
-                התראות מערכת
-              </CardTitle>
-              <CardDescription>
-                התראות שדורשות תשומת לב ({alerts.length})
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {alerts.length > 0 ? (
-                <div className="space-y-4">
-                  {alerts.map((alert) => (
-                    <div 
-                      key={alert.id} 
-                      className={`flex items-center justify-between p-4 border rounded-lg ${
-                        alert.severity === 'high' 
-                          ? 'border-red-200 bg-red-50 dark:bg-red-950' 
-                          : alert.severity === 'medium'
-                          ? 'border-yellow-200 bg-yellow-50 dark:bg-yellow-950'
-                          : 'border-blue-200 bg-blue-50 dark:bg-blue-950'
-                      }`}
+      {/* --- Enhanced Visual Dashboard Section --- */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
+        {/* Pie: Restaurant status */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">סטטוס מסעדות</CardTitle>
+            <CardDescription>התפלגות מסעדות פעילות/לא פעילות</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={240}>
+              <RePieChart margin={{ top: 20, right: 30, left: 30, bottom: 20 }}>
+                <defs>
+                  <linearGradient id="pieColorActive" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#34d399" stopOpacity={1} />
+                    <stop offset="100%" stopColor="#10b981" stopOpacity={0.8} />
+                  </linearGradient>
+                  <linearGradient id="pieColorInactive" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#f87171" stopOpacity={1} />
+                    <stop offset="100%" stopColor="#ef4444" stopOpacity={0.8} />
+                  </linearGradient>
+                </defs>
+                <Pie
+                  data={restaurantPieData}
+                  dataKey="value"
+                  nameKey="name"
+                  direction="rtl"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  innerRadius={45}
+                  paddingAngle={4}
+                  // activeIndex={activePieIndex}
+                  activeShape={renderActiveShape}
+                  onMouseEnter={(_, index) => setActivePieIndex(index)}
+                  onMouseLeave={() => setActivePieIndex(null)}
+                  isAnimationActive={true}
+                  animationDuration={1200}
+                  animationBegin={0}
+                  animationEasing="ease-out"
+                >
+                  <Cell fill="url(#pieColorActive)" stroke="none" />
+                  <Cell fill="url(#pieColorInactive)" stroke="none" />
+                  <LabelList 
+                    dataKey="name" 
+                    position="outside" 
+                    offset={15} 
+                    style={{ fontSize: '11px', fontWeight: 'bold' }} 
+                  />
+                </Pie>
+                <Legend 
+                  verticalAlign="bottom" 
+                  height={36} 
+                  iconType="circle" 
+                  wrapperStyle={{ paddingTop: '20px' }}
+                />
+                <RechartsTooltip content={<CustomTooltip />} />
+              </RePieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+        
+        {/* Pie: Order status */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">סטטוס הזמנות</CardTitle>
+            <CardDescription>התפלגות סטטוס הזמנות</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={240}>
+              <RePieChart margin={{ top: 20, right: 30, left: 30, bottom: 20 }}>
+                <defs>
+                  <linearGradient id="orderPending" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#fbbf24" stopOpacity={1} />
+                    <stop offset="100%" stopColor="#f59e0b" stopOpacity={0.8} />
+                  </linearGradient>
+                  <linearGradient id="orderSent" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#60a5fa" stopOpacity={1} />
+                    <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.8} />
+                  </linearGradient>
+                  <linearGradient id="orderDelivered" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#34d399" stopOpacity={1} />
+                    <stop offset="100%" stopColor="#10b981" stopOpacity={0.8} />
+                  </linearGradient>
+                </defs>
+                <Pie
+                  data={orderPieData}
+                  dataKey="value"
+                  nameKey="name"
+                  direction="rtl"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  innerRadius={45}
+                  paddingAngle={4}
+                  // activeIndex={activeOrderPieIndex}
+                  activeShape={renderActiveShape}
+                  onMouseEnter={(_, index) => setActiveOrderPieIndex(index)}
+                  onMouseLeave={() => setActiveOrderPieIndex(null)}
+                  isAnimationActive={true}
+                  animationDuration={1200}
+                  animationBegin={0}
+                  animationEasing="ease-out"
+                >
+                  <Cell fill="url(#orderPending)" stroke="none" />
+                  <Cell fill="url(#orderSent)" stroke="none" />
+                  <Cell fill="url(#orderDelivered)" stroke="none" />
+                  <LabelList 
+                    dataKey="name" 
+                    position="outside" 
+                    offset={15} 
+                    style={{ fontSize: '11px', fontWeight: 'bold' }} 
+                  />
+                </Pie>
+                <Legend 
+                  verticalAlign="bottom" 
+                  height={36} 
+                  iconType="circle" 
+                  wrapperStyle={{ paddingTop: '20px' }}
+                />
+                <RechartsTooltip content={<CustomTooltip />} />
+              </RePieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+        
+        {/* Bar: Suppliers per category */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">ספקים לפי קטגוריה</CardTitle>
+            <CardDescription>מספר ספקים בכל קטגוריה</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart 
+                data={supplierBarData}
+                barGap={8}
+              >
+                <defs>
+                  {supplierBarData.map((_, index) => (
+                    <linearGradient 
+                      key={`gradient-${index}`} 
+                      id={`barColor-${index}`} 
+                      x1="0" y1="0" 
+                      x2="0" y2="1"
                     >
-                      <div className="flex items-center gap-3">
-                        <AlertTriangle className={`h-4 w-4 ${
-                          alert.severity === 'high' ? 'text-red-600' : 
-                          alert.severity === 'medium' ? 'text-yellow-600' : 'text-blue-600'
-                        }`} />
-                        <div>
-                          <p className="font-medium">{alert.title}</p>
-                          <p className="text-sm text-muted-foreground">{alert.description}</p>
-                        </div>
-                      </div>
-                      <Button variant="outline" size="sm">פעל</Button>
-                    </div>
+                      <stop offset="0%" stopColor={`hsl(${index * 40 + 200}, 80%, 60%)`} stopOpacity={1} />
+                      <stop offset="100%" stopColor={`hsl(${index * 40 + 200}, 70%, 40%)`} stopOpacity={0.8} />
+                    </linearGradient>
                   ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <CheckCircle className="h-12 w-12 mx-auto mb-2 text-green-500" />
-                  אין התראות פעילות
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* <TabsContent value="analytics" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5" />
-                  סטטיסטיקות מסעדות
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm">מסעדות פעילות</span>
-                    <span className="text-sm font-medium">{stats.activeRestaurants}/{stats.totalRestaurants}</span>
-                  </div>
-                  <Progress value={(stats.activeRestaurants / stats.totalRestaurants) * 100} />
-                </div>
-                
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm">הזמנות שהועברו</span>
-                    <span className="text-sm font-medium">{stats.deliveredOrders}/{stats.totalOrders}</span>
-                  </div>
-                  <Progress value={stats.totalOrders > 0 ? (stats.deliveredOrders / stats.totalOrders) * 100 : 0} />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MessageSquare className="h-5 w-5" />
-                  סטטיסטיקות שיחות
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm">שיחות פעילות</span>
-                    <span className="text-sm font-medium">{stats.activeConversations}/{stats.totalConversations}</span>
-                  </div>
-                  <Progress value={stats.totalConversations > 0 ? (stats.activeConversations / stats.totalConversations) * 100 : 0} />
-                </div>
-                
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm">בתהליך רישום</span>
-                    <span className="text-sm font-medium">{stats.onboardingConversations}</span>
-                  </div>
-                  <Progress value={stats.totalConversations > 0 ? (stats.onboardingConversations / stats.totalConversations) * 100 : 0} />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent> */}
-
-        <TabsContent dir="rtl" value="system" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CheckCircle className="h-5 w-5 text-green-600" />
-                סטטוס מערכת
-              </CardTitle>
-              <CardDescription>
-                מצב הרכיבים והשירותים במערכת
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* ...existing system status cards... */}
-                <div className="p-4 border rounded-md flex flex-col">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="font-medium">מסד נתונים</div>
-                    <Badge variant="outline" className="bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300">
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      מחובר
-                    </Badge>
-                  </div>
-                  <div className="text-sm text-muted-foreground mb-4">
-                    {stats.totalRestaurants} מסעדות, {stats.totalSuppliers} ספקים, {stats.totalConversations} שיחות
-                  </div>
-                  <Button variant="outline" size="sm" className="self-start mt-auto">
-                    <a href="/raw-data">צפייה בנתונים</a>
-                  </Button>
-                </div>
-                
-                <div className="p-4 border rounded-md flex flex-col">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="font-medium">פעילות הזמנות</div>
-                    <Badge variant="outline" className="bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300">
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      פעיל
-                    </Badge>
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    {stats.totalOrders} הזמנות סה״כ, {stats.pendingOrders} ממתינות
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                </defs>
+                <XAxis 
+                  dataKey="name" 
+                  tick={{ fontSize: 12 }}
+                  tickLine={false}
+                  axisLine={{ stroke: '#e2e8f0' }}
+                  dy={10}
+                  height={50}
+                  interval={0}
+                  angle={-25}
+                  textAnchor="end"
+                />
+                <YAxis 
+                  allowDecimals={false} 
+                  tickLine={false}
+                  axisLine={{ stroke: '#e2e8f0' }}
+                  dx={-10}
+                />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <RechartsTooltip content={<CustomTooltip />} />
+                <Bar 
+                  dataKey="value" 
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={40}
+                  animationDuration={1500}
+                  animationEasing="ease-out"
+                >
+                  {supplierBarData.map((_, i) => (
+                    <Cell key={i} fill={`url(#barColor-${i})`} />
+                  ))}
+                  <LabelList 
+                    dataKey="value" 
+                    position="top" 
+                    style={{ fontSize: '12px', fontWeight: 'bold', fill: '#64748b' }}
+                    offset={5}
+                  />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+        
+        {/* Pie: Conversation state */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">סטטוס שיחות</CardTitle>
+            <CardDescription>התפלגות שיחות לפי מצב</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={240}>
+              <RePieChart margin={{ top: 20, right: 30, left: 30, bottom: 20 }}>
+                <defs>
+                  {conversationPieData.map((_, index) => (
+                    <linearGradient 
+                      key={`conv-gradient-${index}`} 
+                      id={`convColor-${index}`} 
+                      x1="0" y1="0" 
+                      x2="0" y2="1"
+                    >
+                      <stop offset="0%" stopColor={`hsl(${index * 60 + 120}, 80%, 65%)`} stopOpacity={1} />
+                      <stop offset="100%" stopColor={`hsl(${index * 60 + 120}, 70%, 55%)`} stopOpacity={0.8} />
+                    </linearGradient>
+                  ))}
+                </defs>
+                <Pie
+                  data={conversationPieData}
+                  dataKey="value"
+                  nameKey="name"
+                  direction="rtl"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  innerRadius={45}
+                  paddingAngle={4}
+                  // activeIndex={activeConversationPieIndex}
+                  activeShape={renderActiveShape}
+                  onMouseEnter={(_, index) => setActiveConversationPieIndex(index)}
+                  onMouseLeave={() => setActiveConversationPieIndex(null)}
+                  isAnimationActive={true}
+                  animationDuration={1200}
+                  animationBegin={0}
+                  animationEasing="ease-out"
+                >
+                  {conversationPieData.map((_, index) => (
+                    <Cell key={index} fill={`url(#convColor-${index})`} stroke="none" />
+                  ))}
+                  <LabelList 
+                    dataKey="name" 
+                    position="outside" 
+                    offset={15} 
+                    style={{ fontSize: '11px', fontWeight: 'bold' }} 
+                  />
+                </Pie>
+                <Legend 
+                  verticalAlign="bottom" 
+                  height={36} 
+                  iconType="circle" 
+                  wrapperStyle={{ paddingTop: '20px' }}
+                />
+                <RechartsTooltip content={<CustomTooltip />} />
+              </RePieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+        
+        {/* Line: Orders per day */}
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">מגמות הזמנות (7 ימים)</CardTitle>
+            <CardDescription>מספר הזמנות בכל יום</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={260}>
+              <LineChart 
+                data={orderLineData}
+                margin={{ top: 20, right: 30, left: 10, bottom: 30 }}
+              >
+                <defs>
+                  <linearGradient id="lineColor" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.8} />
+                    <stop offset="100%" stopColor="#2563eb" stopOpacity={1} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis 
+                  dataKey="date" 
+                  tick={{ fontSize: 12 }}
+                  tickLine={false}
+                  axisLine={{ stroke: '#e2e8f0' }}
+                  dy={10}
+                />
+                <YAxis 
+                  allowDecimals={false} 
+                  tickLine={false}
+                  axisLine={{ stroke: '#e2e8f0' }}
+                  dx={-10}
+                />
+                <RechartsTooltip content={<CustomTooltip />} />
+                <Line 
+                  type="monotone" 
+                  dataKey="value" 
+                  stroke="url(#lineColor)" 
+                  strokeWidth={3}
+                  dot={{ 
+                    fill: 'white', 
+                    stroke: '#3b82f6', 
+                    strokeWidth: 2,
+                    r: 4
+                  }}
+                  activeDot={{ 
+                    fill: '#2563eb', 
+                    stroke: 'white',
+                    strokeWidth: 2,
+                    r: 6,
+                    
+                    // boxShadow: '0 0 6px #2563eb'
+                  }}
+                  isAnimationActive={true}
+                  animationDuration={1500}
+                  animationEasing="ease-out"
+                />
+                <Legend 
+                  verticalAlign="top"
+                  align="right"
+                  wrapperStyle={{ paddingBottom: '20px' }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+      {/* --- End Enhanced Visual Dashboard Section --- */}
     </div>
   );
 }
