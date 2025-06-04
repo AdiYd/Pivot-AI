@@ -427,9 +427,16 @@ export function conversationStateReducer(
         
         // Parse products
         newState.context.currentSupplier.products = productLines.map((line, index) => {
-          const emojiMatch = line.match(/^([^\w\s]*)/);
-          const emoji = emojiMatch && emojiMatch[0] ? emojiMatch[0] : "📦";
-          const name = line.replace(/^[^\w\s]*/, '').trim();
+          // Check if the line starts with an emoji followed by space
+          // Most emojis are 1-2 characters long
+          const emojiMatch = line.match(/^(\S{1,2})\s+(.+)/);
+          let emoji = "📦"; // Default emoji
+          let name = line.trim();
+          
+          if (emojiMatch && emojiMatch[1] && emojiMatch[2]) {
+            emoji = emojiMatch[1];
+            name = emojiMatch[2];
+          }
           
           return {
             id: `product_${index}`,

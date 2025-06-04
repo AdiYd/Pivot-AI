@@ -257,8 +257,8 @@ export const STATE_MESSAGES: Record<BotState, StateMessage> = {
   },
   
   "PRODUCT_QTY": {
-    message: "🔢 *מה כמות הבסיס של {productName} ביחידות {unit}?*",
-    description: "Ask for the base quantity of this product in the specified units.",
+    message: "🔢 *מה כמות הבסיס של {productName} ביחידות {unit} לשבוע?*",
+    description: "Ask for the base quantity of this product in the specified units for the week.",
     validationMessage: "❌ אנא הזן מספר תקין גדול מ-0.",
     validator: "number"
   },
