@@ -420,7 +420,7 @@ export default function ConversationsPage() {
 
       {/* Search and Filters */}
       <div className="flex gap-4 mb-6 flex-wrap">
-        <div className="relative flex-1 min-w-64">
+        <div className="relative flex-1 min-w-64 max-w-md">
           <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
           <Input
             placeholder="חיפוש לפי מסעדה, איש קשר, טלפון או מצב..."
