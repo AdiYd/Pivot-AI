@@ -188,18 +188,18 @@ export function SideNav() {
                 title="סימולטור צ'אט"
                 isCollapsed={isCollapsed}
               />
-              <NavItem 
+              {/* <NavItem 
                 href="/workflow" 
                 icon={<Workflow size={16} />} 
-                title="Chatbot flow"
+                title="מכונת מצבים"
                 isCollapsed={isCollapsed}
-              />
-              <NavItem 
+              /> */}
+              {/* <NavItem 
                 href="/bot-config" 
                 icon={<Settings size={16} />} 
                 title="הגדרות"
                 isCollapsed={isCollapsed}
-              />
+              /> */}
               {/* <NavItem 
                 href="/raw-data" 
                 icon={<Database size={16} />} 
@@ -304,24 +304,18 @@ export function SideNav() {
               title="סימולטור צ'אט" 
               isCollapsed={false}
             />
-            <NavItem 
+            {/* <NavItem 
               href="/workflow" 
               icon={<Workflow size={16} />} 
-              title="Chatbot flow"
+              title="מכונת מצבים"
               isCollapsed={false}
-            />
-            <NavItem 
+            /> */}
+            {/* <NavItem 
               href="/bot-config" 
               icon={<Settings size={16} />} 
               title="הגדרות" 
               isCollapsed={false}
-            />
-            <NavItem 
-              href="/raw-data" 
-              icon={<Database size={16} />} 
-              title="נתונים גולמיים" 
-              isCollapsed={false}
-            />
+            /> */}
           </nav>
           
           {/* User & Logout */}

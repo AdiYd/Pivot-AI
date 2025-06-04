@@ -549,7 +549,7 @@ export function conversationStateReducer(
         // Move to next product or finish supplier setup
         const nextProductIndex = weekendIndex + 1;
         
-        if (nextProductIndex < newState.context.currentSupplier.products.length) {
+        if (nextProductIndex < newState.context.currentSupplier.products?.length) {
           // More products to process
           newState.context.currentProductIndex = nextProductIndex;
           const nextProduct = newState.context.currentSupplier.products[nextProductIndex];
@@ -606,7 +606,7 @@ export function conversationStateReducer(
             type: "SEND_MESSAGE",
             payload: {
               to: message.from,
-              body: interpolateMessage(`✅ *ספק ${newState.context.currentSupplier.name} הוגדר בהצלחה!*\n\n📦 סה\"ג ${newState.context.currentSupplier.products.length} מוצרים\n⏰ אספקה: ${formatDeliveryDays(newState.context.currentSupplier.deliveryDays || [])}\n🕒 הזמנה עד: ${newState.context.currentSupplier.cutoffHour || 12}:00\n\n➡️ עובר לקטגוריה הבאה...`, {})
+              body: interpolateMessage(`✅ *ספק ${newState.context.currentSupplier.name} הוגדר בהצלחה!*\n\n📦 סה\"כ ${newState.context.currentSupplier.products.length} מוצרים\n⏰ אספקה: ${formatDeliveryDays(newState.context.currentSupplier.deliveryDays || [])}\n🕒 הזמנה עד: ${newState.context.currentSupplier.cutoffHour || 12}:00\n\n➡️ עובר לקטגוריה הבאה...`, {})
             }
           });
           
@@ -916,9 +916,9 @@ function moveToNextCategory(
     });
     newState.currentState = "IDLE";
     // Clear supplier setup context
-    newState.context.currentCategoryIndex = undefined;
-    newState.context.currentSupplier = undefined;
-    newState.context.currentProductIndex = undefined;
+    delete newState.context.currentCategoryIndex;
+    delete newState.context.currentSupplier;
+    delete newState.context.currentProductIndex;
   } else {
     // Move to next category
     newState.context.currentCategoryIndex = nextIndex;
@@ -929,8 +929,8 @@ function moveToNextCategory(
       category: []
     };
     newState.context.selectedCategories = [nextCategory]; // Start with the current category selected
-    newState.context.currentProductIndex = undefined;
-    
+    delete newState.context.currentProductIndex;
+
     actions.push({
       type: "SEND_MESSAGE",
       payload: {
