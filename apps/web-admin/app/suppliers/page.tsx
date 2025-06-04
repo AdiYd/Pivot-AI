@@ -325,19 +325,19 @@ export default function SuppliersPage() {
               <tr key={supplier.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-900/50">
                 <td className="p-3">
                   <div className="flex items-center gap-2">
-                    <Truck className="w-4 h-4 text-muted-foreground" />
+                    {/* <Truck className="w-4 h-4 text-muted-foreground" /> */}
                     <span className="font-medium">{supplier.name}</span>
                   </div>
                 </td>
                 <td className="p-3">
                   <div className="flex items-center gap-2">
-                    <Store className="w-4 h-4 text-muted-foreground" />
+                    {/* <Store className="w-4 h-4 text-muted-foreground" /> */}
                     <span>{supplier.restaurantName}</span>
                   </div>
                 </td>
                 <td className="p-3">
                   <div className="flex items-center gap-2">
-                    <Phone className="w-4 h-4 text-muted-foreground" />
+                    {/* <Phone className="w-4 h-4 text-muted-foreground" /> */}
                     <span className="text-sm">{supplier.whatsapp}</span>
                   </div>
                 </td>
@@ -367,7 +367,7 @@ export default function SuppliersPage() {
                 </td>
                 <td className="p-3">
                   <div className="flex items-center gap-1">
-                    <Package className="w-4 h-4 text-muted-foreground" />
+                    {/* <Package className="w-4 h-4 text-muted-foreground" /> */}
                     <span className="text-sm font-medium">{supplier.productCount}</span>
                   </div>
                 </td>
@@ -378,7 +378,7 @@ export default function SuppliersPage() {
                   </div>
                 </td>
                 <td className="p-3">
-                  <Badge variant="outline" className="text-xs">
+                  <Badge variant="default" className="text-xs">
                     {supplier.recentOrdersCount}
                   </Badge>
                 </td>
@@ -584,6 +584,7 @@ export default function SuppliersPage() {
           <span className="text-sm opacity-80">תצוגה:</span>
           <div className="flex flex-row-reverse gap-2 items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
             <Button
+              title='הצג בכרטיסיות'
               variant={viewMode === 'cards' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setViewMode('cards')}
@@ -592,6 +593,7 @@ export default function SuppliersPage() {
               <Icon icon="mdi:id-card" width="1.5em" height="1.5em" />
             </Button>
             <Button
+              title='הצג בטבלה'
               variant={viewMode === 'table' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setViewMode('table')}
@@ -666,6 +668,7 @@ export default function SuppliersPage() {
           <span className="text-sm opacity-80">תצוגה:</span>
           <div className="flex flex-row-reverse gap-2 items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
             <Button
+              title='הצג בכרטיסיות'
               variant={viewMode === 'cards' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setViewMode('cards')}
@@ -674,6 +677,7 @@ export default function SuppliersPage() {
               <Icon icon="mdi:id-card" width="1.5em" height="1.5em" />
             </Button>
             <Button
+              title='הצג בטבלה'
               variant={viewMode === 'table' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setViewMode('table')}

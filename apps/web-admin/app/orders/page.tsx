@@ -494,13 +494,13 @@ export default function OrdersPage() {
                 </td>
                 <td className="p-3">
                   <div className="flex items-center gap-2">
-                    <Store className="w-4 h-4 text-muted-foreground" />
+                    {/* <Store className="w-4 h-4 text-muted-foreground" /> */}
                     <span className="font-medium">{order.restaurantName}</span>
                   </div>
                 </td>
                 <td className="p-3">
                   <div className="flex items-center gap-2">
-                    <Truck className="w-4 h-4 text-muted-foreground" />
+                    {/* <Truck className="w-4 h-4 text-muted-foreground" /> */}
                     <span>{order.supplierName}</span>
                   </div>
                 </td>
@@ -540,12 +540,12 @@ export default function OrdersPage() {
                   {order.hasShortages ? (
                     <div className="flex items-center gap-1 text-red-600">
                       <AlertTriangle className="w-4 h-4" />
-                      <span className="text-sm">{order.shortages.length}</span>
+                      {/* <span className="text-sm">{order.shortages.length}</span> */}
                     </div>
                   ) : (
                     <div className="flex items-center gap-1 text-green-600">
                       <CheckCircle className="w-4 h-4" />
-                      <span className="text-sm">תקין</span>
+                      {/* <span className="text-sm">תקין</span> */}
                     </div>
                   )}
                 </td>
@@ -734,6 +734,7 @@ export default function OrdersPage() {
             <Button
               variant={viewMode === 'cards' ? 'default' : 'ghost'}
               size="sm"
+              title='הצג בכרטיסיות'
               onClick={() => setViewMode('cards')}
               className="h-8 w-8 p-0"
             >
@@ -743,6 +744,7 @@ export default function OrdersPage() {
             <Button
               variant={viewMode === 'table' ? 'default' : 'ghost'}
               size="sm"
+              title='הצג בטבלה'
               onClick={() => setViewMode('table')}
               className="h-8 w-8 p-0"
             >
