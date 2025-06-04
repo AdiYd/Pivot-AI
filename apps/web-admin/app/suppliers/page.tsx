@@ -305,7 +305,7 @@ export default function SuppliersPage() {
   const SupplierTable = ({ suppliers }: { suppliers: EnhancedSupplier[] }) => (
     <div className="border rounded-lg overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="w-full">
+        <table className="w-full backdrop-blur-lg bg-card/80">
           <thead className="bg-gray-50 dark:bg-gray-900">
             <tr className="border-b">
               <th className="text-right p-3 font-medium text-sm">שם הספק</th>
