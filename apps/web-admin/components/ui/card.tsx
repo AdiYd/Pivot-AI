@@ -11,7 +11,7 @@ const Card = React.forwardRef<
     className={cn(
       "rounded-xl flex flex-col justify-between border-[1px] bg-card/60 text-card-foreground shadow-lg* backdrop-blur-[8px] backdrop-saturate-150",
       "border-zinc-300/50 bg-gradient-to-b from-purple-50/40 to-gray-50/60 shadow-zinc-200/20",
-      "dark:border-zinc-800/50 dark:bg-gradient-to-br dark:bg-neutral-900/50 dark:from-zinc-800/60 dark:to-zinc-950/80 dark:shadow-zinc-800/30",
+      "dark:border-zinc-700/50 dark:bg-gradient-to-br dark:bg-neutral-900/50 dark:from-zinc-800/60 dark:to-zinc-950/80 dark:shadow-zinc-800/30",
       className
     )}
     {...props}

@@ -28,6 +28,7 @@ import { useToast } from '@/components/ui/use-toast';
 
 // Import the actual database
 import exampleDatabase from '@/schema/example';
+import { useTheme } from 'next-themes';
 
 // Types for enhanced conversation data
 interface EnhancedConversation {
@@ -115,7 +116,8 @@ export default function ConversationsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [sortBy, setSortBy] = useState<'activity' | 'created' | 'messages'>('activity');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-
+  const {theme} = useTheme();
+  const isDark = theme === 'dark' || theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches;
   // Extract and enhance conversation data from the actual database
   const enhancedConversations = useMemo((): EnhancedConversation[] => {
     try {
@@ -341,21 +343,21 @@ export default function ConversationsPage() {
     );
   };
 
-  const ChatBubble = ({ message, isBot }: { message: any; isBot: boolean }) => (
-    <div className={`flex ${isBot ? 'justify-start' : 'justify-end'} mb-4`}>
-      <div className={`flex items-start gap-2 max-w-[70%] ${isBot ? 'flex-row' : 'flex-row-reverse'}`}>
-        <div className={`p-2 rounded-full ${isBot ? 'bg-green-100 dark:bg-green-900' : 'bg-blue-100 dark:bg-blue-900'}`}>
+  const ChatBubble = ({ message, isBot, index }: { message: any; isBot: boolean, index: number }) => (
+    <div className={`flex ${isBot ? 'justify-start' : 'justify-end'} mb-4 ${index === 0 ? 'mt-16' : ''}`}>
+      <div className={`flex items-end gap-2 max-w-[70%] ${isBot ? 'flex-row' : 'flex-row-reverse'}`}>
+        <div className={`p-2 max-sm:hidden rounded-full ${isBot ? 'bg-green-100 dark:bg-green-900' : 'bg-blue-100 dark:bg-blue-900'}`}>
           {isBot ? (
             // <Bot className="w-4 h-4 text-green-600 dark:text-green-400" />
-            <Icon icon="mingcute:ai-fill" width="24" height="24" className='text-green-600 dark:text-green-400' />
+            <Icon icon="mingcute:ai-fill" width="24" height="24" className='  text-green-600 dark:text-green-400' />
           ) : (
-            <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+            <User className="w-4 h-4 text-blue-600 dark:text-blue-400 " />
           )}
         </div>
         <div className={`rounded-lg p-3 ${
           isBot 
-            ? 'bg-gray-100 dark:bg-gray-800 incoming text-gray-900 dark:text-gray-100' 
-            : 'bg-teal-500 text-white'
+            ? 'bg-gray-100 rounded-bl-none dark:bg-gray-800 incoming text-gray-900 dark:text-gray-100' 
+            : 'bg-teal-500 rounded-br-none text-white'
         }`}>
           <div dir='auto' className="text-sm whitespace-pre-wrap">{message.body}</div>
           <div className={`text-xs mt-1 ${
@@ -499,9 +501,9 @@ export default function ConversationsPage() {
   <DialogContent className="max-w-6xl max-h-[85vh] gap-0 overflow-hidden p-0">
   {selectedConversation && (
   <>
-  <DialogHeader className="p-6 pb-4 sticky top-0 bg-background z-10 border-b">
+  <DialogHeader className="p-6 pb-4 sticky* absolute w-full top-0 bg-background/60 backdrop-blur-md z-10 border-b">
   <div className="flex items-center justify-between">
-  <div>
+  <div className='flex gap-4 items-center max-sm:flex-col max-sm:gap-1'>
     <DialogTitle className="flex items-center gap-2">
       <Icon icon="ic:outline-whatsapp" width="24" height="24" />
       שיחה עם {selectedConversation.restaurantName}
@@ -523,7 +525,7 @@ export default function ConversationsPage() {
   </DialogHeader>
 
   <div className="flex-1 overflow-hidden relative">
-  <Tabs defaultValue="messages" className="h-full flex flex-col">
+  <Tabs defaultValue="messages" className="h-full relative overflow-y-auto flex flex-col">
     <div className='absolute -top-4 w-full flex justify-center'>
       <TabsList className="grid  bg-zinc-200/50 dark:bg-zinc-800/50 backdrop-blur-xl w-[90%] grid-cols-3 mx-6 mt-4">
       
@@ -533,20 +535,21 @@ export default function ConversationsPage() {
       </TabsList>
       </div>
 
-          <TabsContent value="messages" className="flex-1 whatsapp-chat-container rounded-xl backdrop-blur-lg overflow-y-auto max-h-[70vh] py-6  m-0">
-            <div className="h-full overflow-y-auto flex flex-col">
+          <TabsContent value="messages" className={`flex-1 whatsapp-chat-container chat-whatsApp ${isDark ? 'dark-chat' : 'light-chat'}  h-fit max-h-[100vh] py-6 m-0`}>
+            <div className="h-full overflow-y-auto flex flex-col pb-16">
               {/* Chat Messages */}
               <div className="flex-1 overflow-y-auto mb-8 p-6 space-y-1">
                 {selectedConversation.messages.length > 0 ? (
                   selectedConversation.messages.map((message, index) => (
                     <ChatBubble 
                       key={index} 
+                      index={index}
                       message={message} 
                       isBot={message.direction === 'outgoing'} 
                     />
                   ))
                 ) : (
-                  <div className="text-center text-muted-foreground py-8">
+                  <div className="text-center mt-16 text-muted-foreground py-8">
                     <MessageCircle className="w-12 h-12 mx-auto mb-4" />
                     <p>אין הודעות בשיחה זו</p>
                   </div>
@@ -554,7 +557,7 @@ export default function ConversationsPage() {
               </div>
       
                     </div>
-                  </TabsContent>
+          </TabsContent>
                   
                   <TabsContent dir='rtl' value="state" className="space-y-4 mt-6 p-6">
                     <div className="space-y-4">

@@ -27,6 +27,7 @@ import axios from 'axios';
 import { Icon } from '@iconify/react/dist/iconify.js';
 import { ConversationState, StateMessage } from '@/schema/types';
 import Image from 'next/image';
+import { useTheme } from 'next-themes';
 
 // Types
 interface Message {
@@ -72,6 +73,9 @@ export default function SimulatorPage() {
   const [availableConversations, setAvailableConversations] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const {theme} = useTheme();
+  const isDark = theme === 'dark' || theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  console.log('Current theme:', theme, 'isDark:', isDark);  
   const { toast } = useToast();
 
   // Auto-scroll to bottom when new messages arrive
@@ -482,8 +486,8 @@ export default function SimulatorPage() {
 
             {/* Messages Area */}
             <CardContent className={`flex-1 
-            chat-whatsApp bg-[url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png")]
-            dark:bg-none
+            chat-whatsApp
+            ${isDark ? 'dark-chat': 'light-chat'}
               overflow-y-auto flex flex-col p-0`}>
               <ScrollArea className="flex-1 p-4 pt-0">
                 <div dir='rtl' className="space-y-4 my-20">
