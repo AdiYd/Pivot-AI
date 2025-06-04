@@ -62,7 +62,7 @@ const SupplierSchema = z.object({
   category: z.array(z.string()).min(1).default(["general"]),
   deliveryDays: z.array(z.number().min(0).max(6)),
   cutoffHour: z.number().min(0).max(23),
-  rating: z.number().min(1).max(5).optional(),
+  rating: z.number().min(0).max(5).optional(),
   createdAt: z.any().optional() // Will be replaced with serverTimestamp
 });
 

@@ -8,7 +8,7 @@
     "apps/*"
   ],
   "scripts": {
-    "dev": "npm run build:functions && npm run serve:emulators",
+    "dev": "concurrently \"npm run watch:functions\" \"npm run serve:emulators\"",
     "build": "npm run build:functions",
     "build:functions": "cd functions && npm run build",
     "watch:functions": "cd functions && npm run watch",

@@ -238,5 +238,5 @@ export interface StateMessage {
   validationMessage?: string;
   
   // Type of validation to perform (if any)
-  validator?: "text" | "number" | "email" | "phone" | "yesNo" | "selection" | "days" | "time" | "photo" | "skip";
+  validator?: "text" | "number" | "email" | "phone" | "yesNo" | "selection" | "days" | "time" | "photo" | "legalId" | "activeYears" | "skip";
 }

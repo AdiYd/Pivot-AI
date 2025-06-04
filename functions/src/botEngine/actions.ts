@@ -41,7 +41,7 @@ const UpdateSupplierPayloadSchema = z.object({
   category: z.union([z.array(z.string()), z.string()]).transform(val => 
     Array.isArray(val) ? val : [val]
   ),
-  rating: z.number().min(1).max(5).optional(),
+  rating: z.number().min(0).max(5).optional(), // Changed from min(1) to min(0) to allow unrated suppliers
 });
 
 // Add schema for product updates

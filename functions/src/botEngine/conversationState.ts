@@ -1,10 +1,13 @@
-import { ConversationState, IncomingMessage, StateTransition, BotAction, Product } from '../schema/types';
+import { ConversationState, IncomingMessage, StateTransition, BotAction, StateMessage } from '../schema/types';
 import { 
   STATE_MESSAGES, 
   SYSTEM_MESSAGES, 
   VALIDATION_ERRORS,
   BOT_CATEGORIES,
   BOT_CONFIG,
+  getAvailableCategories,
+  formatProductOptions,
+  getProductsForCategories
 } from '../schema/messages';
 
 /**
@@ -187,7 +190,7 @@ export function conversationStateReducer(
         }
         // Move to waiting for payment state
         newState.currentState = "WAITING_FOR_PAYMENT";
-        sendStateMessage(actions, message.from, STATE_MESSAGES["WAITING_FOR_PAYMENT"], newState.context);
+        sendStateMessage(actions, message.from, STATE_MESSAGES["WAITING_FOR_PAYMENT"], {...newState.context, paymentLink: BOT_CONFIG.paymentLink});
         break;
 
       case "WAITING_FOR_PAYMENT":
@@ -218,28 +221,68 @@ export function conversationStateReducer(
           // Initialize supplier setup
           newState.context.currentCategoryIndex = 0;
           newState.currentState = "SUPPLIER_CATEGORY";
-          sendStateMessage(actions, message.from, STATE_MESSAGES["SUPPLIER_CATEGORY"], newState.context);
+          
+          // Get available categories and send template with proper options
+          const availableCategories = getAvailableCategories(newState.context.completedCategories || []);
+          const categoryTemplate = {
+            ...STATE_MESSAGES["SUPPLIER_CATEGORY"].whatsappTemplate,
+            options: [
+              ...availableCategories,
+              { name: "📝 סיום בחירת קטגוריות", id: "סיום קטגוריות" },
+              { name: "🏁 סיום הגדרת ספקים", id: "סיום ספקים" }
+            ]
+          };
+          
+          actions.push({
+            type: "SEND_MESSAGE",
+            payload: {
+              to: message.from,
+              template: categoryTemplate
+            }
+          });
         } else {
           // User postponed, stay in IDLE state
           newState.currentState = "IDLE";
           sendStateMessage(actions, message.from, STATE_MESSAGES["IDLE"], newState.context);
         }
         break;
-      
+
       case "SUPPLIER_CATEGORY":
         // Handle supplier category selection
         const selectedCategoryId = message.body?.trim();
         
-        // Check if the user has finished selecting categories
-        if (selectedCategoryId?.toLowerCase() === "done" || selectedCategoryId?.toLowerCase() === "סיום") {
-          // User finished selecting categories
+        // Handle control commands - FINISH ALL SUPPLIERS SETUP
+        if (selectedCategoryId?.toLowerCase() === "סיום ספקים" || selectedCategoryId?.toLowerCase() === "finish_suppliers") {
+          // User wants to completely finish supplier setup and go to IDLE
+          actions.push({
+            type: "SEND_MESSAGE",
+            payload: {
+              to: message.from,
+              body: "🎉 *הגדרת הספקים הושלמה בהצלחה!*\n\n📊 המערכת מוכנה לשימוש.\n\n💡 הקלד 'עזרה' לראות את הפקודות הזמינות או 'מלאי' להתחיל עדכון מלאי."
+            }
+          });
+          newState.currentState = "IDLE";
+          
+          // Clear all supplier setup context
+          delete newState.context.currentCategoryIndex;
+          delete newState.context.currentSupplier;
+          delete newState.context.currentProductIndex;
+          delete newState.context.selectedCategories;
+          delete newState.context.completedCategories;
+          delete newState.context.customProductEntry;
+          break;
+        }
+        
+        // Handle control commands - FINISH CATEGORIES FOR CURRENT SUPPLIER
+        if (selectedCategoryId?.toLowerCase() === "סיום קטגוריות" || selectedCategoryId?.toLowerCase() === "done_categories") {
+          // User finished selecting categories for the current supplier
           if (!newState.context.selectedCategories || newState.context.selectedCategories.length === 0) {
             // No categories selected, send error
             actions.push({
               type: "SEND_MESSAGE",
               payload: {
                 to: message.from,
-                body: "❌ יש לבחור לפחות קטגוריה אחת לפני סיום."
+                body: "❌ יש לבחור לפחות קטגוריה אחת לפני סיום.\n\n💡 בחר קטגוריה מהרשימה למעלה"
               }
             });
             break;
@@ -259,6 +302,48 @@ export function conversationStateReducer(
           break;
         }
         
+        // Handle skip command to avoid category selection entirely  
+        if (selectedCategoryId?.toLowerCase() === "skip" || selectedCategoryId?.toLowerCase() === "דלג") {
+          // Move to next available category or complete setup
+          return moveToNextCategory(newState, actions, message.from);
+        }
+        
+        // Handle going back to previous category or exiting
+        if (selectedCategoryId?.toLowerCase() === "back" || selectedCategoryId?.toLowerCase() === "חזרה") {
+          // Return to category menu showing available categories
+          const availableCategories = getAvailableCategories(newState.context.completedCategories || []);
+          if (availableCategories.length === 0) {
+            // All categories completed
+            newState.currentState = "IDLE";
+            actions.push({
+              type: "SEND_MESSAGE",
+              payload: {
+                to: message.from,
+                body: "🎉 *כל הספקים הוגדרו בהצלחה!*\n\n📊 המערכת מוכנה לשימוש.\n\n💡 הקלד 'עזרה' לראות את הפקודות הזמינות."
+              }
+            });
+          } else {
+            // Show available categories
+            const categoryTemplate = {
+              ...STATE_MESSAGES["SUPPLIER_CATEGORY"].whatsappTemplate,
+              options: [
+                ...availableCategories,
+                { name: "📝 סיום בחירת קטגוריות", id: "סיום קטגוריות" },
+                { name: "🏁 סיום הגדרת ספקים", id: "סיום ספקים" }
+              ]
+            };
+            
+            actions.push({
+              type: "SEND_MESSAGE",
+              payload: {
+                to: message.from,
+                template: categoryTemplate
+              }
+            });
+          }
+          break;
+        }
+        
         // Handle single category selection (accumulate categories)
         if (selectedCategoryId && BOT_CATEGORIES[selectedCategoryId]) {
           // Initialize selected categories array if it doesn't exist
@@ -269,26 +354,41 @@ export function conversationStateReducer(
           // Add category if not already selected
           if (!newState.context.selectedCategories.includes(selectedCategoryId)) {
             newState.context.selectedCategories.push(selectedCategoryId);
+            
+            // Send confirmation message with current selection and remaining options
+            const categoryName = BOT_CATEGORIES[selectedCategoryId].name;
+            const categoryEmoji = BOT_CATEGORIES[selectedCategoryId].emoji;
+            const selectedSummary = newState.context.selectedCategories
+              .map((cat: string) => `${BOT_CATEGORIES[cat].emoji} ${BOT_CATEGORIES[cat].name}`)
+              .join(", ");
+            
+            actions.push({
+              type: "SEND_MESSAGE",
+              payload: {
+                to: message.from,
+                body: `✅ נוספה קטגוריה: ${categoryEmoji} ${categoryName}\n\n📝 *קטגוריות נבחרות:* ${selectedSummary}\n\n💡 בחר קטגוריות נוספות, שלח 'סיום קטגוריות' לסיום בחירת קטגוריות לספק זה, או שלח 'סיום ספקים' לסיום הגדרת כל הספקים.`
+              }
+            });
+          } else {
+            // Category already selected
+            actions.push({
+              type: "SEND_MESSAGE",
+              payload: {
+                to: message.from,
+                body: `⚠️ הקטגוריה ${BOT_CATEGORIES[selectedCategoryId].emoji} ${BOT_CATEGORIES[selectedCategoryId].name} כבר נבחרה.\n\n💡 בחר קטגוריה אחרת, שלח 'סיום קטגוריות' לסיום בחירת קטגוריות לספק זה, או שלח 'סיום ספקים' לסיום הגדרת כל הספקים.`
+              }
+            });
           }
-          
-          // Send confirmation message and stay in the same state for more selections
-          const categoryName = BOT_CATEGORIES[selectedCategoryId].name;
-          const categoryEmoji = BOT_CATEGORIES[selectedCategoryId].emoji;
-          
-          actions.push({
-            type: "SEND_MESSAGE",
-            payload: {
-              to: message.from,
-              body: `✅ נוספה קטגוריה: ${categoryEmoji} ${categoryName}\n\nבחר קטגוריות נוספות או שלח 'סיום' כשתסיים.`
-            }
-          });
         } else {
-          // Invalid category, send error and stay in same state
+          // Invalid category, send error and provide help
+          const availableCategories = getAvailableCategories(newState.context.completedCategories || []);
+          const categoryList = availableCategories.map(cat => cat.name).join('\n');
+          
           actions.push({
             type: "SEND_MESSAGE",
             payload: {
               to: message.from,
-              body: VALIDATION_ERRORS.selection
+              body: `❌ קטגוריה לא תקינה: "${selectedCategoryId}"\n\n📋 *קטגוריות זמינות:*\n${categoryList}\n\n💡 או שלח 'סיום קטגוריות' לסיום בחירת קטגוריות לספק זה\n🏁 או שלח 'סיום ספקים' לסיום הגדרת כל הספקים`
             }
           });
         }
@@ -397,67 +497,303 @@ export function conversationStateReducer(
         newState.context.currentSupplier.cutoffHour = parseInt(message.body?.trim() || "");
         console.log(`[BotEngine] Stored supplier cutoff hour: ${newState.context.currentSupplier.cutoffHour}`);
         
-        // Move to product collection
+        // Initialize products array and move to product collection
+        newState.context.currentSupplier.products = [];
         newState.currentState = "PRODUCT_NAME";
+        
+        // Get products for selected categories, excluding already selected ones
+        const selectedCategoriesLocal = newState.context.currentSupplier?.category || [];
+        const excludeProductsLocal = newState.context.currentSupplier?.products?.map((p: any) => p.name) || [];
+        const productOptionsLocal = formatProductOptions(selectedCategoriesLocal, excludeProductsLocal);
+
+        const productTemplate = {
+          ...STATE_MESSAGES["PRODUCT_NAME"].whatsappTemplate,
+          options: [
+            ...productOptionsLocal.slice(0, 20), // Limit to first 20 products to avoid WhatsApp limits
+            { name: "✏️ מוצר מותאם אישית", id: "custom" },
+            { name: "📝 סיום הוספת מוצרים", id: "done" }
+          ]
+        };
+        
         actions.push({
           type: "SEND_MESSAGE",
           payload: {
             to: message.from,
-            body: interpolateMessage(STATE_MESSAGES["PRODUCT_NAME"].message || "", 
-                                     { supplierName: newState.context.currentSupplier.name })
+            template: productTemplate
           }
         });
         break;
 
       case "PRODUCT_NAME":
-        // Process product list
-        const productLines = message.body?.split('\n').filter(line => line.trim()) || [];
+        // Handle product selection and entry
+        const productInput = message.body?.trim();
         
-        if (productLines.length === 0) {
-          // No products entered
+        // Handle control commands
+        if (productInput?.toLowerCase() === "done" || productInput?.toLowerCase() === "סיום") {
+          // User finished adding products
+          if (!newState.context.currentSupplier?.products || newState.context.currentSupplier.products.length === 0) {
+            actions.push({
+              type: "SEND_MESSAGE",
+              payload: {
+                to: message.from,
+                body: "❌ יש להוסיף לפחות מוצר אחד לפני סיום.\n\n💡 בחר מוצר מהרשימה או הזן שם מוצר מותאם אישית"
+              }
+            });
+            break;
+          }
+          
+          // Move to supplier saving flow - all products have been collected with their details
+          // All products processed, validate and save supplier
+          const supplier = newState.context.currentSupplier;
+          
+          // Validate supplier data before saving
+          const validationErrors: string[] = [];
+          
+          if (!supplier?.name) validationErrors.push("שם הספק");
+          if (!supplier?.whatsapp) validationErrors.push("מספר וואטסאפ");
+          if (!supplier?.category || supplier.category.length === 0) validationErrors.push("קטגוריה");
+          if (!supplier?.deliveryDays || supplier.deliveryDays.length === 0) validationErrors.push("ימי אספקה");
+          if (supplier?.cutoffHour === undefined || supplier.cutoffHour < 0 || supplier.cutoffHour > 23) validationErrors.push("שעת קאט-אוף");
+          
+          if (validationErrors.length > 0) {
+            actions.push({
+              type: "SEND_MESSAGE",
+              payload: {
+                to: message.from,
+                body: `❌ *שגיאה בשמירת הספק*\n\nהשדות הבאים חסרים או לא תקינים:\n${validationErrors.map(field => `• ${field}`).join('\n')}\n\n💡 אנא צור קשר עם התמיכה לסיוע.`
+              }
+            });
+            
+            // Reset to category selection to try again
+            newState.currentState = "SUPPLIER_CATEGORY";
+            break;
+          }
+          
+          // Save supplier with validated data
+          actions.push({
+            type: "UPDATE_SUPPLIER",
+            payload: {
+              restaurantId: newState.context.legalId || "123456789",
+              name: supplier.name,
+              whatsapp: supplier.whatsapp,
+              deliveryDays: supplier.deliveryDays,
+              cutoffHour: supplier.cutoffHour,
+              category: supplier.category,
+              role: "Supplier" as const
+            }
+          });
+          
+          // Save each product with validated data
+          if (supplier.products && supplier.products.length > 0) {
+            supplier.products.forEach((product: any) => {
+              // Validate product data
+              if (product.name && product.unit) {
+                actions.push({
+                  type: "UPDATE_PRODUCT",
+                  payload: {
+                    restaurantId: newState.context.legalId || "",
+                    supplierId: supplier.whatsapp,
+                    name: product.name,
+                    emoji: product.emoji || "📦",
+                    unit: product.unit,
+                    category: supplier.category[0] || "general",
+                    parMidweek: Number(product.parMidweek) || 0,
+                    parWeekend: Number(product.parWeekend) || 0
+                  }
+                });
+              }
+            });
+          }
+          
+          // Mark this supplier's categories as completed
+          if (!newState.context.completedCategories) {
+            newState.context.completedCategories = [];
+          }
+          supplier.category.forEach((cat: string) => {
+            if (!newState.context.completedCategories.includes(cat)) {
+              newState.context.completedCategories.push(cat);
+            }
+          });
+          
+          // Send completion message
           actions.push({
             type: "SEND_MESSAGE",
             payload: {
               to: message.from,
-              body: VALIDATION_ERRORS.invalidProductList
+              body: `✅ *ספק ${supplier.name} הוגדר בהצלחה!*\n\n📦 סה\"ג ${supplier.products?.length || 0} מוצרים\n📋 קטגוריות: ${supplier.category.map((cat: string) => BOT_CATEGORIES[cat]?.name || cat).join(', ')}\n⏰ ימי אספקה: ${formatDeliveryDays(supplier.deliveryDays)}\n🕒 הזמנה עד: ${supplier.cutoffHour}:00\n\n➡️ בחר קטגוריה נוספת או סיים ההגדרה...`
+            }
+          });
+          
+          // Clear current supplier data
+          delete newState.context.currentSupplier;
+          delete newState.context.currentProductIndex;
+          delete newState.context.selectedCategories;
+          delete newState.context.customProductEntry;
+          
+          // Move to next category selection or complete setup
+          return moveToNextCategory(newState, actions, message.from);
+        }
+        
+        if (productInput?.toLowerCase() === "custom" || productInput?.toLowerCase() === "מותאם") {
+          // Switch to custom product entry mode
+          newState.context.customProductEntry = true;
+          actions.push({
+            type: "SEND_MESSAGE",
+            payload: {
+              to: message.from,
+              body: STATE_MESSAGES["PRODUCT_NAME"].message || "🏷️ *הזן שם מוצר מותאם אישית*\n\nלדוגמה: עגבניות שרי, חזה עוף, יין אדום\n\n⬅️ או שלח 'חזרה' לחזור לרשימת המוצרים"
             }
           });
           break;
         }
         
-        // Parse products
-        newState.context.currentSupplier.products = productLines.map((line, index) => {
-          // Check if the line starts with an emoji followed by space
-          // Most emojis are 1-2 characters long
-          const emojiMatch = line.match(/^(\S{1,2})\s+(.+)/);
+        if (productInput?.toLowerCase() === "back" || productInput?.toLowerCase() === "חזרה") {
+          // Return to product selection template
+          newState.context.customProductEntry = false;
+          const selectedCategories = newState.context.currentSupplier?.category || [];
+          const excludeProducts = newState.context.currentSupplier?.products?.map((p: any) => p.name) || [];
+          const productOptions = formatProductOptions(selectedCategories, excludeProducts);
+          
+          const productTemplate = {
+            ...STATE_MESSAGES["PRODUCT_NAME"].whatsappTemplate,
+            options: [
+              ...productOptions.slice(0, 20), // Limit to first 20 products to avoid WhatsApp limits
+              { name: "✏️ מוצר מותאם אישית", id: "custom" },
+              { name: "📝 סיום הוספת מוצרים", id: "done" }
+            ]
+          };
+          
+          actions.push({
+            type: "SEND_MESSAGE",
+            payload: {
+              to: message.from,
+              template: productTemplate
+            }
+          });
+          break;
+        }
+        
+        // Handle product selection or custom entry
+        if (newState.context.customProductEntry) {
+          // Custom product entry mode
+          if (!productInput || productInput.length < 2) {
+            actions.push({
+              type: "SEND_MESSAGE",
+              payload: {
+                to: message.from,
+                body: "❌ אנא הזן שם מוצר תקין (לפחות 2 תווים).\n\n⬅️ או שלח 'חזרה' לחזור לרשימת המוצרים"
+              }
+            });
+            break;
+          }
+          
+          // Add custom product to temp storage and move to unit selection
+          if (!newState.context.currentSupplier) {
+            newState.context.currentSupplier = {};
+          }
+          if (!newState.context.currentSupplier.products) {
+            newState.context.currentSupplier.products = [];
+          }
+          
+          // Parse emoji if provided (format: "🍅 עגבניות")
+          const emojiMatch = productInput.match(/^(\S{1,2})\s+(.+)/);
           let emoji = "📦"; // Default emoji
-          let name = line.trim();
+          let name = productInput;
           
           if (emojiMatch && emojiMatch[1] && emojiMatch[2]) {
             emoji = emojiMatch[1];
             name = emojiMatch[2];
           }
           
-          return {
-            id: `product_${index}`,
+          // Store current product being set up
+          newState.context.currentProduct = {
+            id: `custom_product_${Date.now()}`,
             name: name,
-            emoji: emoji
+            emoji: emoji,
+            category: newState.context.currentSupplier.category?.[0] || "general"
           };
-        });
-        
-        // Start product details collection with first product
-        newState.context.currentProductIndex = 0;
-        const firstProduct = newState.context.currentSupplier.products[0];
-        
-        newState.currentState = "PRODUCT_UNIT";
-        sendStateMessage(actions, message.from, STATE_MESSAGES["PRODUCT_UNIT"], 
-                        { productName: firstProduct.name });
+          
+          newState.context.customProductEntry = false;
+          
+          // Move to unit selection for this custom product
+          newState.currentState = "PRODUCT_UNIT";
+          sendStateMessage(actions, message.from, STATE_MESSAGES["PRODUCT_UNIT"], 
+                          { 
+                            productName: newState.context.currentProduct.name,
+                            emoji: newState.context.currentProduct.emoji
+                          });
+
+        } else {
+          // Template-based product selection
+          // Parse product selection format: "product_{index}_{category}_{name}_{unit}"
+          const productMatch = productInput?.match(/^product_(\d+)_(.+)_(.+)_(.+)$/);
+          
+          if (productMatch) {
+            const [, indexStr, , , ] = productMatch;
+            const index = parseInt(indexStr);
+            const selectedCategories = newState.context.currentSupplier?.category || [];
+            const excludeProducts = newState.context.currentSupplier?.products?.map((p: any) => p.name) || [];
+            const availableProducts = getProductsForCategories(selectedCategories).filter(product => 
+              !excludeProducts.some((excluded: string) => excluded === product.name)
+            );
+            
+            if (index >= 0 && index < availableProducts.length) {
+              const selectedProduct = availableProducts[index];
+              
+              // Store current product being set up with pre-filled unit
+              newState.context.currentProduct = {
+                id: `template_product_${Date.now()}`,
+                name: selectedProduct.name,
+                emoji: selectedProduct.emoji,
+                unit: selectedProduct.unit, // Pre-fill unit from template
+                category: selectedProduct.category
+              };
+              
+              // Since we have the unit, skip to quantity collection
+              newState.currentState = "PRODUCT_QTY";
+              actions.push({
+                type: "SEND_MESSAGE",
+                payload: {
+                  to: message.from,
+                  body: interpolateMessage(STATE_MESSAGES["PRODUCT_QTY"].message || "", 
+                                           { 
+                                             productName: selectedProduct.name,
+                                             emoji: selectedProduct.emoji,
+                                             unit: selectedProduct.unit
+                                           })
+                }
+              });
+              
+            } else {
+              actions.push({
+                type: "SEND_MESSAGE",
+                payload: {
+                  to: message.from,
+                  body: "❌ מוצר לא תקין. אנא בחר מוצר מהרשימה."
+                }
+              });
+            }
+          } else {
+            actions.push({
+              type: "SEND_MESSAGE",
+              payload: {
+                to: message.from,
+                body: "❌ אנא בחר מוצר מהרשימה, הזן מוצר מותאם אישית, או שלח 'סיום' לסיום."
+              }
+            });
+          }
+        }
         break;
 
       case "PRODUCT_UNIT":
-        // Process product unit
-        const productIndex = newState.context.currentProductIndex || 0;
-        const product = newState.context.currentSupplier.products[productIndex];
+        // Process product unit for custom products
+        const product = newState.context.currentProduct;
+        
+        if (!product) {
+          console.error("[BotEngine] No current product in context for unit selection");
+          newState.currentState = "PRODUCT_NAME";
+          break;
+        }
         
         // Handle unit selection from list or custom input
         let unit = message.body?.trim() || "";
@@ -469,6 +805,7 @@ export function conversationStateReducer(
         else if (unit === "bottle") unit = "בקבוק";
         else if (unit === "box") unit = "קרטון";
         else if (unit === "pack") unit = "חבילה";
+        // If none of the above, use custom input as-is
         
         // Store unit
         product.unit = unit;
@@ -479,21 +816,25 @@ export function conversationStateReducer(
           type: "SEND_MESSAGE",
           payload: {
             to: message.from,
-            body: interpolateMessage(
-            STATE_MESSAGES["PRODUCT_QTY"].message || "", 
-            { 
-              productName: product.name,
-              emoji: product.emoji,
-              unit: product.unit
-            })
+            body: interpolateMessage(STATE_MESSAGES["PRODUCT_QTY"].message || "", 
+                                     { 
+                                       productName: product.name,
+                                       emoji: product.emoji,
+                                       unit: product.unit
+                                     })
           }
         });
         break;
 
       case "PRODUCT_QTY":
         // Process base quantity
-        const qtyIndex = newState.context.currentProductIndex || 0;
-        const qtyProduct = newState.context.currentSupplier.products[qtyIndex];
+        const qtyProduct = newState.context.currentProduct;
+        
+        if (!qtyProduct) {
+          console.error("[BotEngine] No current product in context for quantity");
+          newState.currentState = "PRODUCT_NAME";
+          break;
+        }
         
         // Parse quantity
         qtyProduct.baseQty = parseFloat(message.body?.trim() || "");
@@ -516,8 +857,13 @@ export function conversationStateReducer(
 
       case "PRODUCT_PAR_MIDWEEK":
         // Process midweek par level
-        const midweekIndex = newState.context.currentProductIndex || 0;
-        const midweekProduct = newState.context.currentSupplier.products[midweekIndex];
+        const midweekProduct = newState.context.currentProduct;
+        
+        if (!midweekProduct) {
+          console.error("[BotEngine] No current product in context for midweek par");
+          newState.currentState = "PRODUCT_NAME";
+          break;
+        }
         
         // Parse par level
         midweekProduct.parMidweek = parseFloat(message.body?.trim() || "");
@@ -540,78 +886,72 @@ export function conversationStateReducer(
       
       case "PRODUCT_PAR_WEEKEND":
         // Process weekend par level
-        const weekendIndex = newState.context.currentProductIndex || 0;
-        const weekendProduct = newState.context.currentSupplier.products[weekendIndex];
+        const weekendProduct = newState.context.currentProduct;
+        
+        if (!weekendProduct) {
+          console.error("[BotEngine] No current product in context for weekend par");
+          newState.currentState = "PRODUCT_NAME";
+          break;
+        }
         
         // Parse par level
         weekendProduct.parWeekend = parseFloat(message.body?.trim() || "");
         
-        // Move to next product or finish supplier setup
-        const nextProductIndex = weekendIndex + 1;
+        // Add completed product to supplier's product list
+        if (!newState.context.currentSupplier) {
+          newState.context.currentSupplier = {};
+        }
+        if (!newState.context.currentSupplier.products) {
+          newState.context.currentSupplier.products = [];
+        }
         
-        if (nextProductIndex < newState.context.currentSupplier.products?.length) {
-          // More products to process
-          newState.context.currentProductIndex = nextProductIndex;
-          const nextProduct = newState.context.currentSupplier.products[nextProductIndex];
+        newState.context.currentSupplier.products.push({ ...weekendProduct });
+        
+        // Clear current product and show confirmation
+        delete newState.context.currentProduct;
+        
+        actions.push({
+          type: "SEND_MESSAGE",
+          payload: {
+            to: message.from,
+            body: `✅ *מוצר ${weekendProduct.emoji} ${weekendProduct.name} נוסף בהצלחה!*\n\n📏 יחידה: ${weekendProduct.unit}\n📊 אמצע שבוע: ${weekendProduct.parMidweek}\n📈 סוף שבוע: ${weekendProduct.parWeekend}\n\n💡 הוסף מוצר נוסף או שלח 'סיום' לסיום.`
+          }
+        });
+        
+        // Return to product selection for next product
+        newState.currentState = "PRODUCT_NAME";
+        
+        // Show updated product options excluding already selected products
+        const selectedCategories = newState.context.currentSupplier?.category || [];
+        const excludeProducts = newState.context.currentSupplier?.products?.map((p: any) => p.name) || [];
+        const productOptions = formatProductOptions(selectedCategories, excludeProducts);
+        
+        if (productOptions.length > 0) {
+          const productTemplate = {
+            ...STATE_MESSAGES["PRODUCT_NAME"].whatsappTemplate,
+            options: [
+              ...productOptions.slice(0, 20),
+              { name: "✏️ מוצר מותאם אישית", id: "custom" },
+              { name: "📝 סיום הוספת מוצרים", id: "done" }
+            ]
+          };
           
-          // Loop back to PRODUCT_UNIT for the next product
-          newState.currentState = "PRODUCT_UNIT";
           actions.push({
             type: "SEND_MESSAGE",
             payload: {
               to: message.from,
-              body: interpolateMessage(STATE_MESSAGES["PRODUCT_UNIT"].message || "", 
-                                       { 
-                                         productName: nextProduct.name,
-                                         emoji: nextProduct.emoji
-                                       })
+              template: productTemplate
             }
           });
         } else {
-          // All products processed, first save supplier
-          actions.push({
-            type: "UPDATE_SUPPLIER",
-            payload: {
-              restaurantId: newState.context.legalId,
-              name: newState.context.currentSupplier.name,
-              whatsapp: newState.context.currentSupplier.whatsapp,
-              deliveryDays: newState.context.currentSupplier.deliveryDays || [],
-              cutoffHour: newState.context.currentSupplier.cutoffHour || 12,
-              category: newState.context.currentSupplier.category || ["general"],
-              role: "Supplier"
-            }
-          });
-          
-          // Now create/update each product
-          if (newState.context.currentSupplier.products?.length > 0) {
-            newState.context.currentSupplier.products.forEach((product: Product) => {
-              actions.push({
-                type: "UPDATE_PRODUCT",
-                payload: {
-                  restaurantId: newState.context.legalId,
-                  supplierId: newState.context.currentSupplier.whatsapp,
-                  name: product.name,
-                  emoji: product.emoji || "📦",
-                  unit: product.unit || "יחידות",
-                  category: newState.context.currentSupplier.category?.[0] || "general",
-                  parMidweek: product.parMidweek || 0,
-                  parWeekend: product.parWeekend || 0
-                }
-              });
-            });
-          }
-          
-          // Send completion message and move to next category
+          // No more products available, suggest finishing
           actions.push({
             type: "SEND_MESSAGE",
             payload: {
               to: message.from,
-              body: interpolateMessage(`✅ *ספק ${newState.context.currentSupplier.name} הוגדר בהצלחה!*\n\n📦 סה\"כ ${newState.context.currentSupplier.products.length} מוצרים\n⏰ אספקה: ${formatDeliveryDays(newState.context.currentSupplier.deliveryDays || [])}\n🕒 הזמנה עד: ${newState.context.currentSupplier.cutoffHour || 12}:00\n\n➡️ עובר לקטגוריה הבאה...`, {})
+              body: "📝 *כל המוצרים הזמינים נבחרו*\n\n💡 תוכל להוסיף מוצר מותאם אישית או לסיים עם 'סיום'"
             }
           });
-          
-          // Move to next category
-          return moveToNextCategory(newState, actions, message.from);
         }
         break;
 
@@ -620,7 +960,28 @@ export function conversationStateReducer(
         // Handle inventory snapshot initiation
         if (message.body?.trim() === "start") {
           newState.currentState = "INVENTORY_SNAPSHOT_CATEGORY";
-          sendStateMessage(actions, message.from, STATE_MESSAGES["INVENTORY_SNAPSHOT_CATEGORY"], newState.context);
+          
+          // Send template with actual category options
+          const categoryOptions = Object.entries(BOT_CATEGORIES).map(([id, { name, emoji }]) => ({ 
+            name: `${emoji} ${name}`, 
+            id 
+          }));
+          
+          const snapshotCategoryTemplate = {
+            ...STATE_MESSAGES["INVENTORY_SNAPSHOT_CATEGORY"].whatsappTemplate,
+            options: [
+              ...categoryOptions,
+              { name: "📝 סיום", id: "סיום" }
+            ]
+          };
+          
+          actions.push({
+            type: "SEND_MESSAGE",
+            payload: {
+              to: message.from,
+              template: snapshotCategoryTemplate
+            }
+          });
         } else {
           // User postponed, move to IDLE
           newState.currentState = "IDLE";
@@ -790,10 +1151,18 @@ export function conversationStateReducer(
 function validateInput(input: string, validator: string, context: Record<string, any>): boolean {
   const trimmedInput = input.trim();
   
-  switch (validator) {
+  switch (validator as StateMessage['validator']) {
     case 'text':
       return trimmedInput.length >= 2;
-      
+    case 'legalId':
+      // Validate legal ID (Israeli 9-digit number)
+      return /^\d{9}$/.test(trimmedInput);
+
+    case 'activeYears':
+      // Validate active years (1-99)
+      const years = parseInt(trimmedInput);
+      return !isNaN(years) && years >= 1 && years <= 99;
+
     case 'number':
       const num = parseFloat(trimmedInput);
       return !isNaN(num) && num >= 0;
@@ -804,9 +1173,8 @@ function validateInput(input: string, validator: string, context: Record<string,
       return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedInput);
       
     case 'phone':
-      // Simple phone validation
-      const phoneRegex = /^(\+\d{1,3}\s?)?\(?\d{1,4}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,9}$/;
-      return phoneRegex.test(trimmedInput);
+      // Validate exactly 10 digits for WhatsApp number
+      return /^\d{10}$/.test(trimmedInput);
       
     case 'yesNo':
       return ['כן', 'לא'].includes(trimmedInput.toLowerCase());
@@ -892,59 +1260,63 @@ function sendStateMessage(
 }
 
 /**
- * Helper function to move to the next supplier category
+ * Helper function to move to next category selection or complete setup
  */
 function moveToNextCategory(
   newState: ConversationState, 
   actions: BotAction[], 
   phoneNumber: string
 ): StateTransition {
-  // Get available supplier categories
-  const supplierCategories = Object.keys(BOT_CATEGORIES);
+  // Get available categories (exclude already completed ones)
+  const completedCategories = newState.context.completedCategories || [];
+  const availableCategories = getAvailableCategories(completedCategories);
   
-  const currentIndex = newState.context.currentCategoryIndex || 0;
-  const nextIndex = currentIndex + 1;
-  
-  if (nextIndex >= supplierCategories.length) {
+  if (availableCategories.length === 0) {
     // All categories completed
     actions.push({
       type: "SEND_MESSAGE",
       payload: {
         to: phoneNumber,
-        body: "🎉 *כל הספקים הוגדרו בהצלחה!*\n\n📊 המערכת מוכנה לשימוש.\n\n💡 הקלד 'עזרה' לראות את הפקודות הזמינות."
+        body: "🎉 *הגדרת הספקים הושלמה בהצלחה!*\n\n📊 המערכת מוכנה לשימוש.\n\n💡 הקלד 'עזרה' לראות את הפקודות הזמינות או 'מלאי' להתחיל עדכון מלאי."
       }
     });
     newState.currentState = "IDLE";
-    // Clear supplier setup context
+    
+    // Clear all supplier setup context
     delete newState.context.currentCategoryIndex;
     delete newState.context.currentSupplier;
     delete newState.context.currentProductIndex;
+    delete newState.context.selectedCategories;
+    delete newState.context.completedCategories;
+    delete newState.context.customProductEntry;
   } else {
-    // Move to next category
-    newState.context.currentCategoryIndex = nextIndex;
-    const nextCategory = supplierCategories[nextIndex];
+    // Show available categories for user to choose from
+    newState.currentState = "SUPPLIER_CATEGORY";
     
-    // Reset supplier for next category but initialize with an empty array for categories
-    newState.context.currentSupplier = {
-      category: []
+    const categoryTemplate = {
+      ...STATE_MESSAGES["SUPPLIER_CATEGORY"].whatsappTemplate,
+      options: [
+        ...availableCategories,
+        { name: "📝 סיום בחירת קטגוריות", id: "סיום קטגוריות" },
+        { name: "🏁 סיום הגדרת ספקים", id: "סיום ספקים" }
+      ]
     };
-    newState.context.selectedCategories = [nextCategory]; // Start with the current category selected
-    delete newState.context.currentProductIndex;
-
+    
     actions.push({
       type: "SEND_MESSAGE",
       payload: {
         to: phoneNumber,
-        body: interpolateMessage(
-          "🔄 *עובר לקטגוריה: {categoryName}*\n\n{categoryEmoji} מי הספק שלך עבור {categoryName}?\nשלח שם הספק ומספר וואטסאפ.\n\n⏭️ או שלח 'דלג' אם אין ספק בקטגוריה זו", 
-          {
-            categoryName: BOT_CATEGORIES[nextCategory].name,
-            categoryEmoji: BOT_CATEGORIES[nextCategory].emoji
-          }
-        )
+        body: `🏪 *בחר קטגוריה נוספת לספק*`
       }
     });
-    newState.currentState = "SUPPLIER_NAME";
+    
+    actions.push({
+      type: "SEND_MESSAGE",
+      payload: {
+        to: phoneNumber,
+        template: categoryTemplate
+      }
+    });
   }
   
   return { newState, actions };
@@ -992,7 +1364,7 @@ function handleIdleCommands(
 }
 
 /**
- * Helper function for message interpolation
+ * Helper for message interpolation
  * Replaces placeholders in the format {key} with values from context
  */
 function interpolateMessage(template: string, context: Record<string, any>): string {

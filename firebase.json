@@ -18,7 +18,8 @@
   ],
   "emulators": {
     "functions": {
-      "port": 5001
+      "port": 5001,
+      "inspect": false
     },
     "ui": {
       "enabled": true,

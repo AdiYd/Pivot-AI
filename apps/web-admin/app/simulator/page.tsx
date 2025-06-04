@@ -297,10 +297,13 @@ export default function SimulatorPage() {
     setSession(prev => ({
       ...prev,
       messages: [],
+      isConnected: false,
+      isLoading: false,
       conversationState: undefined
     }));
-    setAvailableConversations(prev => prev.filter(conv => conv !== phoneNumber));
+    setAvailableConversations(availableConversations.filter(conv => conv !== phoneNumber));
     setLoading(false);
+    setNewMessage('');
     toast({
       title: "השיחה נוקתה",
       description: "כל ההודעות נמחקו",
