@@ -27,16 +27,17 @@ import {
   Store,
   Filter,
   TrendingUp,
-
-  X
+  X,
+  Grid3X3,
+  Table
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
 // Import the actual database
 import exampleDatabase from '@/schema/example';
 import { Product, SupplierCategory } from '@/schema/types';
-import { getCategoryName } from '@/schema/messages';
 import { getCategoryBadge } from '../orders/page';
+import { Icon } from '@iconify/react/dist/iconify.js';
 
 // Types for enhanced supplier data
 interface EnhancedSupplier {
@@ -80,6 +81,7 @@ export default function SuppliersPage() {
   const [selectedSupplier, setSelectedSupplier] = useState<EnhancedSupplier | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
   const { toast } = useToast();
 
   // Extract and enhance supplier data from the actual database
@@ -298,6 +300,115 @@ export default function SuppliersPage() {
         </div>
       </CardContent>
     </Card>
+  );
+
+  const SupplierTable = ({ suppliers }: { suppliers: EnhancedSupplier[] }) => (
+    <div className="border rounded-lg overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-gray-50 dark:bg-gray-900">
+            <tr className="border-b">
+              <th className="text-right p-3 font-medium text-sm">שם הספק</th>
+              <th className="text-right p-3 font-medium text-sm">מסעדה</th>
+              <th className="text-right p-3 font-medium text-sm">WhatsApp</th>
+              <th className="text-right p-3 font-medium text-sm">קטגוריות</th>
+              <th className="text-right p-3 font-medium text-sm">ימי משלוח</th>
+              <th className="text-right p-3 font-medium text-sm">שעת סגירה</th>
+              <th className="text-right p-3 font-medium text-sm">מוצרים</th>
+              <th className="text-right p-3 font-medium text-sm">דירוג</th>
+              <th className="text-right p-3 font-medium text-sm">הזמנות</th>
+              <th className="text-right p-3 font-medium text-sm">פעולות</th>
+            </tr>
+          </thead>
+          <tbody>
+            {suppliers.map((supplier) => (
+              <tr key={supplier.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-900/50">
+                <td className="p-3">
+                  <div className="flex items-center gap-2">
+                    <Truck className="w-4 h-4 text-muted-foreground" />
+                    <span className="font-medium">{supplier.name}</span>
+                  </div>
+                </td>
+                <td className="p-3">
+                  <div className="flex items-center gap-2">
+                    <Store className="w-4 h-4 text-muted-foreground" />
+                    <span>{supplier.restaurantName}</span>
+                  </div>
+                </td>
+                <td className="p-3">
+                  <div className="flex items-center gap-2">
+                    <Phone className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm">{supplier.whatsapp}</span>
+                  </div>
+                </td>
+                <td className="p-3">
+                  <div className="flex flex-wrap gap-1">
+                    {supplier.category.slice(0, 2).map(category => getCategoryBadge(category))}
+                    {supplier.category.length > 2 && (
+                      <Badge variant="outline" className="text-xs">
+                        +{supplier.category.length - 2}
+                      </Badge>
+                    )}
+                  </div>
+                </td>
+                <td className="p-3">
+                  <div className="text-sm">
+                    {supplier.deliveryDays.map(day => dayNames[day]).slice(0, 3).join(', ')}
+                    {supplier.deliveryDays.length > 3 && (
+                      <span className="text-muted-foreground"> +{supplier.deliveryDays.length - 3}</span>
+                    )}
+                  </div>
+                </td>
+                <td className="p-3">
+                  <div className="flex items-center gap-1">
+                    <Clock className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm">{supplier.cutoffHour}:00</span>
+                  </div>
+                </td>
+                <td className="p-3">
+                  <div className="flex items-center gap-1">
+                    <Package className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">{supplier.productCount}</span>
+                  </div>
+                </td>
+                <td className="p-3">
+                  <div className="flex items-center gap-1">
+                    {getRatingStars(supplier.rating || 0).slice(0, 1)}
+                    <span className="text-sm">{supplier.rating || 0}</span>
+                  </div>
+                </td>
+                <td className="p-3">
+                  <Badge variant="outline" className="text-xs">
+                    {supplier.recentOrdersCount}
+                  </Badge>
+                </td>
+                <td className="p-3">
+                  <div className="flex gap-2">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedSupplier(supplier);
+                            setIsDialogOpen(true);
+                          }}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>צפייה בפרטים</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 
   if (isLoading) {
@@ -528,20 +639,62 @@ export default function SuppliersPage() {
         </CardContent>
       </Card>
 
-      {/* Suppliers Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredSuppliers.length > 0 ? (
-          filteredSuppliers.map((supplier) => (
-            <SupplierCard key={supplier.id} supplier={supplier} />
-          ))
-        ) : (
-          <div className="col-span-full text-center py-12">
-            <Truck className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium mb-2">לא נמצאו ספקים</h3>
-            <p className="text-muted-foreground">נסה לשנות את מונחי החיפוש או המסנן</p>
+      {/* View Mode Toggle */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-sm opacity-80">תצוגה:</span>
+          <div className="flex flex-row-reverse items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+            <Button
+              variant={viewMode === 'cards' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('cards')}
+              className="h-8 w-8 p-0"
+            >
+              <Icon icon="mdi:id-card" width="1.5em" height="1.5em" />
+            </Button>
+            <Button
+              variant={viewMode === 'table' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('table')}
+              className="h-8 w-8 p-0"
+            >
+              <Table className="w-4 h-4" />
+            </Button>
           </div>
-        )}
+        </div>
+        <div className="text-sm text-muted-foreground">
+          {filteredSuppliers.length} מתוך {enhancedSuppliers.length} ספקים
+        </div>
       </div>
+
+      {/* Suppliers Display */}
+      {viewMode === 'cards' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredSuppliers.length > 0 ? (
+            filteredSuppliers.map((supplier) => (
+              <SupplierCard key={supplier.id} supplier={supplier} />
+            ))
+          ) : (
+            <div className="col-span-full text-center py-12">
+              <Truck className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">לא נמצאו ספקים</h3>
+              <p className="text-muted-foreground">נסה לשנות את מונחי החיפוש או המסנן</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div>
+          {filteredSuppliers.length > 0 ? (
+            <SupplierTable suppliers={filteredSuppliers} />
+          ) : (
+            <div className="text-center py-12 border rounded-lg">
+              <Truck className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">לא נמצאו ספקים</h3>
+              <p className="text-muted-foreground">נסה לשנות את מונחי החיפוש או המסנן</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Enhanced Supplier Details Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

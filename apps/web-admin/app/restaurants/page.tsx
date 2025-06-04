@@ -44,8 +44,7 @@ import { Timestamp } from 'firebase/firestore';
 // Import the actual database
 import exampleDatabase from '@/schema/example';
 import { SupplierCategory } from '@/schema/types';
-import { get } from 'http';
-import { getCategoryName } from '@/schema/messages';
+import { getCategoryBadge } from '../orders/page';
 
 // Interface for new restaurant form
 interface NewRestaurantForm {
@@ -60,44 +59,7 @@ interface NewRestaurantForm {
   paymentProvider: "Stripe" | "Paylink";
 }
 
-declare type BadgeVariant =
-  | "default"
-  | "secondary"
-  | "destructive"
-  | "outline"
-  | "subtle"
-  | "success"
-  | "info"
-  | "warning"
-  | "error"
-  | "light"
-  | "dark"
-  | "gradient1"
-  | "gradient2"
-  | "gradient3"
-  | "gradient4"
-  | "gradient5"
-  | "gradient6"
-  | "gradient7";
 
-   const getCategoryBadge = (category: string) => {
-    const colors: Record<string, string> = {
-      vegetables: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-      fruits: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
-      fish: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-      meat: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-      dairy: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-      bread: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
-      coffee: 'bg-brown-100 text-brown-800 dark:bg-brown-900 dark:text-brown-200',
-      disposables: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-    };
-    
-    return (
-      <Badge className={(colors[category] || colors.disposables) + ' text-nowrap mx-1'}>
-        {getCategoryName(category)}
-      </Badge>
-    );
-  };
 
 export default function RestaurantsPage() {
   const [data, setData] = useState(exampleDatabase);
