@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+import { Badge, getCategoryBadge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
@@ -43,7 +43,6 @@ import { useToast } from '@/components/ui/use-toast';
 // Import the actual database
 import exampleDatabase from '@/schema/example';
 import { SupplierCategory } from '@/schema/types';
-import { getCategoryName } from '@/schema/messages';
 import { Icon } from '@iconify/react/dist/iconify.js';
 
 // Types for enhanced order data
@@ -98,23 +97,7 @@ const categoryNames: Record<string, string> = {
   coffee: 'קפה'
 };
 
-export const getCategoryBadge = (category: string) => {
-    const colors: Record<string, string> = {
-      vegetables: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-      fruits: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
-      fish: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-      meat: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-      dairy: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-      bread: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
-      coffee: 'bg-orange-950 text-white dark:bg-orange-950 dark:text-white',
-    };
-    
-    return (
-      <Badge className={(colors[category] || 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200') + " text-xs text-nowrap w-fit mx-[2px] cursor-default flex items-center gap-1"}>
-        {getCategoryName(category)}
-      </Badge>
-    );
-  };
+
 
 export default function OrdersPage() {
   const [data, setData] = useState(exampleDatabase);
@@ -335,7 +318,7 @@ export default function OrdersPage() {
               התפלגות ההזמנות לפי קטגוריות ספקים
             </CardDescription>
           </CardHeader>
-          <CardContent className='h-[fill-available] overflow-y-auto'>
+          <CardContent className='flex-1 overflow-y-auto'>
             <div className="space-y-3">
               {Object.entries(stats.categoryStats)
                 .sort(([,a], [,b]) => b - a)
@@ -369,7 +352,7 @@ export default function OrdersPage() {
               הזמנות לפי מסעדה
             </CardDescription>
           </CardHeader>
-          <CardContent className='h-[fill-available] overflow-y-auto'>
+          <CardContent className='flex-1 overflow-y-auto'>
             <div className="space-y-3">
               {Object.entries(stats.restaurantStats)
                 .sort(([,a], [,b]) => b.orderCount - a.orderCount)
@@ -747,7 +730,7 @@ export default function OrdersPage() {
               ממתינות
             </CardTitle>
           </CardHeader>
-          <CardContent className='h-[fill-available] overflow-y-auto'>
+          <CardContent className='flex-1 overflow-y-auto'>
             <div className="text-2xl font-bold text-orange-600">{stats.pending}</div>
             <Progress value={stats.total > 0 ? (stats.pending / stats.total) * 100 : 0} className="mt-2" />
           </CardContent>
@@ -760,7 +743,7 @@ export default function OrdersPage() {
               נשלחו
             </CardTitle>
           </CardHeader>
-          <CardContent className='h-[fill-available] overflow-y-auto'>
+          <CardContent className='flex-1 overflow-y-auto'>
             <div className="text-2xl font-bold text-blue-600">{stats.sent}</div>
             <Progress value={stats.total > 0 ? (stats.sent / stats.total) * 100 : 0} className="mt-2" />
           </CardContent>
@@ -773,7 +756,7 @@ export default function OrdersPage() {
               נמסרו
             </CardTitle>
           </CardHeader>
-          <CardContent className='h-[fill-available] overflow-y-auto'>
+          <CardContent className='flex-1 overflow-y-auto'>
             <div className="text-2xl font-bold text-green-600">{stats.delivered}</div>
             <Progress value={stats.total > 0 ? (stats.delivered / stats.total) * 100 : 0} className="mt-2" />
           </CardContent>
@@ -801,7 +784,7 @@ export default function OrdersPage() {
               עם חסרים
             </CardTitle>
           </CardHeader>
-          <CardContent className='h-[fill-available] overflow-y-auto'>
+          <CardContent className='flex-1 overflow-y-auto'>
             <div className="text-2xl font-bold text-red-600">{stats.withShortages}</div>
             <p className="text-xs text-muted-foreground mt-1">
               {stats.shortageRate}% מההזמנות
