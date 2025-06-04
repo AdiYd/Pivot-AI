@@ -110,7 +110,7 @@ export const getCategoryBadge = (category: string) => {
     };
     
     return (
-      <Badge className={(colors[category] || 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200') + " text-xs text-nowrap mx-[2px] cursor-default flex items-center gap-1"}>
+      <Badge className={(colors[category] || 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200') + " text-xs text-nowrap w-fit mx-[2px] cursor-default flex items-center gap-1"}>
         {getCategoryName(category)}
       </Badge>
     );
