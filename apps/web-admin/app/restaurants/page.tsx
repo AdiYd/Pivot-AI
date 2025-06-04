@@ -771,18 +771,7 @@ export default function RestaurantsPage() {
         </Dialog>
       </div>
 
-      {/* Search */}
-      <div className="flex gap-4 mb-6">
-        <div className="relative flex-1">
-          <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-          <Input
-            placeholder="חיפוש לפי שם, ח.פ או שם עסקי..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pr-10"
-          />
-        </div>
-      </div>
+     
 
       {/* Enhanced Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -867,6 +856,20 @@ export default function RestaurantsPage() {
           </CardContent>
         </Card>
       )}
+
+
+      {/* Search */}
+      <div className="flex gap-4 mb-6">
+        <div className="relative max-w-md flex-1">
+          <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+          <Input
+            placeholder="חיפוש לפי שם, ח.פ או שם עסקי..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pr-10"
+          />
+        </div>
+      </div>
 
       {/* Restaurants Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

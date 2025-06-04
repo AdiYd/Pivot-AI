@@ -578,8 +578,8 @@ export default function SuppliersPage() {
         </Card>
       </div>
 
-           {/* Search and Filters */}
-      <div className="flex gap-4 mb-6">
+      {/* Search and Filters */}
+      <div className="flex items-center gap-4 mb-6">
          <div className="flex items-center gap-2 max-sm:hidden">
           <span className="text-sm opacity-80">תצוגה:</span>
           <div className="flex flex-row-reverse gap-2 items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
@@ -601,7 +601,7 @@ export default function SuppliersPage() {
             </Button>
           </div>
         </div>
-        <div className="relative flex-1">
+        <div className="relative max-w-md flex-1">
           <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
           <Input
             placeholder="חיפוש לפי שם ספק, מסעדה או מספר WhatsApp..."
