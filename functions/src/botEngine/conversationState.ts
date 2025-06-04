@@ -179,7 +179,12 @@ export function conversationStateReducer(
             phone: message.from.replace("whatsapp:", "")
           }
         });
-        
+        if (newState.context.paymentMethod === "Trial") {
+          console.log("[BotEngine] Skipping payment with trial code");
+          newState.currentState = "SETUP_SUPPLIERS_START";
+          sendStateMessage(actions, message.from, STATE_MESSAGES["SETUP_SUPPLIERS_START"], newState.context);
+          break;
+        }
         // Move to waiting for payment state
         newState.currentState = "WAITING_FOR_PAYMENT";
         sendStateMessage(actions, message.from, STATE_MESSAGES["WAITING_FOR_PAYMENT"], newState.context);
@@ -195,7 +200,14 @@ export function conversationStateReducer(
           sendStateMessage(actions, message.from, STATE_MESSAGES["SETUP_SUPPLIERS_START"], newState.context);
         } else {
           // Stay in waiting state and remind about payment
-          sendStateMessage(actions, message.from, STATE_MESSAGES["WAITING_FOR_PAYMENT"], {...newState.context, paymentLink: BOT_CONFIG.paymentLink});
+          // Make sure to include the payment link directly in the context
+          const contextWithPaymentLink = {
+            ...newState.context,
+            paymentLink: BOT_CONFIG.paymentLink
+          };
+          
+          console.log("[BotEngine] Waiting for payment confirmation, with payment link:", contextWithPaymentLink.paymentLink);
+          sendStateMessage(actions, message.from, STATE_MESSAGES["WAITING_FOR_PAYMENT"], contextWithPaymentLink);
         }
         break;
 
@@ -218,18 +230,58 @@ export function conversationStateReducer(
         // Handle supplier category selection
         const selectedCategoryId = message.body?.trim();
         
-        if (selectedCategoryId && BOT_CATEGORIES[selectedCategoryId]) {
-          // Store the selected category
+        // Check if the user has finished selecting categories
+        if (selectedCategoryId?.toLowerCase() === "done" || selectedCategoryId?.toLowerCase() === "סיום") {
+          // User finished selecting categories
+          if (!newState.context.selectedCategories || newState.context.selectedCategories.length === 0) {
+            // No categories selected, send error
+            actions.push({
+              type: "SEND_MESSAGE",
+              payload: {
+                to: message.from,
+                body: "❌ יש לבחור לפחות קטגוריה אחת לפני סיום."
+              }
+            });
+            break;
+          }
+          
+          // Store selected categories and move to supplier name collection
           if (!newState.context.currentSupplier) {
             newState.context.currentSupplier = {};
           }
           
-          newState.context.currentSupplier.category = [selectedCategoryId];
-          console.log(`[BotEngine] Selected category: ${selectedCategoryId}`);
+          newState.context.currentSupplier.category = [...newState.context.selectedCategories];
+          delete newState.context.selectedCategories; // Clear temporary selection
           
           // Move to supplier name collection
           newState.currentState = "SUPPLIER_NAME";
           sendStateMessage(actions, message.from, STATE_MESSAGES["SUPPLIER_NAME"], newState.context);
+          break;
+        }
+        
+        // Handle single category selection (accumulate categories)
+        if (selectedCategoryId && BOT_CATEGORIES[selectedCategoryId]) {
+          // Initialize selected categories array if it doesn't exist
+          if (!newState.context.selectedCategories) {
+            newState.context.selectedCategories = [];
+          }
+          
+          // Add category if not already selected
+          if (!newState.context.selectedCategories.includes(selectedCategoryId)) {
+            newState.context.selectedCategories.push(selectedCategoryId);
+          }
+          
+          // Send confirmation message and stay in the same state for more selections
+          const categoryName = BOT_CATEGORIES[selectedCategoryId].name;
+          const categoryEmoji = BOT_CATEGORIES[selectedCategoryId].emoji;
+          
+          actions.push({
+            type: "SEND_MESSAGE",
+            payload: {
+              to: message.from,
+              body: `✅ נוספה קטגוריה: ${categoryEmoji} ${categoryName}\n\nבחר קטגוריות נוספות או שלח 'סיום' כשתסיים.`
+            }
+          });
         } else {
           // Invalid category, send error and stay in same state
           actions.push({
@@ -297,7 +349,7 @@ export function conversationStateReducer(
           }
           
           newState.context.currentSupplier.deliveryDays = newState.context.selectedDays;
-          newState.context.selectedDays = undefined; // Clear temporary selection
+          delete newState.context.selectedDays // Clear temporary selection
           
           newState.currentState = "SUPPLIER_CUTOFF_TIME";
           sendStateMessage(actions, message.from, STATE_MESSAGES["SUPPLIER_CUTOFF_TIME"], newState.context);
@@ -547,7 +599,7 @@ export function conversationStateReducer(
             type: "SEND_MESSAGE",
             payload: {
               to: message.from,
-              body: interpolateMessage(`✅ *ספק ${newState.context.currentSupplier.name} הוגדר בהצלחה!*\n\n📦 סה\"כ ${newState.context.currentSupplier.products.length} מוצרים\n⏰ אספקה: ${formatDeliveryDays(newState.context.currentSupplier.deliveryDays || [])}\n🕒 הזמנה עד: ${newState.context.currentSupplier.cutoffHour || 12}:00\n\n➡️ עובר לקטגוריה הבאה...`, {})
+              body: interpolateMessage(`✅ *ספק ${newState.context.currentSupplier.name} הוגדר בהצלחה!*\n\n📦 סה\"ג ${newState.context.currentSupplier.products.length} מוצרים\n⏰ אספקה: ${formatDeliveryDays(newState.context.currentSupplier.deliveryDays || [])}\n🕒 הזמנה עד: ${newState.context.currentSupplier.cutoffHour || 12}:00\n\n➡️ עובר לקטגוריה הבאה...`, {})
             }
           });
           
@@ -865,10 +917,11 @@ function moveToNextCategory(
     newState.context.currentCategoryIndex = nextIndex;
     const nextCategory = supplierCategories[nextIndex];
     
-    // Reset supplier for next category
+    // Reset supplier for next category but initialize with an empty array for categories
     newState.context.currentSupplier = {
-      category: [nextCategory]
+      category: []
     };
+    newState.context.selectedCategories = [nextCategory]; // Start with the current category selected
     newState.context.currentProductIndex = undefined;
     
     actions.push({

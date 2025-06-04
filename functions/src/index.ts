@@ -8,7 +8,7 @@ import { validateTwilioWebhook } from "./utils/twilio";
 
 // Initialize Firebase Admin only if not already initialized
 if (!admin.apps?.length) {
-  admin.initializeApp({ projectId: 'pivot-chatbot-fdfe0' });
+  admin.initializeApp();
 }
 
 const simulatorDoc = 'conversations_simulator'; //'conversations_simulator'; // Collection for simulator conversations
@@ -47,7 +47,6 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
 
     // Check if this is a simulator request from admin app
     const isSimulator = req.headers['x-simulator-api-key'] === ADMIN_API_KEY;
-    console.log('Received request:', {isSimulator, header: req.headers['x-simulator-api-key'], admin: ADMIN_API_KEY});
 
     // For regular Twilio requests, validate the webhook signature
     // Skip validation for simulator requests with valid API key

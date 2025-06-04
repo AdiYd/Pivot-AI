@@ -4,7 +4,7 @@ import { useState, useMemo, useRef, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+import { Badge, BadgeProps } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
@@ -43,6 +43,7 @@ import { Timestamp } from 'firebase/firestore';
 
 // Import the actual database
 import exampleDatabase from '@/schema/example';
+import { SupplierCategory } from '@/schema/types';
 
 // Interface for new restaurant form
 interface NewRestaurantForm {
@@ -56,6 +57,26 @@ interface NewRestaurantForm {
   contactRole: "Owner" | "Manager" | "Shift" | "Other";
   paymentProvider: "Stripe" | "Paylink";
 }
+
+declare type BadgeVariant =
+  | "default"
+  | "secondary"
+  | "destructive"
+  | "outline"
+  | "subtle"
+  | "success"
+  | "info"
+  | "warning"
+  | "error"
+  | "light"
+  | "dark"
+  | "gradient1"
+  | "gradient2"
+  | "gradient3"
+  | "gradient4"
+  | "gradient5"
+  | "gradient6"
+  | "gradient7";
 
 export default function RestaurantsPage() {
   const [data, setData] = useState(exampleDatabase);
@@ -1190,7 +1211,7 @@ export default function RestaurantsPage() {
                                 <Package className="w-5 h-5" />
                                 {supplier.name}
                               </div>
-                              <Badge variant="outline">{supplier.category}</Badge>
+                              {supplier.category.map((category: SupplierCategory, i: number) => <Badge key={i} variant={`gradient${i % 7}` as BadgeVariant}>{category}</Badge>)}
                             </CardTitle>
                           </CardHeader>
                           <CardContent>

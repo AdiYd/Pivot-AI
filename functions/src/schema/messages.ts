@@ -173,14 +173,18 @@ export const STATE_MESSAGES: Record<BotState, StateMessage> = {
     whatsappTemplate: {
       id: "TEMPLATE_SUPPLIER_CATEGORY",
       type: "list",
-      body: "🔍 *בחר קטגוריה לספק*\n\nבחר את הקטגוריה המתאימה לספק:\n\n" + formatCategoryList(),
-      options: Object.entries(BOT_CATEGORIES).map(([id, { name, emoji }]) => ({ 
-        name: `${emoji} ${name}`, 
-        id 
-      }))
+      body: "🔍 *בחר קטגוריות לספק*\n\nבחר את הקטגוריות המתאימות לספק (ניתן לבחור כמה פעמים):\n\nלסיום הבחירה, שלח 'סיום'",
+      options: [
+        ...Object.entries(BOT_CATEGORIES).map(([id, { name, emoji }]) => ({ 
+          name: `${emoji} ${name}`, 
+          id 
+        })),
+        { name: "סיום בחירה", id: "done" }
+      ]
     },
-    description: "Prompt to select supplier category from predefined list.",
-    validationMessage: "❌ אנא בחר קטגוריה תקינה מהרשימה."
+    description: "Prompt to select multiple supplier categories from predefined list.",
+    validationMessage: "❌ אנא בחר קטגוריה תקינה מהרשימה או שלח 'סיום'.",
+    validator: "selection"
   },
   
   "SUPPLIER_NAME": {
@@ -201,7 +205,7 @@ export const STATE_MESSAGES: Record<BotState, StateMessage> = {
     whatsappTemplate: {
       id: "TEMPLATE_DELIVERY_DAYS",
       type: "list",
-      body: "📅 *באילו ימים הספק מבצע משלוחים?*\n\nבחר את כל הימים הרלוונטיים (ניתן לבחור כמה פעמים):\n\n" + formatDaysList() + "\n\nלסיום הבחירה, שלח 'סיום'",
+      body: "📅 *באילו ימים הספק מבצע משלוחים?*\n\nבחר את כל הימים הרלוונטיים (ניתן לבחור כמה פעמים):\n\n" + "\n\nלסיום הבחירה, שלח 'סיום'",
       options: [
         { name: "ראשון", id: "0" },
         { name: "שני", id: "1" },

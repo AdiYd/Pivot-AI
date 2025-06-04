@@ -14,7 +14,7 @@ import {
 } from '../schema/types';
 
 if (!admin.apps?.length) {
-  admin.initializeApp({ projectId: 'pivot-chatbot-fdfe0' });
+  admin.initializeApp();
 }
 const firestore = admin.firestore();
 console.log(`[Firestore] Initialized Firestore with project ID: ${firestore.databaseId}`);
@@ -166,10 +166,6 @@ export async function createRestaurant(data: {
         provider: data.paymentMethod === "creditCard" ? "Stripe" : "Paylink",
         customerId: "",
         status: false
-      },
-      settings: {
-        timezone: "Asia/Jerusalem",
-        locale: "he-IL"
       },
       createdAt: FieldValue.serverTimestamp()
     };
