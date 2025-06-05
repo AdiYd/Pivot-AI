@@ -505,7 +505,7 @@ export default function OrdersPage() {
                   </div>
                 </td>
                 <td className="p-3">
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex flex-wrap gap-1 max-w-xs">
                     {order.supplierCategory.slice(0, 2).map(category => getCategoryBadge(category))}
                     {order.supplierCategory.length > 2 && (
                       <Badge variant="outline" className="text-xs">
@@ -519,8 +519,8 @@ export default function OrdersPage() {
                 </td>
                 <td className="p-3">
                   <div className="text-sm">
-                    <div className="font-medium">{order.totalItems} פריטים</div>
-                    <div className="text-muted-foreground">{order.totalProducts} מוצרים</div>
+                    <div className="font-medium text-center">{order.totalItems}</div>
+                    {/* <div className="text-muted-foreground">{order.totalProducts} מוצרים</div> */}
                   </div>
                 </td>
                 <td className="p-3">
@@ -538,12 +538,12 @@ export default function OrdersPage() {
                 </td>
                 <td className="p-3">
                   {order.hasShortages ? (
-                    <div className="flex items-center gap-1 text-red-600">
+                    <div className="flex items-center justify-center gap-1 text-red-600">
                       <AlertTriangle className="w-4 h-4" />
                       {/* <span className="text-sm">{order.shortages.length}</span> */}
                     </div>
                   ) : (
-                    <div className="flex items-center gap-1 text-green-600">
+                    <div className="flex items-center justify-center gap-1 text-green-600">
                       <CheckCircle className="w-4 h-4" />
                       {/* <span className="text-sm">תקין</span> */}
                     </div>
@@ -640,7 +640,7 @@ export default function OrdersPage() {
      
 
       {/* Enhanced Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-4 mb-6">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -693,7 +693,7 @@ export default function OrdersPage() {
           </CardContent>
         </Card>
         
-        <Card>
+        {/* <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <Package className="w-4 h-4" />
@@ -706,9 +706,9 @@ export default function OrdersPage() {
               ממוצע {stats.total > 0 ? Math.round(stats.totalItems / stats.total) : 0} להזמנה
             </p>
           </CardContent>
-        </Card>
+        </Card> */}
         
-        <Card>
+        {/* <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <AlertTriangle className="w-4 h-4" />
@@ -721,7 +721,7 @@ export default function OrdersPage() {
               {stats.shortageRate}% מההזמנות
             </p>
           </CardContent>
-        </Card>
+        </Card> */}
       </div>
 
       {/* {analyticSection} */}
@@ -761,7 +761,7 @@ export default function OrdersPage() {
             className="pr-10"
           />
         </div>
-        {/* <div className="flex items-center max-sm:flex-row-reverse gap-2">
+        <div className="flex items-center max-sm:flex-row-reverse gap-2">
           <Filter className="w-4 h-4 text-muted-foreground" />
           <Select value={selectedStatus} onValueChange={setSelectedStatus}>
             <SelectTrigger className="w-40">
@@ -774,8 +774,8 @@ export default function OrdersPage() {
               <SelectItem value="delivered">נמסר</SelectItem>
             </SelectContent>
           </Select>
-        </div> */}
-        <Select value={selectedRestaurant} onValueChange={setSelectedRestaurant}>
+        </div>
+        {/* <Select value={selectedRestaurant} onValueChange={setSelectedRestaurant}>
           <SelectTrigger className="w-48">
             <SelectValue placeholder="כל המסעדות" />
           </SelectTrigger>
@@ -785,7 +785,7 @@ export default function OrdersPage() {
               <SelectItem key={id} value={id}>{restaurant.name}</SelectItem>
             ))}
           </SelectContent>
-        </Select>
+        </Select> */}
         <Select value={selectedCategory} onValueChange={setSelectedCategory}>
           <SelectTrigger className="w-40">
             <SelectValue placeholder="כל הקטגוריות" />
@@ -798,7 +798,7 @@ export default function OrdersPage() {
           </SelectContent>
         </Select>
         <div className="flex items-center max-sm:flex-row-reverse gap-2">
-          <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
+          {/* <ArrowUpDown className="w-4 h-4 text-muted-foreground" /> */}
           <Select 
             value={`${sortBy}-${sortOrder}`}
             onValueChange={(value) => {
@@ -811,10 +811,10 @@ export default function OrdersPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="date-desc">תאריך (חדש→ישן)</SelectItem>
-              <SelectItem value="date-asc">תאריך (ישן→חדש)</SelectItem>
-              <SelectItem value="restaurant-asc">מסעדה (א→ת)</SelectItem>
-              <SelectItem value="restaurant-desc">מסעדה (ת→א)</SelectItem>
+              <SelectItem value="date-desc">תאריך (חדש לישן)</SelectItem>
+              <SelectItem value="date-asc">תאריך (ישן לחדש)</SelectItem>
+              <SelectItem value="restaurant-asc">מסעדה (ת→א)</SelectItem>
+              <SelectItem value="restaurant-desc">מסעדה (א→ת)</SelectItem>
               <SelectItem value="status-asc">סטטוס</SelectItem>
             </SelectContent>
           </Select>

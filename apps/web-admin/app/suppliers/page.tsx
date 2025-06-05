@@ -310,12 +310,12 @@ export default function SuppliersPage() {
             <tr className="border-b">
               <th className="text-right p-3 font-medium text-sm">שם הספק</th>
               <th className="text-right p-3 font-medium text-sm">מסעדה</th>
-              <th className="text-right p-3 font-medium text-sm">WhatsApp</th>
+              <th className="text-right hidden p-3 font-medium text-sm">WhatsApp</th>
               <th className="text-right p-3 font-medium text-sm">קטגוריות</th>
               <th className="text-right p-3 font-medium text-sm">ימי משלוח</th>
-              <th className="text-right p-3 font-medium text-sm">שעת סגירה</th>
+              <th className="text-right hidden p-3 font-medium text-sm">שעת סגירה</th>
               <th className="text-right p-3 font-medium text-sm">מוצרים</th>
-              <th className="text-right p-3 font-medium text-sm">דירוג</th>
+              <th className="text-right hidden p-3 font-medium text-sm">דירוג</th>
               <th className="text-right p-3 font-medium text-sm">הזמנות</th>
               <th className="text-right p-3 font-medium text-sm">פעולות</th>
             </tr>
@@ -335,14 +335,14 @@ export default function SuppliersPage() {
                     <span>{supplier.restaurantName}</span>
                   </div>
                 </td>
-                <td className="p-3">
+                <td className="p-3 hidden">
                   <div className="flex items-center gap-2">
                     {/* <Phone className="w-4 h-4 text-muted-foreground" /> */}
                     <span className="text-sm">{supplier.whatsapp}</span>
                   </div>
                 </td>
                 <td className="p-3">
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex flex-wrap gap-1 max-w-xs">
                     {supplier.category.slice(0, 2).map(category => getCategoryBadge(category))}
                     {supplier.category.length > 2 && (
                       <Badge variant="outline" className="text-xs">
@@ -359,28 +359,28 @@ export default function SuppliersPage() {
                     )}
                   </div>
                 </td>
-                <td className="p-3">
-                  <div className="flex items-center gap-1">
-                    <Clock className="w-4 h-4 text-muted-foreground" />
+                <td className="p-3 hidden">
+                  <div className="flex items-center justify-center gap-1">
+                    {/* <Clock className="w-4 h-4 text-muted-foreground" /> */}
                     <span className="text-sm">{supplier.cutoffHour}:00</span>
                   </div>
                 </td>
                 <td className="p-3">
-                  <div className="flex items-center gap-1">
                     {/* <Package className="w-4 h-4 text-muted-foreground" /> */}
-                    <span className="text-sm font-medium">{supplier.productCount}</span>
-                  </div>
+                    <span className="text-sm mr-3 font-medium">{supplier.productCount}</span>
                 </td>
-                <td className="p-3">
+                <td className="p-3 hidden">
                   <div className="flex items-center gap-1">
                     {getRatingStars(supplier.rating || 0).slice(0, 1)}
                     <span className="text-sm">{supplier.rating || 0}</span>
                   </div>
                 </td>
-                <td className="p-3">
-                  <Badge variant="default" className="text-xs">
+                <td className="p-3 ">
+                  <div className='mr-3'>
                     {supplier.recentOrdersCount}
-                  </Badge>
+                  </div>
+                  {/* <Badge variant="default" className="text-xs">
+                  </Badge> */}
                 </td>
                 <td className="p-3">
                   <div className="flex gap-2">
