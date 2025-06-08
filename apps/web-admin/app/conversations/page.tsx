@@ -501,7 +501,7 @@ export default function ConversationsPage() {
   <DialogContent className="max-w-6xl max-h-[85vh] gap-0 overflow-hidden p-0">
   {selectedConversation && (
   <>
-  <DialogHeader className="p-6 pb-4 sticky* absolute w-full top-0 bg-background/60 backdrop-blur-md z-10 border-b">
+  <DialogHeader className="p-4 pb-4 sticky* absolute w-full top-0 bg-background/60 backdrop-blur-md z-10 border-b">
   <div className="flex items-center justify-between">
   <div className='flex gap-4 items-center max-sm:flex-col max-sm:gap-1'>
     <DialogTitle className="flex items-center gap-2">
@@ -517,7 +517,7 @@ export default function ConversationsPage() {
   <Button
   variant="ghost"
   size="sm"
-  className="absolute top-4 left-4 h-8 w-8 p-0 bg-gray-50 hover:bg-gray-100 dark:bg-gray-900 dark:hover:bg-gray-800 rounded-md"
+  className="absolute top-2 left-4 h-8 w-8 p-0 bg-gray-50 hover:bg-gray-100 dark:bg-gray-900 dark:hover:bg-gray-800 rounded-md"
   onClick={() => setIsDialogOpen(false)}
   >
   <X className="w-4 h-4" />

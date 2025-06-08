@@ -53,7 +53,7 @@ interface SimulatorSession {
 
 // Configuration
 const FUNCTION_URL = process.env.NODE_ENV === 'development' 
-  ? 'https://5a7b-2a0d-6fc2-60e0-c200-d58b-4381-8350-686a.ngrok-free.app/pivot-chatbot-fdfe0/us-central1/whatsappWebhook'
+  ? 'http://localhost:5001/pivot-chatbot-fdfe0/us-central1/whatsappWebhook'
   : 'https://us-central1-pivot-chatbot-fdfe0.cloudfunctions.net/whatsappWebhook';
 
 const SIMULATOR_API_KEY = process.env.NEXT_PUBLIC_SIMULATOR_API_KEY;
