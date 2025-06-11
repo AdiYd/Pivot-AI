@@ -451,7 +451,7 @@ export default function SimulatorPage() {
                     <Icon icon="mingcute:ai-fill" width="24" height="24" className='text-white' />
                   </div>
                   <div className="flex gap-2">
-                    <CardTitle className="text-base max-sm:hidden">Pivot</CardTitle>
+                    <CardTitle className="text-base max-sm:hidden">P-vot</CardTitle>
                     <p className="text-sm text-muted-foreground">
                       {session.conversationState && `${session.phoneNumber} • `}
                       { session.conversationState?.currentState &&  <Badge 

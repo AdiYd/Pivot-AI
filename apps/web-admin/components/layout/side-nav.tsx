@@ -131,13 +131,13 @@ export function SideNav() {
           "hidden lg:block h-screen border-l z-30 relative",
         )}
       >
-        <div className="flex flex-col h-full bg-zinc-200/20 dark:bg-zinc-800/20 backdrop-blur-sm">
+        <div className="flex flex-col h-full bg-zinc-200/50 dark:bg-zinc-800/50 backdrop-blur-xl">
           {/* Logo area */}
           <div className={cn(
             "h-16 flex items-center border-b px-2",
             isCollapsed ? "justify-center" : "justify-between px-6"
           )}>
-            {!isCollapsed && <h1 className="text-lg font-semibold truncate">Pivot</h1>}
+            {!isCollapsed && <h1 className="text-lg font-semibold truncate">P-vot</h1>}
             <div className="flex items-center gap-2">
               {!isCollapsed && <ThemeToggle />}
               <Button variant="ghost" size="icon" onClick={toggleCollapse} className="flex-shrink-0">
@@ -211,7 +211,7 @@ export function SideNav() {
           
           {/* User & Logout */}
           <div className={cn(
-            "border-t",
+            "border-t border-zinc-400/40",
             isCollapsed ? "p-2 mx-auto" : "p-4"
           )}>
             {isCollapsed ? (
@@ -262,7 +262,7 @@ export function SideNav() {
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="h-16 flex items-center justify-between px-6 border-b">
-            <h1 className="text-lg font-semibold">Pivot</h1>
+            <h1 className="text-lg font-semibold">P-vot</h1>
             <ThemeToggle />
           </div>
           
