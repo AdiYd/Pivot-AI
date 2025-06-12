@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { BotAction } from '../schema/types';
 import { sendWhatsAppMessage } from '../utils/twilio';
 import { createRestaurant, updateSupplier, logMessage, updateProduct } from '../utils/firestore';
+import { ProductSchema, RestaurantSchema, SupplierSchema } from 'src/schema/schemas';
 
 // Zod schemas for payload validation
 const SendMessagePayloadSchema = z.object({
@@ -16,46 +17,6 @@ const SendMessagePayloadSchema = z.object({
   }).optional(),
 });
 
-// Updated schema to match the extended restaurant data structure
-const CreateRestaurantPayloadSchema = z.object({
-  restaurantId: z.string().min(1),
-  companyName: z.string().min(2),
-  legalId: z.string().regex(/^\d{9}$/),
-  name: z.string().min(2),
-  yearsActive: z.number().min(0).max(100),
-  contactName: z.string().min(2),
-  contactRole: z.string(),
-  contactEmail: z.string().optional(),
-  paymentMethod: z.string(),
-  phone: z.string().min(10)
-});
-
-// Updated schema to match the Supplier interface
-const UpdateSupplierPayloadSchema = z.object({
-  restaurantId: z.string().min(1),
-  name: z.string().min(2),
-  whatsapp: z.string().min(10),
-  role: z.enum(["Supplier"]).default("Supplier"),
-  deliveryDays: z.array(z.number().min(0).max(6)),
-  cutoffHour: z.number().min(0).max(23),
-  category: z.union([z.array(z.string()), z.string()]).transform(val => 
-    Array.isArray(val) ? val : [val]
-  ),
-  rating: z.number().min(0).max(5).optional(), // Changed from min(1) to min(0) to allow unrated suppliers
-});
-
-// Add schema for product updates
-const UpdateProductPayloadSchema = z.object({
-  restaurantId: z.string().min(1),
-  supplierId: z.string().min(10),
-  id: z.string().optional(),
-  name: z.string().min(2),
-  category: z.string().default("general"),
-  emoji: z.string().optional().default("📦"),
-  unit: z.string(),
-  parMidweek: z.number().min(0).default(0),
-  parWeekend: z.number().min(0).default(0)
-});
 
 /**
  * Process all bot actions sequentially
@@ -112,7 +73,7 @@ export async function processActions(
 
         case "CREATE_RESTAURANT":
           try {
-            const validPayload = CreateRestaurantPayloadSchema.parse(action.payload);
+            const validPayload = RestaurantSchema.parse(action.payload);
             await createRestaurant(validPayload, isSimulator);
           } catch (validationError) {
             if (validationError instanceof z.ZodError) {
@@ -125,7 +86,7 @@ export async function processActions(
 
         case "UPDATE_SUPPLIER":
           try {
-            const validPayload = UpdateSupplierPayloadSchema.parse(action.payload);
+            const validPayload = SupplierSchema.parse(action.payload);
             await updateSupplier(validPayload, isSimulator);
           } catch (validationError) {
             if (validationError instanceof z.ZodError) {
@@ -137,13 +98,12 @@ export async function processActions(
 
         case "UPDATE_PRODUCT":
           try {
-            const validPayload = UpdateProductPayloadSchema.parse(action.payload);
+            const validPayload = ProductSchema.parse(action.payload);
             
-            // Extract restaurantId and supplierId from the payload
-            const { restaurantId, supplierId, ...productData } = validPayload;
+
             
             // Call the Firestore utility to update/create the product
-            await updateProduct(restaurantId, supplierId, productData);
+            await updateProduct(action.payload.restaurantId, action.payload.supplierId, validPayload);
           } catch (validationError) {
             if (validationError instanceof z.ZodError) {
               throw new Error(`Invalid UPDATE_PRODUCT payload: ${validationError.errors.map(e => e.message).join(', ')}`);

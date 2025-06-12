@@ -1,5 +1,6 @@
 import { Timestamp } from 'firebase-admin/firestore';
-
+import { ConversationSchema, OrderSchema, ProductSchema, RestaurantSchema, SupplierSchema } from './schemas';
+import { z } from 'zod';
 // Represents a contact person for a restaurant or supplier
 export interface Contact {
   whatsapp: string;  // This is also the document ID in Firestore
@@ -131,7 +132,6 @@ export type BotState =
   | "ONBOARDING_COMPANY_NAME"         // Onboarding states for new restaurants - Company name collection
   | "ONBOARDING_LEGAL_ID"            // Legal ID collection
   | "ONBOARDING_RESTAURANT_NAME"    // Restaurant name collection
-  | "ONBOARDING_YEARS_ACTIVE"      // Years active collection
   | "ONBOARDING_CONTACT_NAME"     // Contact (owner) name collection
   | "ONBOARDING_CONTACT_EMAIL"   // Contact email collection (Role defaults to "Owner")
   | "ONBOARDING_PAYMENT_METHOD" // Showing Payment Link
@@ -238,5 +238,22 @@ export interface StateMessage {
   validationMessage?: string;
   
   // Type of validation to perform (if any)
-  validator?: "text" | "number" | "email" | "phone" | "yesNo" | "selection" | "days" | "time" | "photo" | "legalId" | "activeYears" | "skip";
+  validator?: z.ZodTypeAny;
+
+  // Use ai for validation
+  aiValidation?: {
+    prompt?: string; // The prompt to send to the AI for validation
+    schema?: z.ZodTypeAny; // If provided, use this schema to validate the response
+  }
+
+  // The schema to validate the response against
 }
+
+
+// ==== TYPE EXPORTS ====
+
+export type RestaurantData = z.infer<typeof RestaurantSchema>;
+export type SupplierData = z.infer<typeof SupplierSchema>;
+export type ProductData = z.infer<typeof ProductSchema>;
+export type OrderData = z.infer<typeof OrderSchema>;
+export type ConversationData = z.infer<typeof ConversationSchema>;

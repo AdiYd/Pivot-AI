@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import * as admin from 'firebase-admin';
+import {SupplierSchema, ProductSchema, OrderSchema, InventorySnapshotSchema} from '../schema/schemas';
+import { ConversationData, SupplierData, ProductData, OrderData, InventorySnapshotData, RestaurantData } from '../schema/types';
 import { FieldValue, DocumentReference, Query, CollectionReference } from 'firebase-admin/firestore';
 import {
   Restaurant,
@@ -13,6 +15,7 @@ import {
   InventorySnapshot
 } from '../schema/types';
 
+
 if (!admin.apps?.length) {
   admin.initializeApp();
 }
@@ -24,103 +27,6 @@ function getCollectionName(baseName: string, isSimulator: boolean = false): stri
   return isSimulator ? `${baseName}_simulator` : baseName;
 }
 
-// ==== ZOD SCHEMAS FOR DATA VALIDATION ====
-
-// Contact schema used in multiple places
-const ContactSchema = z.object({
-  whatsapp: z.string().min(10),
-  name: z.string().min(2),
-  role: z.enum(["Owner", "Manager", "Shift", "Other", "Supplier"]),
-  email: z.string().email().optional()
-});
-
-// Payment metadata schema
-const PaymentMetaSchema = z.object({
-  provider: z.enum(["Stripe", "Paylink"]),
-  customerId: z.string().default(""),
-  status: z.boolean()
-});
-
-// Restaurant schema for validation
-const RestaurantSchema = z.object({
-  legalId: z.string().regex(/^\d{9}$/),
-  businessName: z.string().min(2),
-  name: z.string().min(2),
-  primaryContact: ContactSchema,
-  yearsActive: z.number().min(0).max(100),
-  payment: PaymentMetaSchema,
-  isActivated: z.boolean().default(false),
-  createdAt: z.any().optional() // Will be replaced with serverTimestamp
-});
-
-// Updated Supplier schema for validation to match the Supplier interface
-const SupplierSchema = z.object({
-  restaurantId: z.string().min(1), // Parent restaurant ID
-  name: z.string().min(2),
-  whatsapp: z.string().min(10),
-  role: z.enum(["Supplier"]).default("Supplier"),
-  category: z.array(z.string()).min(1).default(["general"]),
-  deliveryDays: z.array(z.number().min(0).max(6)),
-  cutoffHour: z.number().min(0).max(23),
-  rating: z.number().min(0).max(5).optional(),
-  createdAt: z.any().optional() // Will be replaced with serverTimestamp
-});
-
-// Updated Product schema for validation to match the Product interface
-const ProductSchema = z.object({
-  id: z.string().optional(), // Generated if not provided
-  supplierId: z.string().min(10).optional(), // Will be set from parent supplier
-  category: z.string().default("general"),
-  name: z.string().min(2),
-  emoji: z.string().default("📦").optional(),
-  unit: z.string(), // Allow any string as ProductUnit is a string type
-  parMidweek: z.number().min(0).default(0),
-  parWeekend: z.number().min(0).default(0),
-  createdAt: z.any().optional() // Will be replaced with serverTimestamp
-});
-
-// Order schema for validation
-const OrderSchema = z.object({
-  supplierId: z.string(),
-  status: z.enum(["pending", "sent", "delivered"]),
-  items: z.array(z.object({
-    productId: z.string(),
-    qty: z.number().min(0)
-  })),
-  shortages: z.array(z.object({
-    productId: z.string(),
-    qty: z.number().min(0),
-    received: z.number().min(0)
-  })).optional().default([]),
-  midweek: z.boolean(),
-  invoiceUrl: z.string().url().optional()
-});
-
-// Inventory snapshot schema for validation
-const InventorySnapshotSchema = z.object({
-  supplierId: z.string(),
-  lines: z.array(z.object({
-    productId: z.string(),
-    currentQty: z.number().min(0)
-  }))
-});
-
-// Conversation state schema
-const ConversationStateSchema = z.object({
-  restaurantId: z.string(),
-  currentState: z.string(),
-  context: z.record(z.any()),
-  lastMessageTimestamp: z.any().optional() // Will be replaced with serverTimestamp
-});
-
-// ==== TYPE EXPORTS ====
-
-export type RestaurantData = z.infer<typeof RestaurantSchema>;
-export type SupplierData = z.infer<typeof SupplierSchema>;
-export type ProductData = z.infer<typeof ProductSchema>;
-export type OrderData = z.infer<typeof OrderSchema>;
-export type InventorySnapshotData = z.infer<typeof InventorySnapshotSchema>;
-export type ConversationData = z.infer<typeof ConversationStateSchema>;
 
 // ==== RESTAURANT OPERATIONS ====
 
@@ -130,42 +36,29 @@ export type ConversationData = z.infer<typeof ConversationStateSchema>;
  * @param isSimulator Whether to use simulator collections
  * @returns The ID of the created restaurant
  */
-export async function createRestaurant(data: {
-  restaurantId: string;
-  companyName: string;
-  legalId: string;
-  name: string;
-  yearsActive: number;
-  contactName: string;
-  contactRole: string;
-  contactEmail?: string;
-  paymentMethod: string;
-  phone: string;
-}, isSimulator: boolean = false): Promise<string> {
+export async function createRestaurant(data: RestaurantData, isSimulator: boolean = false): Promise<string> {
   console.log(`[Firestore] Creating restaurant${isSimulator ? ' (simulator)' : ''}:`, {
     legalId: data.legalId,
-    businessName: data.companyName,
+    legalName: data.legalName,
     name: data.name
   });
 
   try {
     // Create the restaurant document
-    const restaurantDoc = {
+    const restaurantDoc: RestaurantData = {
       legalId: data.legalId,
-      businessName: data.companyName,
+      legalName: data.legalName,
       name: data.name,
-      yearsActive: data.yearsActive,
       isActivated: false,
-      primaryContact: {
-        whatsapp: data.phone,
-        name: data.contactName,
-        role: data.contactRole,
-        email: data.contactEmail || ""
+      primaryContact: data.primaryContact ||{
+        whatsapp: "",
+        name: "",
+        role: "",
+        email: ""
       },
-      payment: {
-        provider: data.paymentMethod === "creditCard" ? "Stripe" : "Paylink",
-        customerId: "",
-        status: false
+      payment:  {
+        provider: "Stripe",
+        status: false,
       },
       createdAt: FieldValue.serverTimestamp()
     };
@@ -411,7 +304,8 @@ export async function getSupplier(restaurantId: string, supplierId: string): Pro
 export async function updateProduct(
   restaurantId: string,
   supplierId: string,
-  productData: ProductData
+  productData: ProductData,
+  isSimulator: boolean = false
 ): Promise<string> {
   try {
     // Generate a product ID if not provided
@@ -432,7 +326,7 @@ export async function updateProduct(
     
     // Get reference to the products subcollection
     const productRef = firestore
-      .collection('restaurants')
+      .collection(getCollectionName('restaurants', isSimulator))
       .doc(restaurantId)
       .collection('suppliers')
       .doc(supplierId)
@@ -441,8 +335,8 @@ export async function updateProduct(
     
     // Check if product already exists to handle updates properly
     const existingProduct = await productRef.get();
-    
-    const productDoc = {
+
+    const productDoc: ProductData = {
       id: productId,
       supplierId: supplierId,
       category: validProduct.category || "general",

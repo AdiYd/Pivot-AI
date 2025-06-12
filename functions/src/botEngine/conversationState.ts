@@ -757,9 +757,10 @@ export function conversationStateReducer(
                   to: message.from,
                   body: interpolateMessage(STATE_MESSAGES["PRODUCT_QTY"].message || "", 
                                            { 
+                                             ...newState.context,
                                              productName: selectedProduct.name,
                                              emoji: selectedProduct.emoji,
-                                             unit: selectedProduct.unit
+                                             unit: selectedProduct.unit,
                                            })
                 }
               });
@@ -818,9 +819,10 @@ export function conversationStateReducer(
             to: message.from,
             body: interpolateMessage(STATE_MESSAGES["PRODUCT_QTY"].message || "", 
                                      { 
+                                       ...newState.context,
                                        productName: product.name,
                                        emoji: product.emoji,
-                                       unit: product.unit
+                                       unit: product.unit,
                                      })
           }
         });
@@ -847,9 +849,11 @@ export function conversationStateReducer(
             to: message.from,
             body: interpolateMessage(STATE_MESSAGES["PRODUCT_PAR_MIDWEEK"].message || "", 
                                      { 
+                                      ...newState.context,
                                        productName: qtyProduct.name,
                                        emoji: qtyProduct.emoji,
-                                       unit: qtyProduct.unit
+                                       unit: qtyProduct.unit,
+
                                      })
           }
         });
@@ -876,6 +880,7 @@ export function conversationStateReducer(
             to: message.from,
             body: interpolateMessage(STATE_MESSAGES["PRODUCT_PAR_WEEKEND"].message || "", 
                                      { 
+                                        ...newState.context,
                                        productName: midweekProduct.name,
                                        emoji: midweekProduct.emoji,
                                        unit: midweekProduct.unit
@@ -1024,6 +1029,7 @@ export function conversationStateReducer(
                 to: message.from,
                 body: interpolateMessage(STATE_MESSAGES["INVENTORY_SNAPSHOT_PRODUCT"].message || "",
                                        {
+                                         ...newState.context,
                                          categoryName: BOT_CATEGORIES[categoryId].name,
                                          productList: formatProductList(newState.context.currentCategoryProducts)
                                        })
@@ -1076,6 +1082,7 @@ export function conversationStateReducer(
               to: message.from,
               body: interpolateMessage(STATE_MESSAGES["INVENTORY_SNAPSHOT_QTY"].message || "",
                                      {
+                                        ...newState.context,
                                        productName: selectedProduct.name,
                                        emoji: selectedProduct.emoji || "📦",
                                        unit: selectedProduct.unit
@@ -1356,6 +1363,7 @@ function handleIdleCommands(
       payload: {
         to: phoneNumber,
         body: interpolateMessage(SYSTEM_MESSAGES.welcome, {
+          ...newState.context,
           contactName: newState.context.contactName || "משתמש"
         })
       }
@@ -1369,7 +1377,8 @@ function handleIdleCommands(
  */
 function interpolateMessage(template: string, context: Record<string, any>): string {
   let result = template;
-  
+
+  if (!context || typeof context !== 'object') return result; // Return as is if context is not valid
   // Replace placeholders with context values
   Object.entries(context).forEach(([key, value]) => {
     if (value !== undefined) {
@@ -1385,7 +1394,7 @@ function interpolateMessage(template: string, context: Record<string, any>): str
  */
 function getDayName(day: number): string {
   const days = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
-  return days[day] || "";
+  return days[day] || day.toString();
 }
 
 /**

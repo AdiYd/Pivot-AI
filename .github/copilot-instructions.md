@@ -76,7 +76,7 @@ Copilot: keep this context in memory when suggesting code.
  *
  * /restaurants (collection)
  *   {restaurantId} (doc)      // Use legalId as restaurantId
- *     ├─ businessName: string
+ *     ├─ legalName: string
  *     ├─ legalId: string
  *     ├─ name: string
  *     ├─ yearsActive: number
