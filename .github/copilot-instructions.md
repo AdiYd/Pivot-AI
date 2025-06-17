@@ -74,289 +74,110 @@ Copilot: keep this context in memory when suggesting code.
 /**
  * Firestore Data Model
  *
+ Organized into 3 main collections: restaurants, orders, and conversations
+ *
  * /restaurants (collection)
- *   {restaurantId} (doc)      // Use legalId as restaurantId
- *     ├─ legalName: string
- *     ├─ legalId: string
- *     ├─ name: string
- *     ├─ yearsActive: number
- *     ├─ isActivated: boolean
- *     ├─ primaryContact: Contact          // {whatsapp, name, role, email?}
- *     ├─ payment: PaymentMeta            // {provider, customerId, status (boolean)}
- *     └─createdAt: Timestamp
- * 
- *   /suppliers (sub-collection)
- *     {supplierWhatsapp} (doc)
- *       ├─ name: string
- *       ├─ whatsapp: string
- *       ├─ role: "Supplier"
- *       ├─ restaurantId: string         // ref→ /restaurants/{id}
- *       ├─ category: SupplierCategory[]  // Array of categories (e.g ["vegetables", "fruits"])
- *       ├─ deliveryDays: number[]       // Array of delivery days (e.g 1=Monday, 2=Tuesday, etc.)
- *       ├─ cutoffHour: number          // 0–23 local
- *       ├─ rating?: Rating             // 1–5
- *       └─ createdAt: Timestamp
+ *   {restaurantId} (doc)               // Use legalId as restaurantId
+ *     ├─ legalId: string              // 9-digit legal ID
+ *     ├─ legalName: string           // Legal business name
+ *     ├─ name: string               // Restaurant name (customer-facing)
+ *     ├─ contacts: Contact[]       // Array of contacts items, including primary contact ({whatsapp, name, role, email})
+ *     ├─ isActivated: boolean     // Whether the restaurant is activated for service
+ *     ├─ payment: PaymentMeta    // {provider, status (boolean)}
+ *     ├─ orders: string[]       // Array of order IDs
+ *     ├─ createdAt: Timestamp
+ *     └─ updatedAt: Timestamp
  *
- *     /products (sub-collection)
- *       {productId} (doc)
- *         ├─ id: string                   // Same as document ID
- *         ├─ supplierId: string          // ref→ /restaurants/{r}/suppliers/{s}
- *         ├─ category: SupplierCategory  // Category of the product
+ *     /suppliers (sub-collection)
+ *       {supplierWhatsapp} (doc)              // Use WhatsApp number as ID
+ *         ├─ whatsapp: string                // WhatsApp number (matches document ID)
  *         ├─ name: string
- *         ├─ emoji?: string
- *         ├─ unit: ProductUnit
- *         ├─ parMidweek: number
- *         ├─ parWeekend: number
- *         └─ createdAt: Timestamp
+ *         ├─ role: "supplier"              // Always "supplier"
+ *         ├─ email: string (optional)
+ *         ├─ category: string[]          // Array of supplier categories
+ *         ├─ reminders: Reminder[]      // Array of reminders e.g. [{ day: "sun", time: "20:00" }]
+ *         ├─ rating: number            // 0-5
+ *         ├─ createdAt: Timestamp
+ *         └─ updatedAt: Timestamp
  *
- *   /orders (sub-collection)
- *     {orderId} (doc)
- *       ├─ id: string                   // Same as document ID
- *       ├─ supplierId: string          // ref→ /restaurants/{r}/suppliers/{id}
- *       ├─ status: "pending"|"sent"|"delivered"
- *       ├─ midweek: boolean
- *       ├─ items: ItemLine[]           // Array of {productId, qty}
- *       ├─ shortages: ItemShortage[]   // Array of {productId, qty, received}
- *       ├─ createdAt: Timestamp
- *       ├─ sentAt?: Timestamp
- *       ├─ receivedAt?: Timestamp
- *       └─ invoiceUrl?: string
+ *         /products (sub-collection)
+ *           {productId} (doc)
+ *             ├─ name: string
+ *             ├─ unit: string                // "kg", "pcs", etc.
+ *             ├─ emoji: string              // Emoji representation
+ *             ├─ parMidweek: number        // Par stock level for midweek
+ *             ├─ parWeekend: number       // Par stock level for weekend
+ *             ├─ createdAt: Timestamp
+ *             └─ updatedAt: Timestamp
  *
- *   /inventorySnapshots (sub-collection)
- *     {snapshotId} (doc)
- *       ├─ id: string                 // Same as document ID
- *       ├─ supplierId: string        // ref→ /restaurants/{r}/suppliers/{id}
- *       ├─ lines: StockLine[]       // Array of {productId, currentQty}
- *       └─ createdAt: Timestamp
- *
+ * /orders (collection)
+ *   {orderId} (doc)
+ *     ├─ id: string                   // Order ID (matches document ID)
+ *     ├─ restaurant: {               // Restaurant details
+ *     │    legalId: string,
+ *     │    name: string,
+ *     │    contact: {
+ *     │      whatsapp: string,
+ *     │      name: string,
+ *     │      email: string (optional)
+ *     │    }
+ *     │ }
+ *     ├─ supplier: {                 // Supplier details
+ *     │    whatsapp: string,
+ *     │    name: string,
+ *     │    email: string (optional)
+ *     │ }
+ *     ├─ category: string[]            // Supplier category for this order
+ *     ├─ status: string               // "pending", "confirmed", "sent", "delivered", "cancelled"
+ *     ├─ midweek: boolean            // Whether this is a midweek order or weekend order
+ *     ├─ items: [                   // Array of ordered products
+ *     │    {
+ *     │      name: string,
+ *     │      unit: string,
+ *     │      emoji: string,
+ *     │      qty: number
+ *     │    },
+ *     │    // ...
+ *     │ ]
+ *     ├─ shortages: [                // Array of product shortages
+ *     │    {
+ *     │      name: string,
+ *     │      unit: string,
+ *     │      emoji: string,
+ *     │      requestedQty: number,
+ *     │      deliveredQty: number
+ *     │    },
+ *     │    // ...
+ *     │ ]
+ *     ├─ restaurantNotes: string (optional)
+ *     ├─ supplierNotes: string (optional)
+ *     ├─ createdAt: Timestamp
+ *     ├─ updatedAt: Timestamp
+ *     ├─ deliveredAt: Timestamp (optional)
+ *     └─ invoiceUrl: string (optional)
+ * 
  * /conversations (collection)
- *   {phone} (doc)
- *     ├─ currentState: BotState          // Current state of the conversation
- *     ├─ context: ConversationContext   // Complex object with partial fields from various types
- *     ├─ lastMessageTimestamp: Timestamp
- *
- *   /messages (sub-collection)
- *     {messageId} (doc)
- *       ├─ body: string
- *       ├─ direction: "incoming"|"outgoing"
- *       ├─ currentState: BotState     // State when the message was sent
- *       └─ createdAt: Timestamp
+ *   {phoneNumber} (doc)       // WhatsApp number as the document ID
+ *     ├─ currentState: string  // Current state of the bot conversation
+ *     ├─ context: object       // Contextual data for the conversation 
+ *     ├─ restaurantId: string (optional) // Reference to associated restaurant
+ *     ├─ role: string (optional) // Role of the contact in conversation
+ *     ├─ createdAt: Timestamp
+ *     └─ updatedAt: Timestamp
+ *     
+ *     /messages (sub-collection)
+ *       {messageId} (doc)
+ *         ├─ role: string      // "user" or "assistant"
+ *         ├─ body: string      // Message content
+ *         ├─ templateId: string (optional) // WhatsApp template ID
+ *         ├─ hasTemplate: boolean // Whether the message uses a template
+ *         ├─ mediaUrl: string (optional) // URL for attached media
+ *         ├─ messageState: string // State when message was sent
+ *         └─ createdAt: Timestamp
  */
 
 
-```typescript
-import { Timestamp } from 'firebase-admin/firestore';
 
-// Represents a contact person for a restaurant or supplier
-export interface Contact {
-  whatsapp: string;  // This is also the document ID in Firestore
-  name: string;
-  role: "Owner" | "Manager" | "Shift" | "Other" | "Supplier";
-  email?: string;
-}
-
-// Represents payment metadata for a restaurant - will be updated to true after payment by external API calls
-export interface PaymentMeta {
-  provider: "Stripe" | "Paylink";
-  customerId: string;
-  status: boolean; // true if payment is confirmed
-}
-
-// Represents a restaurant document with its details and primary contact
-export interface Restaurant {
-  legalId: string;                          // This is also the document ID in Firestore
-  businessName: string;                    // The legal business name of the restaurant
-  name: string;                           // The name of the restaurant (can be different from businessName)
-  primaryContact: Contact;               // The primary contact person for the restaurant
-  yearsActive: number;                  // Number of years the restaurant has been active
-  payment: PaymentMeta;                // Payment metadata for the restaurant
-  isActivated: boolean;               // true if the restaurant is activated and can use the bot
-  suppliers?: Supplier[];            // Array of supplier IDs (WhatsApp numbers) for the restaurant
-  inventory?: Inventory | null;     // Inventory details for the restaurant, can be null if not set up
-  orders?: Order[];                // Array of orders placed by the restaurant
-  createdAt: Timestamp;
-}
-
-
-export interface Inventory {
-  [category: SupplierCategory]: {
-    products: Product[];
-    supplier: Supplier;
-  };
-}
-
-// Represents a supplier with its details and products
-export interface Supplier extends Contact {
-  // The contact's WhatsApp number is used as the supplier ID in Firestore
-  restaurantId: string;             // ref→ /restaurants/{id}
-  category: SupplierCategory[];    // Array of Category of the supplier (e.g vegetables, fruits, etc.)
-  deliveryDays: number[];         // Array of delivery days (e.g 1=Monday, 2=Tuesday, etc.)
-  cutoffHour: number;            // 0–23 local
-  rating?: Rating;              // Rating of the supplier (1–5)
-  createdAt: Timestamp;
-}
-
-// Represents a rating for a supplier
-export type Rating = 1 | 2 | 3 | 4 | 5;
-
-// Represents a category for suppliers (can be extended with custom categories)
-export type SupplierCategory =
-  | "vegetables" | "fruits" | "fish" | "meat" | "alcohol" | "dairy"
-  | "oliveOil" | "disposables" | "dessert" | "juices" | "eggs" | string;
-
-// Represents a unit of measurement for products
-export type ProductUnit = "kg" | "pcs" | "l" | "bottle" | "box" | "pack" | string;
-
-// Represents a product supplied by a supplier (e.g tomatoes, ice-cream, salmon, etc.)
-export interface Product {
-  id: string;                             // This is also the product's document ID in Firestore
-  supplierId: Supplier["whatsapp"];      // ref→ /restaurants/{r}/suppliers/{s}
-  category: SupplierCategory;           // Category of the product (e.g vegetables, fruits, etc.)
-  name: string;                        // Name of the product (e.g tomatoes, ice-cream, salmon, etc.)
-  emoji?: string;                     // Emoji representing the product
-  unit: ProductUnit;                 // Unit of measurement for the product (e.g kg, pcs, etc.)
-  parMidweek: number;               // Par stock level for midweek (e.g 50 <unit> of tomatoes)
-  parWeekend: number;              // Par stock level for weekend (e.g 100 <unit> of tomatoes)
-  createdAt: Timestamp;
-}
-
-// Represents a line item in an order
-// Contains the product ID and quantity ordered
-export interface ItemLine {
-  productId: Product["id"];
-  qty: number;
-}
-
-// Represents a shortage of an item in an order
-// Contains the product ID, quantity ordered, and quantity received
-export interface ItemShortage extends ItemLine {
-  received: number;
-}
-
-// Stock line for inventory snapshots
-// Represents the current stock level of a product
-export interface StockLine {
-  productId: string; // ref→ /restaurants/{r}/suppliers/{s}/products/{id}
-  currentQty: number;
-}
-
-export interface Order {
-  id: string;
-  supplierId: string;  // ref→ /restaurants/{r}/suppliers/{id}
-  status: "pending" | "sent" | "delivered";
-  items: ItemLine[];
-  shortages: ItemShortage[];
-  midweek: boolean;
-  sentAt?: Timestamp;
-  receivedAt?: Timestamp;
-  invoiceUrl?: string;
-  createdAt: Timestamp;
-}
-
-export interface InventorySnapshot {
-  id: string;
-  supplierId: string;  // ref→ /restaurants/{r}/suppliers/{id}
-  lines: StockLine[];
-  createdAt: Timestamp;
-}
-
-// Conversation state types for the WhatsApp bot
-export interface ConversationState {
-  currentState: BotState; // Current state of the bot conversation
-  context: ConversationContext;  // Additional context for the conversation, to collect information and user input
-  lastMessageTimestamp: Timestamp;
-}
-
-export interface ConversationContext extends Partial<Contact & Restaurant & Supplier & Product & Order & InventorySnapshot & ItemLine & ItemShortage & StockLine & ConversationState & { [key: string]: any }> {}
-
-
-
-export type BotState =
-  | "INIT" // Initial state when the bot starts - Ask what the user wants to do (e.g "sign in new restaurant", "Ask a question")
-  
-  // Onboarding states for new restaurants - collecting necessary information
-  | "ONBOARDING_COMPANY_NAME"         // Onboarding states for new restaurants - Company name collection
-  | "ONBOARDING_LEGAL_ID"            // Legal ID collection
-  | "ONBOARDING_RESTAURANT_NAME"    // Restaurant name collection
-  | "ONBOARDING_YEARS_ACTIVE"      // Years active collection
-  | "ONBOARDING_CONTACT_NAME"     // Contact (owner) name collection
-  | "ONBOARDING_CONTACT_EMAIL"   // Contact email collection (Role defaults to "Owner")
-  | "ONBOARDING_PAYMENT_METHOD" // Showing Payment Link
-  | "WAITING_FOR_PAYMENT"      // Waiting for payment confirmation state - show until payment is confirmed
-  
-  // Setting up restaurant's base inventory
-  | "SETUP_SUPPLIERS_START"         
-    // Supplier details collection states  (Iterate here for each supplier within a restaurant)
-    | "SUPPLIER_CATEGORY"             // Supplier category collection (this is a multi-select and can be multiple categories)
-    | "SUPPLIER_NAME"                // Supplier name collection
-    | "SUPPLIER_WHATSAPP"           // Supplier WhatsApp collection
-    | "SUPPLIER_DELIVERY_DAYS"     // Supplier delivery days collection
-    | "SUPPLIER_CUTOFF_TIME"      // Supplier cutoff time collection
-      // Supplier products collection states (Iterative here for each product within a supplier)
-      | "PRODUCT_NAME"                  // Product name collection 
-      | "PRODUCT_UNIT"                 // Product unit collection
-      | "PRODUCT_QTY"                 // Product quantity collection
-      | "PRODUCT_PAR_MIDWEEK"        // Product par midweek collection
-      | "PRODUCT_PAR_WEEKEND"       // Product par weekend collection
- 
-  // Inventory snapshot states (snapshot of current stock levels and generating orders)
-  | "INVENTORY_SNAPSHOT_START"              // Starting inventory snapshot (Iterative for each supplier / category)
-  | "INVENTORY_SNAPSHOT_CATEGORY"          // Inventory snapshot category selection
-  | "INVENTORY_SNAPSHOT_PRODUCT"          // Inventory snapshot product selection
-  | "INVENTORY_SNAPSHOT_QTY"             // Inventory snapshot quantity collection
-  | "INVENTORY_CALCULATE_SNAPSHOT"      // Calculating inventory snapshot and showing results
-
-  // Order management states (creating and managing orders)
-  | "ORDER_SETUP_START"                     // Starting order process
-  | "ORDER_CONFIRMATION"                   // Order confirmation by the user
-  | "DELIVERY_START"                      // Starting delivery process
-  | "DELIVERY_CHECK_ITEM"                // Checking delivery items
-  | "DELIVERY_RECEIVED_AMOUNT"          // Confirming received delivery amount
-  | "DELIVERY_INVOICE_PHOTO"           // Requesting delivery invoice photo
-  | "IDLE";                   // Idle state when no conversation is active - suggest options like "Add or edit Supplier", "Add or edit Product", "Create order", etc.
-
-// Bot engine types
-export interface IncomingMessage {
-  from: Contact['whatsapp']; 
-  body: string;
-  mediaUrl?: string;
-}
-
-export interface BotAction {
-  type: "SEND_MESSAGE" | "CREATE_RESTAURANT" | "UPDATE_SUPPLIER" | "UPDATE_PRODUCT" | "CREATE_INVENTORY_SNAPSHOT" | "SEND_ORDER" | "LOG_DELIVERY";
-  payload: Record<string, any>;  // Additional data needed for the action
-}
-
-
-export interface StateTransition {
-  newState: ConversationState;
-  actions: BotAction[];
-}
-
-export interface BotConfig {
-  inventoryReminderInterval: number;          // Set the interval in hours for inventory reminders
-  orderCutoffReminderHours: number;          // Set the cutoff time in hours for order reminders (meaning the bot will remind the restaurant to place an order before this time)
-  supplierCategories: SupplierCategory[];   // List of supplier categories to be used in the bot
-  showPaymentLink: boolean;                // Whether to show the payment link during onboarding
-  paymentLink: string;                    // Payment link to be shown during onboarding (if showPaymentLink is true)
-  skipPaymentCoupon: string;             // Coupon code to skip payment during onboarding
-  paymentMethods: string[];             // List of payment methods to be used in the bot (e.g ["Stripe", "Paylink"])
-}
-
-// new Firestore‐doc shapes for conversations & messages
-export interface ConversationDoc {
-  currentState: BotState;
-  messages: MessageDoc[];
-  context: ConversationContext;
-  lastMessageTimestamp: Timestamp;
-}
-
-export interface MessageDoc {
-  body: string;
-  direction: "incoming" | "outgoing";
-  currentState: BotState;
-  createdAt: Timestamp;
-}
 ```
 
 ---
@@ -366,14 +187,8 @@ export interface MessageDoc {
 * **Webhook endpoint**: `https://{region}-{project}.cloudfunctions.net/whatsappWebhook`
 * Verify signature using `TWILIO_AUTH_TOKEN`.
 * Use **Twilio Conversations API** for 2‑way threads.
-* Register **message templates** for:
-
-  * `onboarding_payment_link`
-  * `inventory_reminder`
-  * `order_summary`
-  * `delivery_check`
 * Outgoing messages built via `twilioClient.messages.create`.
-* Media (invoice photos) → download URL → store in Firebase Storage.
+
 
 ---
 
@@ -403,20 +218,6 @@ Folder sketch:
 ## 8. Environment Variables
 
 ```
-# Firebase
-GOOGLE_CLOUD_PROJECT=
-FIREBASE_CONFIG=
-
-# Twilio
-TWILIO_ACCOUNT_SID=
-TWILIO_AUTH_TOKEN=
-TWILIO_WHATSAPP_NUMBER=
-
-# Stripe / Paylink
-PAYMENT_WEBHOOK_SECRET=
-```
-
----
 
 ## 9. Coding Guidelines
 

@@ -1,10 +1,12 @@
+import { FieldValue } from "firebase-admin/firestore";
 import { z } from "zod";
+import { BotState } from "./types";
 
 // ==== ZOD SCHEMAS FOR DATA VALIDATION and TYPE SAFETY ====
 
 // General schemas
 export const textSchema = z.string().min(2, "שדה זה אינו יכול להיות ריק וצריך להכיל לפחות 2 תווים");  // Generic text schema for non-empty strings
-export const timestampSchema = z.any().optional(); // Placeholder for server timestamp, will be replaced with serverTimestamp in Firestore
+export const timestampSchema = z.any().optional().default(FieldValue.serverTimestamp()); // Placeholder for server timestamp, will be replaced with serverTimestamp in Firestore
 export const daysSchema = z.enum(["sun", "mon", "tue", "wed", "thu", "fri", "sat"]); // Enum for days of the week, used for reminders and delivery days
 export const timeSchema = z.string().regex(/^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/, "שעה חייבת להיות בפורמט HH:MM, לדוגמה: 20:00"); // Regex for time in HH:MM format
 
@@ -24,7 +26,7 @@ export const contactRoleSchema = z.enum(["owner", "manager", "shift", "general",
 
 
 // Product types
-export const productUnitSchema = z.enum(["kg", "g", "l", "ml", "mg", "pcs", "box", "bag", "bottle", "can", "packet", "other"]).default("other");
+export const productUnitSchema = z.enum(["kg", "g", "l", "ml", "mg", "pcs", "box", "bag", "bottle", "can","pack", "packet", "other"]).default("other");
 export const productNameSchema = z.string().min(2, "שם המוצר חייב להיות באורך של לפחות 2 תווים");
 export const parSchema = z.number().gt(0, "כמות מינימלית חייבת להיות מעל 0");
 export const emojySchema = z.string().default("📦"); // Optional emoji for product representation
@@ -32,7 +34,7 @@ export const emojySchema = z.string().default("📦"); // Optional emoji for pro
 
 // Supplier types
 export const supplierRatingSchema = z.number().min(0).max(5); // Rating from 0 to 5
-export const supplierCategorySchema = z.union([z.enum(["general", "vegetables","fruits","herbs","coffee","spices", "meat", "dairy", "bakery", "beverages", "fish", "frozen", "dry", "other"]), z.string().min(2,'שם הקטגוריה חייב להיות לפחות 2 תווים')]).default("general");
+export const supplierCategorySchema = z.enum(['vegetables', 'fruits', 'meats', 'fish', 'dairy', 'alcohol', 'eggs', 'oliveOil', 'disposables', 'desserts', 'juices','general']).default("general");
 export const supplierRemindersSchema = z.array(z.object({
   day: daysSchema,
   // Time in HH:MM format, e.g., 20:00 between 06:00 and 23:59
@@ -50,6 +52,40 @@ export const orderIdSchema = z.string().min(5, "מספר ההזמנה חייב �
 export const orderStatusSchema = z.enum(["pending", "confirmed","sent", "delivered","cancelled"]).default("pending");
 
 
+// Message types
+const botStateValues: BotState[] = [
+  "INIT",
+  "ONBOARDING_COMPANY_NAME",
+  "ONBOARDING_LEGAL_ID",
+  "ONBOARDING_RESTAURANT_NAME",
+  "ONBOARDING_CONTACT_NAME",
+  "ONBOARDING_CONTACT_EMAIL",
+  "ONBOARDING_PAYMENT_METHOD",
+  "WAITING_FOR_PAYMENT",
+  "SETUP_SUPPLIERS_START",
+  "SETUP_SUPPLIERS_ADDITIONAL",
+  "SUPPLIER_CATEGORY",
+  "SUPPLIER_CONTACT",
+  "SUPPLIER_REMINDERS",
+  "PRODUCTS_LIST",
+  "PRODUCTS_BASE_QTY",
+  "RESTAURANT_FINISHED",
+  "INVENTORY_SNAPSHOT_START",
+  "INVENTORY_SNAPSHOT_CATEGORY",
+  "INVENTORY_SNAPSHOT_PRODUCT",
+  "INVENTORY_SNAPSHOT_QTY",
+  "INVENTORY_CALCULATE_SNAPSHOT",
+  "ORDER_SETUP_START",
+  "ORDER_CONFIRMATION",
+  "DELIVERY_START",
+  "DELIVERY_CHECK_ITEM",
+  "DELIVERY_RECEIVED_AMOUNT",
+  "DELIVERY_INVOICE_PHOTO",
+  "IDLE",
+];
+export const conversationStateSchema = z.enum(botStateValues as [BotState, ...BotState[]], {
+  description: "מצב השיחה הנוכחי, לדוגמה: 'WAITING_FOR_PAYMENT', 'INVENTORY_SNAPSHOT_START', 'IDLE' וכו'",
+});
 
 // ========================= New collection for restaurants =========================
 
@@ -162,17 +198,17 @@ export const MessageSchema = z.object({
     templateId: z.string().uuid().optional(),                              // Optional template ID for the message
     hasTemplate: z.boolean().default(false),                              // Whether the message has a whatsApp template
     mediaUrl: z.string().url().optional(),                               // Optional media URL for the message, e.g., image or video
-    messageState: z.string().default('IDLE'),                           // Current state of the state machine when the message is created
+    messageState: conversationStateSchema.default('IDLE'),                           // Current state of the state machine when the message is created
     createdAt: timestampSchema,                                        // Timestamp of when the message was created
 });
 
 // Conversation schema for validation
 export const ConversationSchema = z.object({
-    currentState: z.string().default('IDLE'),                           // Current state of the state machine of the conversation, e.g., "IDLE", "WAITING_FOR_PAYMENT" etc.
+    currentState: conversationStateSchema.default('IDLE'),                           // Current state of the state machine of the conversation, e.g., "IDLE", "WAITING_FOR_PAYMENT" etc.
     context: z.record(z.any()).default({}),                            // Context of the conversation, can be any key-value pairs
     messages: z.array(MessageSchema).default([]),                     // Array of messages in the conversation
     restaurantId: restaurantLegalIdSchema.optional(),                // Optional restaurant ID to link between a conversation and a restaurant
-    role: contactRoleSchema.optional(),                             // Role of the contact in the conversation, e.g., "owner", "manager", etc.
+    role: contactRoleSchema.default("general"),                     // Role of the contact in the conversation, e.g., "owner", "manager", etc.
     createdAt: timestampSchema,                                    // Timestamp of when the conversation was created
     updatedAt: timestampSchema,                                   // Timestamp of when the conversation was last updated (e.g., last message timestamp)
 });

@@ -2,9 +2,10 @@ import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 
-import { conversationStateReducer, processActions } from "./botEngine";
-import { ConversationState, IncomingMessage } from "./schema/types";
+import { conversationStateReducer, processActions } from "src/botEngine";
+import { ConversationState, IncomingMessage, MessageData } from "src/schema/types";
 import { validateTwilioWebhook } from "./utils/twilio";
+import { getCollectionName } from "./utils/firestore";
 
 // Initialize Firebase Admin only if not already initialized
 if (!admin.apps?.length) {
@@ -74,14 +75,14 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
     // For simulator, the phone number should already be in clean format
     const phoneNumber = isSimulator ? from : from.replace("whatsapp:", "");
     // Log incoming message for audit trail
-    await firestore.collection(isSimulator ? simulatorDoc : 'conversations')
+    await firestore.collection(getCollectionName('conversations', isSimulator))
       ?.doc(phoneNumber)
       ?.collection('messages')
       ?.add({
         body,
-        direction: 'incoming',
+        role: 'user',
         createdAt: FieldValue.serverTimestamp()
-      });
+      } as MessageData);
 
     // Create the incoming message object
     const message: IncomingMessage = {

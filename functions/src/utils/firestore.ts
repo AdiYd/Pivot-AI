@@ -1,19 +1,13 @@
 import { z } from 'zod';
 import * as admin from 'firebase-admin';
-import {SupplierSchema, ProductSchema, OrderSchema, InventorySnapshotSchema} from '../schema/schemas';
-import { ConversationData, SupplierData, ProductData, OrderData, InventorySnapshotData, RestaurantData } from '../schema/types';
+import {SupplierSchema, ConversationSchema} from 'src/schema/schemas';
+import { ConversationData, SupplierData, RestaurantData, Contact } from 'src/schema/types';
 import { FieldValue, DocumentReference, Query, CollectionReference } from 'firebase-admin/firestore';
 import {
   Restaurant,
   Supplier,
-  Product,
-  BotState,
-  ItemShortage,
-  StockLine,
   SupplierCategory,
-  Order,
-  InventorySnapshot
-} from '../schema/types';
+} from 'src/schema/types';
 
 
 if (!admin.apps?.length) {
@@ -22,8 +16,10 @@ if (!admin.apps?.length) {
 const firestore = admin.firestore();
 console.log(`[Firestore] Initialized Firestore with project ID: ${firestore.databaseId}`);
 
+export type BaseName = 'restaurants' | 'orders' | 'conversations';
+
 // Helper function to get collection name based on simulator mode
-function getCollectionName(baseName: string, isSimulator: boolean = false): string {
+export function getCollectionName(baseName: BaseName, isSimulator: boolean = false): string {
   return isSimulator ? `${baseName}_simulator` : baseName;
 }
 
@@ -50,16 +46,18 @@ export async function createRestaurant(data: RestaurantData, isSimulator: boolea
       legalName: data.legalName,
       name: data.name,
       isActivated: false,
-      primaryContact: data.primaryContact ||{
+      contacts: data.contacts || [{
         whatsapp: "",
         name: "",
         role: "",
         email: ""
-      },
+      }],
       payment:  {
-        provider: "Stripe",
+        provider: "trial",
         status: false,
       },
+      suppliers: [],
+      orders: [],
       createdAt: FieldValue.serverTimestamp()
     };
 
@@ -78,12 +76,12 @@ export async function createRestaurant(data: RestaurantData, isSimulator: boolea
 }
 
 /**
- * Get a restaurant by ID
+ * Get a restaurant by ID (legalId)
  * @param restaurantId Restaurant ID (legalId)
  * @param isSimulator Whether to use simulator collections
  * @returns Restaurant data or null if not found
  */
-export async function getRestaurant(restaurantId: string, isSimulator: boolean = false): Promise<Restaurant | null> {
+export async function getRestaurant(restaurantId: RestaurantData['legalId'], isSimulator: boolean = false): Promise<Restaurant | null> {
   try {
     const collectionName = getCollectionName('restaurants', isSimulator);
     const doc = await firestore.collection(collectionName).doc(restaurantId).get();
@@ -101,13 +99,13 @@ export async function getRestaurant(restaurantId: string, isSimulator: boolean =
 }
 
 /**
- * Get a restaurant by phone number
+ * Get a restaurant by phone number (of any signed contact)
  * @param phone Phone number
  * @param isSimulator Whether to use simulator collections
  * @returns Restaurant reference and data or null if not found
  */
 export async function getRestaurantByPhone(
-  phone: string, 
+  phone: Contact['whatsapp'], 
   isSimulator: boolean = false
 ): Promise<{id: string, data: Restaurant, ref: DocumentReference} | null> {
   try {
@@ -116,7 +114,7 @@ export async function getRestaurantByPhone(
     const collectionName = getCollectionName('restaurants', isSimulator);
     const snapshot = await firestore
       .collection(collectionName)
-      .where('primaryContact.whatsapp', '==', phone)
+      .where('contacts', 'array-contains', { whatsapp: phone })
       .limit(1)
       .get();
       
@@ -139,14 +137,17 @@ export async function getRestaurantByPhone(
   }
 }
 
+
+
 /**
- * Update restaurant activation status
+ * Update restaurant activation status (both isActivated and payment status)
  * @param restaurantId Restaurant ID
  * @param isActivated Activation status
  */
-export async function updateRestaurantActivation(restaurantId: string, isActivated: boolean): Promise<void> {
+export async function updateRestaurantActivation(restaurantId: RestaurantData['legalId'], isActivated: boolean, isSimulator: boolean = false): Promise<void> {
   try {
-    await firestore.collection('restaurants').doc(restaurantId).update({
+    const collectionName = getCollectionName('restaurants', isSimulator);
+    await firestore.collection(collectionName).doc(restaurantId).update({
       isActivated,
       'payment.status': isActivated
     });
@@ -158,6 +159,62 @@ export async function updateRestaurantActivation(restaurantId: string, isActivat
   }
 }
 
+
+/**
+ * Get all restaurants
+ * @param isSimulator Whether to use simulator collections
+ * @returns Array of restaurants
+ */
+export async function getAllRestaurants(isSimulator: boolean = false): Promise<Restaurant[]> {
+  try {
+    const collectionName = getCollectionName('restaurants', isSimulator);
+    const snapshot = await firestore.collection(collectionName).get();
+    
+    if (snapshot.empty) {
+      console.log(`[Firestore] No restaurants found`);
+      return [];
+    }
+    
+    return snapshot.docs.map(doc => doc.data() as Restaurant);
+  } catch (error) {
+    console.error(`[Firestore] ❌ Error getting all restaurants:`, error);
+    throw new Error(`Failed to get restaurants: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+
+
+/**
+ * Update restaurant contacts
+ * @param restaurantId Restaurant ID
+ * @param contacts Array of contact objects
+ * @returns Updated restaurant data
+ */
+export async function updateRestaurantContacts(
+  restaurantId: RestaurantData['legalId'], 
+  contacts: Contact[], 
+  isSimulator: boolean = false
+): Promise<Restaurant | null> {
+  try {
+    const collectionName = getCollectionName('restaurants', isSimulator);
+    const restaurantRef = firestore.collection(collectionName).doc(restaurantId);
+    const restaurantDoc = await restaurantRef.get();
+
+    if (!restaurantDoc.exists) {
+      throw new Error(`Restaurant with ID ${restaurantId} not found`);
+    }
+
+    await restaurantRef.update({ contacts });
+
+    console.log(`[Firestore] ✅ Updated contacts for restaurant ${restaurantId}`);
+    return  restaurantDoc.data() as Restaurant || null;
+  } catch (error) {
+    console.error(`[Firestore] ❌ Error updating restaurant contacts:`, error);
+    throw new Error(`Failed to update restaurant contacts: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+
 // ==== SUPPLIER OPERATIONS ====
 
 /**
@@ -166,7 +223,7 @@ export async function updateRestaurantActivation(restaurantId: string, isActivat
  * @returns The supplier ID (whatsapp number)
  */
 export async function updateSupplier(
-  data: SupplierData, 
+  data: SupplierData & { restaurantId: RestaurantData['legalId'] },  
   isSimulator: boolean = false
 ): Promise<string> {
   console.log(`[Firestore] Adding/updating supplier to restaurant${isSimulator ? ' (simulator)' : ''}:`, {
@@ -176,52 +233,31 @@ export async function updateSupplier(
   });
 
   try {
-    // Ensure data has all required fields with defaults
-    const supplierInput = {
-      ...data,
-      role: "Supplier",
-      // Ensure category is an array
-      category: Array.isArray(data.category) ? data.category : [data.category || "general"],
-      // Set default values for optional fields
-      rating: data.rating || 0
-    };
-    
-    // Validate input data
-    const validData = SupplierSchema.parse(supplierInput);
     
     // Use correct collection based on simulator mode
     const restaurantsCollection = getCollectionName('restaurants', isSimulator);
     
     // Check if restaurant exists
-    const restaurantRef = firestore.collection(restaurantsCollection).doc(validData.restaurantId);
+    const restaurantRef = firestore.collection(restaurantsCollection).doc(data.restaurantId);
     const restaurantDoc = await restaurantRef.get();
     
     if (!restaurantDoc.exists) {
-      throw new Error(`Restaurant with ID ${validData.restaurantId} not found`);
+      throw new Error(`Restaurant with ID ${data.restaurantId} not found`);
     }
 
     // Use the whatsapp number as the supplier document ID for easy reference
-    const supplierRef = restaurantRef.collection('suppliers').doc(validData.whatsapp);
+    const supplierRef = restaurantRef.collection('suppliers').doc(data.whatsapp);
     
-    console.log(`[Firestore] Writing to ${restaurantsCollection}/${validData.restaurantId}/suppliers/${validData.whatsapp}...`);
+    console.log(`[Firestore] Writing to ${restaurantsCollection}/${data.restaurantId}/suppliers/${data.whatsapp}...`);
 
     // Check if supplier already exists to merge data properly
-    const existingSupplier = await supplierRef.get();
-    
-    const supplierDoc = {
-      // Base supplier fields
-      name: validData.name,
-      whatsapp: validData.whatsapp,
-      role: "Supplier",
-      restaurantId: validData.restaurantId,
-      // Ensure array fields
-      deliveryDays: validData.deliveryDays || [],
-      category: Array.isArray(validData.category) ? validData.category : [validData.category || "general"],
-      cutoffHour: validData.cutoffHour || 12, // Default to noon
-      rating: validData.rating || 0,
-      // Timestamp handling
-      createdAt: existingSupplier.exists ? existingSupplier.data()?.createdAt : FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp()
+    const existingSupplier = await supplierRef.get();  // Returns DocumentSnapshot or null if not found
+    // Validate input data
+    const validData = SupplierSchema.parse(data);
+    const supplierDoc: SupplierData = {
+      ...(existingSupplier.exists ? existingSupplier.data() : {}),
+      ...validData,
+      createdAt: existingSupplier.exists ? existingSupplier.data()?.createdAt || FieldValue.serverTimestamp() : FieldValue.serverTimestamp(),
     };
 
     await supplierRef.set(supplierDoc, { merge: true });
@@ -240,17 +276,18 @@ export async function updateSupplier(
 }
 
 /**
- * Get suppliers for a restaurant
+ * Get list of suppliers of a restaurant
  * @param restaurantId Restaurant ID
  * @param category Optional category to filter by
  * @returns Array of suppliers
  */
-export async function getSuppliers(restaurantId: string, category?: SupplierCategory): Promise<Supplier[]> {
+export async function getSuppliersByCategory(restaurantId: RestaurantData['legalId'], category?: SupplierCategory, isSimulator: boolean = false): Promise<Supplier[]> {
   try {
-    let query: Query | CollectionReference = firestore.collection('restaurants').doc(restaurantId).collection('suppliers');
-    
+    const collectionName = getCollectionName('restaurants', isSimulator);
+    let query: Query | CollectionReference = firestore.collection(collectionName).doc(restaurantId).collection('suppliers');
+
     if (category) {
-      query = query.where('category', '==', category)
+      query = query.where('category', 'array-contains', category)
     }
     
     const snapshot = await query.get();
@@ -272,10 +309,11 @@ export async function getSuppliers(restaurantId: string, category?: SupplierCate
  * @param supplierId Supplier ID (whatsapp)
  * @returns Supplier data or null if not found
  */
-export async function getSupplier(restaurantId: string, supplierId: string): Promise<Supplier | null> {
+export async function getSupplier(restaurantId: RestaurantData['legalId'], supplierId: Contact['whatsapp'], isSimulator: boolean = false): Promise<Supplier | null> {
   try {
+    const collectionName = getCollectionName('restaurants', isSimulator);
     const doc = await firestore
-      .collection('restaurants')
+      .collection(collectionName)
       .doc(restaurantId)
       .collection('suppliers')
       .doc(supplierId)
@@ -294,438 +332,16 @@ export async function getSupplier(restaurantId: string, supplierId: string): Pro
 
 // ==== PRODUCT OPERATIONS ====
 
-/**
- * Add or update a product in the supplier's products array
- * @param restaurantId Restaurant ID
- * @param supplierId Supplier ID (whatsapp)
- * @param productData Product data
- * @returns The product ID
- */
-export async function updateProduct(
-  restaurantId: string,
-  supplierId: string,
-  productData: ProductData,
-  isSimulator: boolean = false
-): Promise<string> {
-  try {
-    // Generate a product ID if not provided
-    const productId = productData.id || `product_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-
-    // Ensure data has all required fields with defaults
-    const productInput = {
-      ...productData,
-      id: productId,
-      supplierId: supplierId,
-      emoji: productData.emoji || "📦",
-      parMidweek: productData.parMidweek || 0,
-      parWeekend: productData.parWeekend || 0,
-    };
-    
-    // Validate product data
-    const validProduct = ProductSchema.parse(productInput);
-    
-    // Get reference to the products subcollection
-    const productRef = firestore
-      .collection(getCollectionName('restaurants', isSimulator))
-      .doc(restaurantId)
-      .collection('suppliers')
-      .doc(supplierId)
-      .collection('products')
-      .doc(productId);
-    
-    // Check if product already exists to handle updates properly
-    const existingProduct = await productRef.get();
-
-    const productDoc: ProductData = {
-      id: productId,
-      supplierId: supplierId,
-      category: validProduct.category || "general",
-      name: validProduct.name,
-      emoji: validProduct.emoji || "📦",
-      unit: validProduct.unit,
-      parMidweek: validProduct.parMidweek || 0,
-      parWeekend: validProduct.parWeekend || 0,
-      createdAt: existingProduct.exists ? existingProduct.data()?.createdAt : FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp()
-    };
-    
-    // Update or create the product
-    await productRef.set(productDoc, { merge: true });
-    
-    console.log(`[Firestore] ✅ Product "${validProduct.name}" ${existingProduct.exists ? 'updated' : 'created'} for supplier ${supplierId}`);
-    return productId;
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      console.error(`[Firestore] ❌ Invalid product data:`, error.errors);
-      throw new Error(`Invalid product data: ${error.errors.map(e => e.message).join(', ')}`);
-    }
-    
-    console.error(`[Firestore] ❌ Error updating product:`, error);
-    throw error;
-  }
-}
-
-/**
- * Batch update or create products for a supplier
- * @param restaurantId Restaurant ID
- * @param supplierId Supplier ID (whatsapp)
- * @param products Array of product data
- * @returns Array of product IDs
- */
-export async function batchUpdateProducts(
-  restaurantId: string,
-  supplierId: string,
-  products: ProductData[]
-): Promise<string[]> {
-  try {
-    if (products.length === 0) {
-      return [];
-    }
-    
-    const batch = firestore.batch();
-    const productIds: string[] = [];
-    
-    // Get reference to supplier to ensure it exists
-    const supplierRef = firestore
-      .collection('restaurants')
-      .doc(restaurantId)
-      .collection('suppliers')
-      .doc(supplierId);
-    
-    const supplierDoc = await supplierRef.get();
-    
-    if (!supplierDoc.exists) {
-      throw new Error(`Supplier ${supplierId} not found for restaurant ${restaurantId}`);
-    }
-    
-    for (const productData of products) {
-      try {
-        // Generate ID if not provided
-        const productId = productData.id || `product_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-        productIds.push(productId);
-        
-        // Ensure data has all required fields with defaults
-        const productInput = {
-          ...productData,
-          id: productId,
-          supplierId: supplierId,
-          emoji: productData.emoji || "📦",
-          parMidweek: productData.parMidweek || 0,
-          parWeekend: productData.parWeekend || 0,
-        };
-        
-        // Validate each product
-        const validProduct = ProductSchema.parse(productInput);
-        
-        // Get a reference to the product document
-        const productRef = supplierRef
-          .collection('products')
-          .doc(productId);
-        
-        batch.set(productRef, {
-          id: productId,
-          supplierId: supplierId,
-          category: validProduct.category || "general",
-          name: validProduct.name,
-          emoji: validProduct.emoji || "📦",
-          unit: validProduct.unit,
-          parMidweek: validProduct.parMidweek || 0,
-          parWeekend: validProduct.parWeekend || 0,
-          createdAt: FieldValue.serverTimestamp(),
-          updatedAt: FieldValue.serverTimestamp()
-        }, { merge: true });
-      } catch (error) {
-        if (error instanceof z.ZodError) {
-          console.error(`[Firestore] ❌ Skipping invalid product:`, error.errors);
-        } else {
-          console.error(`[Firestore] ❌ Error processing product:`, error);
-        }
-      }
-    }
-    
-    await batch.commit();
-    
-    console.log(`[Firestore] ✅ Updated ${productIds.length} products for supplier ${supplierId}`);
-    return productIds;
-  } catch (error) {
-    console.error(`[Firestore] ❌ Error batch updating products:`, error);
-    throw error;
-  }
-}
-
-/**
- * Get all products for a supplier
- * @param restaurantId Restaurant ID
- * @param supplierId Supplier ID (whatsapp)
- * @returns Array of products with their IDs
- */
-export async function getProducts(restaurantId: string, supplierId: string): Promise<(Product & { id: string })[]> {
-  try {
-    const snapshot = await firestore
-      .collection('restaurants')
-      .doc(restaurantId)
-      .collection('suppliers')
-      .doc(supplierId)
-      .collection('products')
-      .get();
-    
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as Product & { id: string }));
-  } catch (error) {
-    console.error(`[Firestore] ❌ Error getting products:`, error);
-    throw new Error(`Failed to get products: ${error instanceof Error ? error.message : String(error)}`);
-  }
-}
 
 // ==== ORDER OPERATIONS ====
 
-/**
- * Create a new order
- * @param restaurantId Restaurant ID
- * @param orderData Order data
- * @returns The order ID
- */
-export async function createOrder(restaurantId: string, orderData: OrderData): Promise<string> {
-  try {
-    // Validate order data
-    const validOrder = OrderSchema.parse(orderData);
-    
-    // Reference to orders subcollection
-    const ordersRef = firestore.collection('restaurants').doc(restaurantId).collection('orders');
-    const orderRef = ordersRef.doc();
-    
-    // Create supplier reference
-    const supplierRef = firestore
-      .collection('restaurants')
-      .doc(restaurantId)
-      .collection('suppliers')
-      .doc(validOrder.supplierId);
-    
-    const orderDoc = {
-      supplierRef: supplierRef,
-      status: validOrder.status,
-      items: validOrder.items,
-      shortages: validOrder.shortages || [],
-      midweek: validOrder.midweek,
-      createdAt: FieldValue.serverTimestamp(),
-      invoiceUrl: validOrder.invoiceUrl
-    };
-    
-    await orderRef.set(orderDoc);
-    
-    console.log(`[Firestore] ✅ Created order ${orderRef.id} for restaurant ${restaurantId}`);
-    return orderRef.id;
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      console.error(`[Firestore] ❌ Invalid order data:`, error.errors);
-      throw new Error(`Invalid order data: ${error.errors.map(e => e.message).join(', ')}`);
-    }
-    
-    console.error(`[Firestore] ❌ Error creating order:`, error);
-    throw error;
-  }
-}
 
-/**
- * Update an existing order
- * @param restaurantId Restaurant ID
- * @param orderId Order ID
- * @param status New status
- * @param shortages Optional array of shortages
- * @param invoiceUrl Optional URL to invoice image
- */
-export async function updateOrder(
-  restaurantId: string,
-  orderId: string,
-  status: "pending" | "sent" | "delivered",
-  shortages?: ItemShortage[],
-  invoiceUrl?: string
-): Promise<void> {
-  try {
-    const orderRef = firestore
-      .collection('restaurants')
-      .doc(restaurantId)
-      .collection('orders')
-      .doc(orderId);
-    
-    const updates: Record<string, any> = { status };
-    
-    if (shortages) {
-      updates.shortages = shortages;
-    }
-    
-    if (invoiceUrl) {
-      updates.invoiceUrl = invoiceUrl;
-    }
-    
-    // Add appropriate timestamp based on status
-    if (status === "sent") {
-      updates.sentAt = FieldValue.serverTimestamp();
-    } else if (status === "delivered") {
-      updates.receivedAt = FieldValue.serverTimestamp();
-    }
-    
-    await orderRef.update(updates);
-    
-    console.log(`[Firestore] ✅ Updated order ${orderId} status to ${status}`);
-  } catch (error) {
-    console.error(`[Firestore] ❌ Error updating order:`, error);
-    throw error;
-  }
-}
-
-/**
- * Get orders for a restaurant
- * @param restaurantId Restaurant ID
- * @param supplierId Optional supplier ID to filter by
- * @param status Optional status to filter by
- * @returns Array of orders
- */
-export async function getOrders(
-  restaurantId: string,
-  supplierId?: string,
-  status?: "pending" | "sent" | "delivered"
-): Promise<(Order & { id: string })[]> {
-  try {
-    let query: Query | CollectionReference = firestore.collection('restaurants').doc(restaurantId).collection('orders');
-    
-    if (supplierId) {
-      const supplierRef = firestore
-        .collection('restaurants')
-        .doc(restaurantId)
-        .collection('suppliers')
-        .doc(supplierId);
-      
-      query = query.where('supplierRef', '==', supplierRef);
-    }
-    
-    if (status) {
-      query = query.where('status', '==', status);
-    }
-    
-    const snapshot = await query.orderBy('createdAt', 'desc').get();
-    
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as Order & { id: string }));
-  } catch (error) {
-    console.error(`[Firestore] ❌ Error getting orders:`, error);
-    throw error;
-  }
-}
 
 // ==== INVENTORY SNAPSHOT OPERATIONS ====
 
-/**
- * Create a new inventory snapshot
- * @param restaurantId Restaurant ID
- * @param snapshotData Inventory snapshot data
- * @returns The snapshot ID
- */
-export async function createInventorySnapshot(
-  restaurantId: string,
-  snapshotData: InventorySnapshotData
-): Promise<string> {
-  try {
-    // Validate snapshot data
-    const validSnapshot = InventorySnapshotSchema.parse(snapshotData);
-    
-    // Reference to inventory snapshots subcollection
-    const snapshotsRef = firestore
-      .collection('restaurants')
-      .doc(restaurantId)
-      .collection('inventorySnapshots');
-    
-    const snapshotRef = snapshotsRef.doc();
-    
-    // Create supplier reference
-    const supplierRef = firestore
-      .collection('restaurants')
-      .doc(restaurantId)
-      .collection('suppliers')
-      .doc(validSnapshot.supplierId);
-    
-    // Convert product IDs to references for the lines
-    const lines: StockLine[] = await Promise.all(
-      validSnapshot.lines.map(async line => {
-        const productRef = firestore
-          .collection('restaurants')
-          .doc(restaurantId)
-          .collection('suppliers')
-          .doc(validSnapshot.supplierId)
-          .collection('products')
-          .doc(line.productId);
-        
-        return {
-          productId: productRef.id,
-          currentQty: line.currentQty
-        };
-      })
-    );
-    
-    const snapshotDoc = {
-      supplierRef,
-      lines,
-      createdAt: FieldValue.serverTimestamp()
-    };
-    
-    await snapshotRef.set(snapshotDoc);
-    
-    console.log(`[Firestore] ✅ Created inventory snapshot ${snapshotRef.id}`);
-    return snapshotRef.id;
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      console.error(`[Firestore] ❌ Invalid inventory snapshot data:`, error.errors);
-      throw new Error(`Invalid inventory snapshot data: ${error.errors.map(e => e.message).join(', ')}`);
-    }
-    
-    console.error(`[Firestore] ❌ Error creating inventory snapshot:`, error);
-    throw error;
-  }
-}
 
-/**
- * Get the latest inventory snapshot for a supplier
- * @param restaurantId Restaurant ID
- * @param supplierId Supplier ID
- * @returns The latest inventory snapshot or null if not found
- */
-export async function getLatestInventorySnapshot(
-  restaurantId: string,
-  supplierId: string
-): Promise<InventorySnapshot | null> {
-  try {
-    const supplierRef = firestore
-      .collection('restaurants')
-      .doc(restaurantId)
-      .collection('suppliers')
-      .doc(supplierId);
-    
-    const snapshot = await firestore
-      .collection('restaurants')
-      .doc(restaurantId)
-      .collection('inventorySnapshots')
-      .where('supplierRef', '==', supplierRef)
-      .orderBy('createdAt', 'desc')
-      .limit(1)
-      .get();
-    
-    if (snapshot.empty) {
-      return null;
-    }
-    
-    return {
-      id: snapshot.docs[0].id,
-      ...snapshot.docs[0].data()
-    } as InventorySnapshot;
-  } catch (error) {
-    console.error(`[Firestore] ❌ Error getting latest inventory snapshot:`, error);
-    throw error;
-  }
-}
+
+
 
 // ==== CONVERSATION STATE MANAGEMENT ====
 
@@ -736,7 +352,7 @@ export async function getLatestInventorySnapshot(
  * @returns The conversation state or null if not found
  */
 export async function getConversationState(
-  phone: string,
+  phone: Contact['whatsapp'],
   isSimulator: boolean = false
 ): Promise<ConversationData | null> {
   try {
@@ -774,36 +390,26 @@ export async function getConversationState(
  * @returns The created conversation state
  */
 export async function initializeConversationState(
-  phone: string,
-  restaurantId: string,
-  initialState: BotState = "INIT",
+  conversationData: ConversationData,
+  phone: Contact['whatsapp'],
   isSimulator: boolean = false
 ): Promise<ConversationData> {
   try {
     console.log(`[Firestore] Initializing conversation state for phone: ${phone}`);
     
     // Use correct collections based on simulator mode
-    const restaurantsCollection = getCollectionName('restaurants', isSimulator);
+    const restaurantDoc = (await getRestaurantByPhone(phone, isSimulator))?.data;
+    const restaurantId = restaurantDoc?.legalId || null;
+
     const conversationsCollection = getCollectionName('conversations', isSimulator);
-    
-    // Get a reference to the restaurant
-    const restaurantRef = firestore.collection(restaurantsCollection).doc(restaurantId);
-    
-    const newState: ConversationData = {
-      restaurantId,
-      currentState: initialState,
-      context: { isSimulator }
-    };
-    
+
+
+    const newState = ConversationSchema.parse({...conversationData, ...(restaurantId ? { restaurantId } : {})});
     await firestore
       .collection(conversationsCollection)
       .doc(phone)
-      .set({
-        ...newState,
-        restaurantRef, // Add reference to the restaurant
-        lastMessageTimestamp: FieldValue.serverTimestamp()
-      });
-    
+      .set(newState as ConversationData, { merge: true });
+
     console.log(`[Firestore] ✅ Initialized conversation state for phone: ${phone}`);
     return newState;
   } catch (error) {
@@ -811,6 +417,8 @@ export async function initializeConversationState(
     throw error;
   }
 }
+
+
 
 /**
  * Save conversation state using phone number as document ID
@@ -894,40 +502,3 @@ export async function logMessage(
 }
 
 // ==== SYSTEM CONFIGURATION ====
-
-/**
- * Store or update bot messages in Firestore
- */
-export async function updateBotMessages(messages: any): Promise<void> {
-  try {
-    await firestore.collection('system').doc('botMessages').set({
-      messages,
-      updatedAt: FieldValue.serverTimestamp(),
-      version: Date.now()
-    });
-    
-    console.log(`[Firestore] ✅ Bot messages updated successfully`);
-  } catch (error) {
-    console.error(`[Firestore] ❌ Error updating bot messages:`, error);
-    throw error;
-  }
-}
-
-/**
- * Get bot messages from Firestore
- */
-export async function getBotMessages(): Promise<any> {
-  try {
-    const doc = await firestore.collection('system').doc('botMessages').get();
-    
-    if (!doc.exists) {
-      console.log(`[Firestore] No bot messages found, using defaults`);
-      return null;
-    }
-    
-    return doc.data()?.messages;
-  } catch (error) {
-    console.error(`[Firestore] ❌ Error getting bot messages:`, error);
-    return null;
-  }
-}

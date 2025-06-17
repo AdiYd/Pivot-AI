@@ -15,20 +15,6 @@ export interface PaymentMeta {
   status: boolean; // true if payment is confirmed
 }
 
-// Represents a restaurant document with its details and primary contact
-export interface Restaurant {
-  legalId: string;                          // This is also the document ID in Firestore
-  businessName: string;                    // The legal business name of the restaurant
-  name: string;                           // The name of the restaurant (can be different from businessName)
-  primaryContact: Contact;               // The primary contact person for the restaurant
-  yearsActive: number;                  // Number of years the restaurant has been active
-  payment: PaymentMeta;                // Payment metadata for the restaurant
-  isActivated: boolean;               // true if the restaurant is activated and can use the bot
-  suppliers?: Supplier[];            // Array of supplier IDs (WhatsApp numbers) for the restaurant
-  inventory?: Inventory | null;     // Inventory details for the restaurant, can be null if not set up
-  orders?: Order[];                // Array of orders placed by the restaurant
-  createdAt: Timestamp;
-}
 
 
 export interface Inventory {
@@ -116,11 +102,9 @@ export interface InventorySnapshot {
 // Conversation state types for the WhatsApp bot
 export interface ConversationState {
   currentState: BotState; // Current state of the bot conversation
-  context: ConversationContext;  // Additional context for the conversation, to collect information and user input
+  context: Record<string, any>;  // Additional context for the conversation, to collect information and user input
   lastMessageTimestamp: Timestamp;
 }
-
-export interface ConversationContext extends Partial<Contact & Restaurant & Supplier & Product & Order & InventorySnapshot & ItemLine & ItemShortage & StockLine & ConversationState & { [key: string]: any }> {}
 
 
 
@@ -200,7 +184,7 @@ export interface BotConfig {
 export interface ConversationDoc {
   currentState: BotState;   // Current state of the bot conversation
   messages: MessageDoc[];
-  context: ConversationContext;
+  context: Record<string, any>;  // Additional context for the conversation, to collect information and user input
   lastMessageTimestamp: Timestamp;
 }
 

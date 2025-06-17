@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { BotAction } from '../schema/types';
-import { sendWhatsAppMessage } from '../utils/twilio';
-import { createRestaurant, updateSupplier, logMessage, updateProduct } from '../utils/firestore';
+import { BotAction } from 'src/schema/types';
+import { sendWhatsAppMessage } from 'src/utils/twilio';
+import { createRestaurant, updateSupplier, logMessage, updateProduct } from 'src/utils/firestore';
 import { ProductSchema, RestaurantSchema, SupplierSchema } from 'src/schema/schemas';
 
 // Zod schemas for payload validation

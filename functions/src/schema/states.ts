@@ -1,119 +1,123 @@
 import { z } from 'zod';
 import { emailSchema, nameSchema, ProductSchema, restaurantLegalIdSchema, restaurantLegalNameSchema, restaurantNameSchema, supplierCategorySchema, SupplierSchema } from './schemas';
-import { BotConfig, BotState, StateMessage } from './types2';
-import { skip } from 'node:test';
-import { finished } from 'stream';
+import { BotConfig, BotState, ProductData, StateMessage } from './types';
 
 
 
 // Supplier categories with emoji representation
-export const BOT_CATEGORIES: Record<string, { name: string; emoji: string }> = {
+export const CATEGORIES_DICT: Record<string, Partial<ProductData>> = {
   vegetables: { name: "ירקות", emoji: "🥬" },
-  fish: { name: "דגים", emoji: "🐟" },
-  alcohol: { name: "אלכוהול", emoji: "🍷" },
-  meat: { name: "בשרים", emoji: "🥩" },
   fruits: { name: "פירות", emoji: "🍎" },
+  meats: { name: "בשרים", emoji: "🥩" },
+  fish: { name: "דגים", emoji: "🐟" },
+  dairy: { name: "מוצרי חלב", emoji: "🥛" },
+  alcohol: { name: "אלכוהול", emoji: "🍷" },
+  eggs: { name: "ביצים אורגניות", emoji: "🥚" },
   oliveOil: { name: "שמן זית", emoji: "🫒" },
   disposables: { name: "חד פעמי", emoji: "🥤" },
-  dessert: { name: "קינוחים", emoji: "🍰" },
+  desserts: { name: "קינוחים", emoji: "🍰" },
   juices: { name: "מיצים טבעיים", emoji: "🧃" },
-  eggs: { name: "ביצים אורגניות", emoji: "🥚" },
-  dairy: { name: "מוצרי חלב", emoji: "🥛" }
 };
 
 // Product templates organized by category for faster setup
-export const CATEGORY_PRODUCTS: Record<string, Array<{ name: string; emoji: string; unit: string }>> = {
+export const CATEGORY_PRODUCTS: Record<string, Array<Partial<ProductData>>> = {
   vegetables: [
-    { name: "עגבניות", emoji: "🍅", unit: "ק\"ג" },
-    { name: "מלפפונים", emoji: "🥒", unit: "ק\"ג" },
-    { name: "חסה", emoji: "🥬", unit: "יחידות" },
-    { name: "בצל", emoji: "🧅", unit: "ק\"ג" },
-    { name: "תפוחי אדמה", emoji: "🥔", unit: "ק\"ג" },
-    { name: "גזר", emoji: "🥕", unit: "ק\"ג" },
-    { name: "קוביות ירוקות", emoji: "🥒", unit: "ק\"ג" },
-    { name: "פלפל אדום", emoji: "🌶️", unit: "ק\"ג" }
+    { name: "עגבניות", emoji: "🍅", unit: "kg" },
+    { name: "מלפפונים", emoji: "🥒", unit: "kg" },
+    { name: "חסה", emoji: "🥬", unit: "pcs" },
+    { name: "בצל", emoji: "🧅", unit: "kg" },
+    { name: "תפוחי אדמה", emoji: "🥔", unit: "kg" },
+    { name: "גזר", emoji: "🥕", unit: "kg" },
+    { name: "קוביות ירוקות", emoji: "🥒", unit: "kg" },
+    { name: "פלפל אדום", emoji: "🌶️", unit: "kg" }
   ],
   fruits: [
-    { name: "תפוחים", emoji: "🍎", unit: "ק\"ג" },
-    { name: "בננות", emoji: "🍌", unit: "ק\"ג" },
-    { name: "תפוזים", emoji: "🍊", unit: "ק\"ג" },
-    { name: "לימונים", emoji: "🍋", unit: "ק\"ג" },
-    { name: "אבוקדו", emoji: "🥑", unit: "יחידות" }
+    { name: "תפוחים", emoji: "🍎", unit: "kg" },
+    { name: "בננות", emoji: "🍌", unit: "kg" },
+    { name: "תפוזים", emoji: "🍊", unit: "kg" },
+    { name: "לימונים", emoji: "🍋", unit: "kg" },
+    { name: "אבוקדו", emoji: "🥑", unit: "pcs" }
   ],
-  meat: [
-    { name: "חזה עוף", emoji: "🍗", unit: "ק\"ג" },
-    { name: "כנפיים עוף", emoji: "🍗", unit: "ק\"ג" },
-    { name: "בשר בקר", emoji: "🥩", unit: "ק\"ג" },
-    { name: "כבש", emoji: "🐑", unit: "ק\"ג" },
-    { name: "נקניקיות", emoji: "🌭", unit: "ק\"ג" }
+  meats: [
+    { name: "חזה עוף", emoji: "🍗", unit: "kg" },
+    { name: "כנפיים עוף", emoji: "🍗", unit: "kg" },
+    { name: "בשר בקר", emoji: "🥩", unit: "kg" },
+    { name: "כבש", emoji: "🐑", unit: "kg" },
+    { name: "נקניקיות", emoji: "🌭", unit: "kg" }
   ],
   fish: [
-    { name: "סלמון", emoji: "🍣", unit: "ק\"ג" },
-    { name: "דניס", emoji: "🐟", unit: "ק\"ג" },
-    { name: "לברק", emoji: "🐟", unit: "ק\"ג" },
-    { name: "טונה", emoji: "🍣", unit: "ק\"ג" }
+    { name: "סלמון", emoji: "🍣", unit: "kg" },
+    { name: "דניס", emoji: "🐟", unit: "kg" },
+    { name: "לברק", emoji: "🐟", unit: "kg" },
+    { name: "טונה", emoji: "🍣", unit: "kg" }
   ],
   dairy: [
-    { name: "חלב", emoji: "🥛", unit: "ליטר" },
-    { name: "גבינה לבנה", emoji: "🧀", unit: "ק\"ג" },
-    { name: "גבינה צהובה", emoji: "🧀", unit: "ק\"ג" },
-    { name: "יוגורט", emoji: "🥛", unit: "יחידות" },
-    { name: "שמנת", emoji: "🥛", unit: "ליטר" },
-    { name: "חמאה", emoji: "🧈", unit: "ק\"ג" }
+    { name: "חלב", emoji: "🥛", unit: "l" },
+    { name: "גבינה לבנה", emoji: "🧀", unit: "kg" },
+    { name: "גבינה צהובה", emoji: "🧀", unit: "kg" },
+    { name: "יוגורט", emoji: "🥛", unit: "pcs" },
+    { name: "שמנת", emoji: "🥛", unit: "l" },
+    { name: "חמאה", emoji: "🧈", unit: "kg" }
   ],
   alcohol: [
-    { name: "יין אדום", emoji: "🍷", unit: "בקבוק" },
-    { name: "יין לבן", emoji: "🥂", unit: "בקבוק" },
-    { name: "בירה", emoji: "🍺", unit: "בקבוק" },
-    { name: "וודקה", emoji: "🍸", unit: "בקבוק" },
-    { name: "וויסקי", emoji: "🥃", unit: "בקבוק" }
+    { name: "יין אדום", emoji: "🍷", unit: "bottle" },
+    { name: "יין לבן", emoji: "🥂", unit: "bottle" },
+    { name: "בירה", emoji: "🍺", unit: "bottle" },
+    { name: "וודקה", emoji: "🍸", unit: "bottle" },
+    { name: "וויסקי", emoji: "🥃", unit: "bottle" }
   ],
   eggs: [
-    { name: "ביצים גדולות", emoji: "🥚", unit: "יחידות" },
-    { name: "ביצים קטנות", emoji: "🥚", unit: "יחידות" },
-    { name: "ביצי חופש", emoji: "🥚", unit: "יחידות" }
+    { name: "ביצים גדולות", emoji: "🥚", unit: "pcs" },
+    { name: "ביצים קטנות", emoji: "🥚", unit: "pcs" },
+    { name: "ביצי חופש", emoji: "🥚", unit: "pcs" }
   ],
   oliveOil: [
-    { name: "שמן זית", emoji: "🫒", unit: "ליטר" },
-    { name: "שמן זית כתית", emoji: "🫒", unit: "ליטר" },
-    { name: "שמן חמניות", emoji: "🌻", unit: "ליטר" }
+    { name: "שמן זית", emoji: "🫒", unit: "l" },
+    { name: "שמן זית כתית", emoji: "🫒", unit: "l" },
+    { name: "שמן חמניות", emoji: "🌻", unit: "l" }
   ],
   disposables: [
-    { name: "כוסות פלסטיק", emoji: "🥤", unit: "חבילה" },
-    { name: "צלחות חד פעמי", emoji: "🍽️", unit: "חבילה" },
-    { name: "מפיות", emoji: "🧻", unit: "חבילה" },
-    { name: "שקיות", emoji: "🛍️", unit: "חבילה" }
+    { name: "כוסות פלסטיק", emoji: "🥤", unit: "pack" },
+    { name: "צלחות חד פעמי", emoji: "🍽️", unit: "pack" },
+    { name: "מפיות", emoji: "🧻", unit: "pack" },
+    { name: "שקיות", emoji: "🛍️", unit: "pack" }
   ],
-  dessert: [
-    { name: "עוגת שוקולד", emoji: "🍰", unit: "יחידות" },
-    { name: "גלידה", emoji: "🍦", unit: "ליטר" },
-    { name: "פירות קצופים", emoji: "🍓", unit: "יחידות" },
-    { name: "עוגיות", emoji: "🍪", unit: "חבילה" }
+  desserts: [
+    { name: "עוגת שוקולד", emoji: "🍰", unit: "pcs" },
+    { name: "גלידה", emoji: "🍦", unit: "l" },
+    { name: "פירות קצופים", emoji: "🍓", unit: "pcs" },
+    { name: "עוגיות", emoji: "🍪", unit: "pcs" }
   ],
   juices: [
-    { name: "מיץ תפוזים", emoji: "🧃", unit: "ליטר" },
-    { name: "מיץ תפוחים", emoji: "🧃", unit: "ליטר" },
-    { name: "מיץ ענבים", emoji: "🧃", unit: "ליטר" },
-    { name: "לימונדה", emoji: "🍋", unit: "ליטר" }
+    { name: "מיץ תפוזים", emoji: "🧃", unit: "l" },
+    { name: "מיץ תפוחים", emoji: "🧃", unit: "l" },
+    { name: "מיץ ענבים", emoji: "🧃", unit: "l" },
+    { name: "לימונדה", emoji: "🍋", unit: "l" }
   ]
 };
 
+// Categories list for validation
+export const CATEGORY_LIST = ['vegetables', 'fruits', 'meats', 'fish', 'dairy', 'alcohol', 'eggs', 'oliveOil', 'disposables', 'desserts', 'juices'];
+
 // Helper function to format supplier categories as a list with emojis
 export const formatCategoryList = (excludeCategories: string[] = []): string => {
-  return Object.entries(BOT_CATEGORIES)
-    .filter(([id]) => !excludeCategories.includes(id))
-    .map(([id, { name, emoji }], index) => `${index + 1}. ${emoji} ${name}`)
+  return CATEGORY_LIST
+    .filter(id => !excludeCategories.includes(id))
+    .map((id, index) => {
+      const { name, emoji } = CATEGORIES_DICT[id];
+      return `${index + 1}. ${emoji} ${name}`;
+    })
     .join('\n');
 };
 
 // Helper function to get available categories excluding already selected ones
 export const getAvailableCategories = (excludeCategories: string[] = []): Array<{name: string, id: string}> => {
-  return Object.entries(BOT_CATEGORIES)
-    .filter(([id]) => !excludeCategories.includes(id))
-    .map(([id, { name, emoji }]) => ({ 
-      name: `${emoji} ${name}`, 
-      id 
-    }));
+  return CATEGORY_LIST
+    .filter(id => !excludeCategories.includes(id))
+    .map(id => {
+      const { name, emoji } = CATEGORIES_DICT[id];
+      return { name: `${emoji} ${name}`, id };
+    });
 };
 
 // Helper function to get products for multiple categories
@@ -162,9 +166,9 @@ export const STATE_MESSAGES: Record<BotState, StateMessage> = {
   // Initial state
   "INIT": {
     whatsappTemplate: {
-      id: "init_temaplate",
+      id: "init_template",
       type: "list",
-      body: `🍽️ *ברוכים הבאים למערכת ניהול המלאי וההזמנות!*
+      body: `🍽️ *ברוכים הבאים ל P-VOT, מערכת ניהול המלאי וההזמנות!*
       \n\n
       בחר מה ברצונך לעשות:`,
       options: [
@@ -182,7 +186,7 @@ export const STATE_MESSAGES: Record<BotState, StateMessage> = {
   // === ONBOARDING FLOW STATES === //
   
   "ONBOARDING_COMPANY_NAME": {
-    message: `🏢 *תהליך הרשמה למערכת*
+    message: `📄 *תהליך הרשמה למערכת*
     \n\n
     מהו השם החוקי של העסק או החברה שלך?`,
     description: "Ask for the legal company name as the first step of onboarding.",
@@ -252,7 +256,8 @@ export const STATE_MESSAGES: Record<BotState, StateMessage> = {
     nextState: {
       credit_card: "WAITING_FOR_PAYMENT",
       trial: "SETUP_SUPPLIERS_START"
-    }
+    },
+    action: 'CREATE_RESTAURANT'
   },
   
   "WAITING_FOR_PAYMENT": {
@@ -299,6 +304,17 @@ export const STATE_MESSAGES: Record<BotState, StateMessage> = {
     }
   },
 
+  "RESTAURANT_FINISHED": {
+    whatsappTemplate: {
+      id: "restaurant_finished_template",
+      type: "text",
+      body: `🎉 *הגדרת המסעדה {restaurantName} הושלמה!*
+      \n\n
+      תודה על שהקדשתם זמן להגדיר את המסעדה שלכם. כעת תוכלו להתחיל להשתמש במערכת לניהול המלאי וההזמנות שלכם.`,
+    },
+    description: "Final message indicating the restaurant setup is complete."
+  },
+
   "SUPPLIER_CATEGORY": {
     whatsappTemplate: {
       id: "supplier_category_template",
@@ -315,27 +331,6 @@ export const STATE_MESSAGES: Record<BotState, StateMessage> = {
     },
     description: "list to select one or more supplier categories from available list.",
     validator: supplierCategorySchema,
-    nextState: {
-      finished: "SUPPLIER_CATEGORY_ADDITIONAL"
-    }
-  },
-
-  "SUPPLIER_CATEGORY_ADDITIONAL": {
-    whatsappTemplate: {
-      id: "supplier_category_additional_template",
-      type: "list",
-      body: `🔍 *האם יש עוד קטגוריות מוצרים לספק זה?*
-      \n\n
-      בחרו את הקטגוריות הנוספות שברצונכם להוסיף.
-      \n\n
-      אם אין עוד קטגוריות לספק, לחצו 'סיום הגדרת קטגוריות'`,
-      options: [
-        // Dynamically populated with available categories excluding already selected ones
-        { name: "סיום הגדרת קטגוריות", id: "finished" }
-      ]
-    },
-    description: "Repeat this step to allow multiple selection of categories until the user approves the supplier category setup process by clicking 'סיום הגדרת קטגוריות'.",
-    validator: SupplierSchema.pick({ category: true }),
     nextState: {
       finished: "SUPPLIER_CONTACT"
     }
@@ -392,9 +387,9 @@ export const STATE_MESSAGES: Record<BotState, StateMessage> = {
     whatsappTemplate: {
       id: "supplier_products_template",
       type: "list",
-      body: `🏷️ נגדיר עכשיו את רשימת המוצרים שאתה מזמין מהספק ואת יחידות המידה שלהם
+      body: `🏷️ נגדיר עכשיו את רשימת המוצרים שאתה מזמין מהספק ואת pcs המידה שלהם
       \n\n
-      בחרו מתוך הרשימה המוצעת או כיתבו בצורה ברורה את רשימת המוצרים המלאה שאתם מזמינים מהספק ואת יחידות המידה שלהם
+      בחרו מתוך הרשימה המוצעת או כיתבו בצורה ברורה את רשימת המוצרים המלאה שאתם מזמינים מהספק ואת pcs המידה שלהם
       \n
       לדוגמה:
       \n
@@ -409,7 +404,7 @@ export const STATE_MESSAGES: Record<BotState, StateMessage> = {
     },
     description: "Select products from the list or enter a custom product name and units in order to create full products list from the supplier.",
     aiValidation: {
-      prompt: "עליך לבקש מהמשתמש לבחור, לרשום בכל דרך שיבחר רשימה של מוצרים ויחידות המידה שלהם שאותם ניתן להזמין מהספק, אם נתונים על מוצר מסויים חסרים, השלם אותם לפי הסבירות הגבוהה ביותר.",
+      prompt: "עליך לבקש מהמשתמש לבחור, לרשום בכל דרך שיבחר רשימה של מוצרים וpcs המידה שלהם שאותם ניתן להזמין מהספק, אם נתונים על מוצר מסויים חסרים, השלם אותם לפי הסבירות הגבוהה ביותר.",
       schema: ProductSchema.pick({ name: true, unit: true, emoji: true })
     },
     validator: ProductSchema.pick({ name: true, unit: true, emoji: true }),
@@ -482,7 +477,7 @@ export const STATE_MESSAGES: Record<BotState, StateMessage> = {
   },
   
   "INVENTORY_SNAPSHOT_QTY": {
-    message: "📊 *כמה {productName} יש במלאי כרגע?*\n\nהזן כמות ביחידות {unit}:",
+    message: "📊 *כמה {productName} יש במלאי כרגע?*\n\nהזן כמות בpcs {unit}:",
     description: "Ask for current stock quantity of the selected product.",
     validationMessage: "❌ אנא הזן מספר תקין גדול או שווה ל-0.",
     // validator: "number"
@@ -567,7 +562,7 @@ export const STATE_MESSAGES: Record<BotState, StateMessage> = {
   },
   
   "DELIVERY_RECEIVED_AMOUNT": {
-    message: "🔢 *כמה {productName} התקבלו בפועל?*\n\nהזן את הכמות שהתקבלה ביחידות {unit}:",
+    message: "🔢 *כמה {productName} התקבלו בפועל?*\n\nהזן את הכמות שהתקבלה בpcs {unit}:",
     description: "Ask for the actual received quantity of a partially received item.",
     validationMessage: "❌ אנא הזן מספר תקין גדול או שווה ל-0 וקטן מהכמות שהוזמנה.",
     // validator: "number"
