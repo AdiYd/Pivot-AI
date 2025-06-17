@@ -39,26 +39,22 @@ export type Rating = 1 | 2 | 3 | 4 | 5;
 
 // Bot state types
 export type BotState =
-  | "INIT" 
+  | "INIT"
   | "ONBOARDING_COMPANY_NAME"
   | "ONBOARDING_LEGAL_ID"
   | "ONBOARDING_RESTAURANT_NAME"
-  | "ONBOARDING_YEARS_ACTIVE"
   | "ONBOARDING_CONTACT_NAME"
   | "ONBOARDING_CONTACT_EMAIL"
   | "ONBOARDING_PAYMENT_METHOD"
   | "WAITING_FOR_PAYMENT"
   | "SETUP_SUPPLIERS_START"
+  | "SETUP_SUPPLIERS_ADDITIONAL"
   | "SUPPLIER_CATEGORY"
-  | "SUPPLIER_NAME"
-  | "SUPPLIER_WHATSAPP"
-  | "SUPPLIER_DELIVERY_DAYS"
-  | "SUPPLIER_CUTOFF_TIME"
-  | "PRODUCT_NAME"
-  | "PRODUCT_UNIT"
-  | "PRODUCT_QTY"
-  | "PRODUCT_PAR_MIDWEEK"
-  | "PRODUCT_PAR_WEEKEND"
+  | "SUPPLIER_CATEGORY_ADDITIONAL"
+  | "SUPPLIER_CONTACT"
+  | "SUPPLIER_REMINDERS"
+  | "PRODUCTS_LIST"
+  | "PRODUCTS_BASE_QTY"
   | "INVENTORY_SNAPSHOT_START"
   | "INVENTORY_SNAPSHOT_CATEGORY"
   | "INVENTORY_SNAPSHOT_PRODUCT"
@@ -90,7 +86,7 @@ export interface IncomingMessage {
 }
 
 export interface BotAction {
-  type: "SEND_MESSAGE" | "CREATE_RESTAURANT" | "UPDATE_SUPPLIER" | "UPDATE_PRODUCT" | "CREATE_INVENTORY_SNAPSHOT" | "SEND_ORDER" | "LOG_DELIVERY";
+  type: "SEND_MESSAGE" | "CREATE_RESTAURANT" | "CREATE_SUPPLIER" | "UPDATE_SUPPLIER" | "UPDATE_PRODUCT" | "CREATE_INVENTORY_SNAPSHOT" | "SEND_ORDER" | "LOG_DELIVERY";
   payload: Record<string, any>;
 }
 
@@ -109,42 +105,44 @@ export interface BotConfig {
   paymentMethods: string[];
 }
 
-// Firestore document shapes
-export interface ConversationDoc {
-  currentState: BotState;
-  messages: MessageDoc[];
-  context: ConversationContext;
-  lastMessageTimestamp: Timestamp;
-}
-
-export interface MessageDoc {
-  body: string;
-  direction: "incoming" | "outgoing";
-  currentState: BotState;
-  createdAt: Timestamp;
-}
 
 export interface StateMessage {
+  // If defined, use a WhatsApp template with structured responses
   whatsappTemplate?: {
-    id: string;
-    type: "text" | "button" | "list" | "card";
-    body: string;
-    options?: Array<{
-      name: string;
-      id: string;
+    id: string;                // Template ID registered with WhatsApp Business API
+    type: "text" | "button" | "list" | "card";  // Template type
+    body: string;              // Main message body
+    options?: Array<{         // Response options
+      name: string;           // Human-readable option text
+      id: string;             // Machine-readable option identifier
     }>;
-    header?: {
-      type: string;
-      text?: string;
-      mediaUrl?: string;
+    header?: {               // Optional header for templates that support it
+      type: string;          // "text" or "media"
+      text?: string;         // Header text if type is "text"
+      mediaUrl?: string;     // Media URL if type is "media"
     };
   };
+  
+  // Regular message text (used if whatsappTemplate is undefined)
   message?: string;
+  
+  // Description of this state for developers
   description: string;
+  
+  // Message to show if validation fails
   validationMessage?: string;
-  validator?: "text" | "number" | "email" | "phone" | "yesNo" | "selection" | "days" | "time" | "photo" | "legalId" | "activeYears" | "skip";
-}
+  
+  // Type of validation to perform (if any)
+  validator?: z.ZodTypeAny;
 
+  // Use ai for validation
+  aiValidation?: {
+    prompt?: string; // The prompt to send to the AI for validation
+    schema?: z.ZodTypeAny; // If provided, use this schema to validate the response
+  }
+
+  nextState?: Record<string, BotState>; // Mapping of user responses to next states
+}
 // Re-export types with clearer names for external use
 export type RestaurantData = z.infer<typeof RestaurantSchema>;
 export type SupplierData = z.infer<typeof SupplierSchema>;

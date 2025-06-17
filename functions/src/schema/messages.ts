@@ -1,5 +1,8 @@
-import { emailSchema, ProductSchema, restaurantLegalIdSchema, restaurantLegalNameSchema, supplierCutoffHourSchema, supplierDeliveryDaysSchema, SupplierSchema, textSchema } from './schemas';
-import { BotConfig, BotState, StateMessage } from './types';
+import { z } from 'zod';
+import { emailSchema, nameSchema, ProductSchema, restaurantLegalIdSchema, restaurantLegalNameSchema, restaurantNameSchema, supplierCategorySchema, SupplierSchema } from './schemas';
+import { BotConfig, BotState, StateMessage } from './types2';
+import { skip } from 'node:test';
+import { finished } from 'stream';
 
 
 
@@ -161,39 +164,59 @@ export const STATE_MESSAGES: Record<BotState, StateMessage> = {
     whatsappTemplate: {
       id: "init_temaplate",
       type: "list",
-      body: "🍽️ *ברוכים הבאים למערכת ניהול המלאי וההזמנות!*\n\nבחר מה ברצונך לעשות:",
+      body: `🍽️ *ברוכים הבאים למערכת ניהול המלאי וההזמנות!*
+      \n\n
+      בחר מה ברצונך לעשות:`,
       options: [
         { name: "רישום מסעדה חדשה", id: "new_restaurant" },
         { name: "עזרה והסבר", id: "help" }
       ]
     },
-    description: "Initial greeting when a new user contacts the bot. Offers basic navigation options."
+    description: "Initial greeting when a new user contacts the bot. Offers basic navigation options.",
+    nextState: {
+      new_restaurant: "ONBOARDING_COMPANY_NAME",
+      help: "IDLE"
+    }
   },
   
   // === ONBOARDING FLOW STATES === //
   
   "ONBOARDING_COMPANY_NAME": {
-    message: "🏢 *תהליך הרשמה למערכת*\n\nמהו השם החוקי של העסק או החברה שלך?",
+    message: `🏢 *תהליך הרשמה למערכת*
+    \n\n
+    מהו השם החוקי של העסק או החברה שלך?`,
     description: "Ask for the legal company name as the first step of onboarding.",
-    validator: restaurantLegalNameSchema
+    validator: restaurantLegalNameSchema,
+    nextState: {
+      ok: "ONBOARDING_LEGAL_ID"
+    }
   },
   
   "ONBOARDING_LEGAL_ID": {
-    message: "📝 מצוין! כעת הזן את מספר ח.פ/עוסק מורשה של העסק.",
+    message: `📝 מצוין! כעת הזן את מספר ח.פ/עוסק מורשה של העסק.`,
     description: "Ask for the business registration number (9 digits).",
-    validator: restaurantLegalIdSchema
+    validator: restaurantLegalIdSchema,
+    nextState: {
+      ok: "ONBOARDING_RESTAURANT_NAME"
+    }
   },
   
   "ONBOARDING_RESTAURANT_NAME": {
     message: "🍽️ מהו השם המסחרי של המסעדה? (השם שהלקוחות מכירים)",
     description: "Ask for the restaurant's commercial name (may differ from legal name).",
-    validator: textSchema
+    validator: restaurantNameSchema,
+    nextState: {
+      ok: "ONBOARDING_CONTACT_NAME"
+    }
   },
   
   "ONBOARDING_CONTACT_NAME": {
     message: "👤 מה השם המלא שלך? (איש קשר ראשי)",
     description: "Ask for the primary contact person's full name.",
-    validator: textSchema
+    validator: nameSchema,
+    nextState: {
+      ok: "ONBOARDING_CONTACT_EMAIL"
+    }
   },
   
   "ONBOARDING_CONTACT_EMAIL": {
@@ -206,20 +229,30 @@ export const STATE_MESSAGES: Record<BotState, StateMessage> = {
       ]
     },
     description: "Ask for contact email (optional, can be skipped with 'דלג').",
-    validator: emailSchema
+    validator: emailSchema,
+    nextState: {
+      ok: "ONBOARDING_PAYMENT_METHOD",
+      skip: "ONBOARDING_PAYMENT_METHOD"
+    }
   },
   
   "ONBOARDING_PAYMENT_METHOD": {
     whatsappTemplate: {
       id: "payment_options_template",
       type: "button",
-      body: "💳 *בחר שיטת תשלום:*\n\nהמערכת זמינה בתשלום חודשי. בחר את האופציה המועדפת עליך:",
+      body: `💳 *בחר שיטת תשלום:*
+      \n\n
+      המערכת זמינה בתשלום חודשי. בחר את האופציה המועדפת עליך:`,
       options: [
         { name: "כרטיס אשראי", id: "credit_card" },
         { name: "התחל ניסיון", id: "trial" }
       ]
     },
     description: "Prompt user to select a payment method for the subscription.",
+    nextState: {
+      credit_card: "WAITING_FOR_PAYMENT",
+      trial: "SETUP_SUPPLIERS_START"
+    }
   },
   
   "WAITING_FOR_PAYMENT": {
@@ -233,120 +266,186 @@ export const STATE_MESSAGES: Record<BotState, StateMessage> = {
     whatsappTemplate: {
       id: "supplier_setup_start_template",
       type: "button",
-      body: "🏪 *הגדרת ספקים ומוצרים*\n\nכעת נגדיר את הספקים שעובדים עם המסעדה שלך. זה יעזור למערכת לנהל את המלאי ולשלוח הזמנות אוטומטיות.\n\nמוכנים להתחיל?",
+      body: `🚚 *הגדרת ספקים ומוצרים*
+      \n\n
+      כעת נגדיר את הספקים שעובדים עם המסעדה שלך. זה יעזור למערכת לנהל את המלאי, לתזכר אותך ולשלוח הזמנות לספק באופן אוטומטי.
+      \n\n
+      מוכנים להתחיל?`,
       options: [
-        { name: "כן, בואו נתחיל", id: "start_setup" },
+        { name: "כן, בואו נתחיל ✨", id: "start_supplier" },
         { name: "לא כרגע", id: "postpone" }
       ]
     },
     description: "Initial prompt to begin supplier setup process.",
+    nextState: {
+      start_supplier: "SUPPLIER_CATEGORY"
+    }
+  },
+
+  "SETUP_SUPPLIERS_ADDITIONAL": {
+    whatsappTemplate: {
+      id: "supplier_setup_additional_template",
+      type: "button",
+      body: "🏪 *האם יש עוד ספקים שתרצו להגדיר?*",
+      options: [
+        { name: "הגדרת ספק נוסף", id: "add_supplier" },
+        { name: "לא כרגע", id: "finished" }
+      ]
+    },
+    description: "Ask for more suppliers to be added after the initial setup.",
+    nextState: {
+      add_supplier: "SUPPLIER_CATEGORY",
+      finished: "RESTAURANT_FINISHED"
+    }
   },
 
   "SUPPLIER_CATEGORY": {
     whatsappTemplate: {
       id: "supplier_category_template",
       type: "list",
-      body: "🔍 *בחר קטגוריות לספק זה*\n\nבחרו או הקלידו את הקטגוריות המתאימות לספק הנוכחי:\n\n💡 ניתן לבחור מספר קטגוריות",
-      options: [] // Will be dynamically populated in conversationState.ts
+      body: `🚚 *הגדרת ספק חדש למסעדה*
+      \n\n
+      בחרו את הקטגוריות המתאימות לספק זה, לסיום הגדרת הקטגוריות, לחצו על "סיום הגדרת קטגוריות".
+      \n\n
+      💡 במידה והספק אחראי על יותר מקטגוריה אחת, ניתן לבחור מספר קטגוריות`,
+      options: [
+        // Will be dynamically populated with categories options, deducting already selected categories
+       { name: "סיום הגדרת קטגוריות ✅", id: "finished" }
+      ]
     },
-    description: "Prompt to select multiple supplier categories from available list.",
+    description: "list to select one or more supplier categories from available list.",
+    validator: supplierCategorySchema,
+    nextState: {
+      finished: "SUPPLIER_CATEGORY_ADDITIONAL"
+    }
   },
 
   "SUPPLIER_CATEGORY_ADDITIONAL": {
     whatsappTemplate: {
       id: "supplier_category_additional_template",
       type: "list",
-      body: "🔍 *בחר קטגוריות נוספות לספק זה*\n\nבחרו או הקלידו את הקטגוריות הנוספות שברצונכם להוסיף.\n\n אם אין עוד קטגוריות לספק, לחצו 'המשך הגדרת ספק'",
+      body: `🔍 *האם יש עוד קטגוריות מוצרים לספק זה?*
+      \n\n
+      בחרו את הקטגוריות הנוספות שברצונכם להוסיף.
+      \n\n
+      אם אין עוד קטגוריות לספק, לחצו 'סיום הגדרת קטגוריות'`,
       options: [
-        { name: "המשך הגדרת ספק", id: "continue_supplier_setup" }
+        // Dynamically populated with available categories excluding already selected ones
+        { name: "סיום הגדרת קטגוריות", id: "finished" }
       ]
     },
-    description: "Repeat this prompt to select / enter custom supplier categories until the user approves the supplier category setup process by clicking 'המשך הגדרת ספק'.",
-    aiValidation: {
-      prompt: "עליך לשאול את המשתמש אם הוא רוצה להוסיף עוד קטגוריות מוצרים לספק הנוכחי ואם כן, לאסוף את הקטגוריות הנוספות ולהוסיף לרשימה. אם לא, לבקש ללחוץ על הכפתור 'המשך הגדרת ספק' כדי לסיים את הגדרת הקטגוריות.",
-      schema: SupplierSchema.pick({ category: true })
-    },
-    validator: SupplierSchema.pick({ category: true })
+    description: "Repeat this step to allow multiple selection of categories until the user approves the supplier category setup process by clicking 'סיום הגדרת קטגוריות'.",
+    validator: SupplierSchema.pick({ category: true }),
+    nextState: {
+      finished: "SUPPLIER_CONTACT"
+    }
   },
 
-  "SUPPLIER_NAME_AND_PHONE": {
-    message: "👤 *מה שם ומספר הוואטסאפ של הספק?*\n\nלדוגמה: ירקות השדה, 0501234567",
+  "SUPPLIER_CONTACT": {
+    message: `👤 *מה שם ומספר הוואטסאפ של הספק?*
+    \n\nלדוגמה: ירקות השדה, 
+    0501234567`,
     description: "Ask for the supplier's name and phone number.",
     aiValidation: {
       prompt: "עליך לשאול את המשתמש מה השם ומספר הוואטסאפ של הספק הנוכחי.",
       schema: SupplierSchema.pick({ name: true, whatsapp: true })
     },
-    validator: SupplierSchema.pick({ name: true, whatsapp: true })
+    validator: SupplierSchema.pick({ name: true, whatsapp: true }),
+    nextState: {
+      ok: "SUPPLIER_REMINDERS"
+    }
   },
   
-  "SUPPLIER_DELIVERY_DAYS": {
+  "SUPPLIER_REMINDERS": {
     whatsappTemplate: {
-      id: "TEMPLATE_DELIVERY_DAYS",
+      id: "supplier_reminders_template",
       type: "list",
-      body: "📅 *באילו ימים הספק מבצע משלוחים?*\n\nבחר את כל הימים הרלוונטיים (ניתן לבחור כמה פעמים):\n\n" + "\n\nלסיום הבחירה, שלח 'סיום'",
+      body: `📅 *כעת נגדיר את הזמנים בהם תרצה לקבל תזכורות לבצע הזמנה מהספק*
+      \n\n
+      יש לבחור בזמנים מהרשימה *או* לכתוב יום ושעה עגולה שבה אתה נוהג לחדש הזמנה מהספק
+      \n\n
+      לדוגמה: יום שני וחמישי ב14`,
       options: [
-        { name: "ראשון", id: "sun" },
-        { name: "שני", id: "mon" },
-        { name: "שלישי", id: "tue" },
-        { name: "רביעי", id: "wed" },
-        { name: "חמישי", id: "thu" },
-        { name: "שישי", id: "fri" },
-        { name: "שבת", id: "sat" },
-        { name: "סיום בחירה", id: "done" }
+        { name: "ראשון, 12:00", id: "sun, 12:00" },
+        { name: "שני, 12:00", id: "mon, 12:00" },
+        { name: "שלישי, 12:00", id: "tue, 12:00" },
+        { name: "רביעי, 12:00", id: "wed, 12:00" },
+        { name: "חמישי, 12:00", id: "thu, 12:00" },
+        { name: "שישי, 10:00", id: "fri, 10:00" },
+        { name: "שבת, 10:00", id: "sat, 10:00" },
+        { name: "סיום בחירה", id: "finished" }
       ]
     },
     description: "Select which days of the week this supplier delivers goods.",
-    validator: SupplierSchema.pick({ deliveryDays: true }),
-  },
-  
-  "SUPPLIER_CUTOFF_TIME": {
-    message: "⏰ *כדי שנוכל לתזכר אותך בזמן, נגדיר את השעה האחרונה בה ניתן לשלוח בקשות והזמנות לספק?*\n\nהזן את השעה האחרונה שבה ניתן לשלוח הזמנה *ביום שלפני המשלוח*, (פורמט 24 שעות, למשל: 14 עבור 14:00)",
-    description: "Set the cutoff hour for placing orders with this supplier.",
-    validator: SupplierSchema.pick({ cutoffHour: true }),
+    validator: SupplierSchema.pick({ reminders: true }),
+    aiValidation: {
+      prompt: "עליך לבקש מהמשתמש לבחור את הימים והשעות בהם הוא מעוניין לקבל תזכורות לבצע הזמנה מהספק הנוכחי.",
+      schema: SupplierSchema.pick({ reminders: true })
+    },
+    nextState: {
+      finished: "PRODUCTS_LIST",
+      ok: "PRODUCTS_LIST"
+    }
   },
 
   "PRODUCTS_LIST": {
     whatsappTemplate: {
-      id: "TEMPLATE_PRODUCT_SELECTION",
-      type: "list", 
-          body: "🏷️ נגדיר עכשיו את רשימת המוצרים של הספק ואת יחידות המידה שלהם\n\n כתבו בצורה ברורה או בחרו את רשימת המוצרים המלאה שאתם מזמינים מהספק ואת יחידות המידה שלהם\nלדוגמה: \n\nק\"ג: 🍅 עגבניות שרי, 🥒 מלפפון, 🧅 בצל, 🥕 גזר\nיחידות: 🥬 חסה, 🌿 פטרוזיליה",
-          options: [] // Will be dynamically populated in conversationState.ts
+      id: "supplier_products_template",
+      type: "list",
+      body: `🏷️ נגדיר עכשיו את רשימת המוצרים שאתה מזמין מהספק ואת יחידות המידה שלהם
+      \n\n
+      בחרו מתוך הרשימה המוצעת או כיתבו בצורה ברורה את רשימת המוצרים המלאה שאתם מזמינים מהספק ואת יחידות המידה שלהם
+      \n
+      לדוגמה:
+      \n
+      ק"ג: 🍅 עגבניות שרי, 🥒 מלפפון, 🧅 בצל, 🥕 גזר
+      \n
+      יח': 🥬 חסה, 🌿 פטרוזיליה`,
+      options: [
+        // Will be dynamically populated with products references from the supplier's categories, deducting already selected products
+        {name: "סיום בחירת מוצרים", id: "finished" }
+      ]
+        
     },
-    description: "Select one product from the list or enter a custom product name.",
+    description: "Select products from the list or enter a custom product name and units in order to create full products list from the supplier.",
     aiValidation: {
       prompt: "עליך לבקש מהמשתמש לבחור, לרשום בכל דרך שיבחר רשימה של מוצרים ויחידות המידה שלהם שאותם ניתן להזמין מהספק, אם נתונים על מוצר מסויים חסרים, השלם אותם לפי הסבירות הגבוהה ביותר.",
       schema: ProductSchema.pick({ name: true, unit: true, emoji: true })
     },
-    validator: ProductSchema.pick({ name: true, unit: true, emoji: true })
+    validator: ProductSchema.pick({ name: true, unit: true, emoji: true }),
+    nextState: {
+      ok: "PRODUCTS_BASE_QTY"
+    }
   },
 
 
   "PRODUCTS_BASE_QTY": {
     whatsappTemplate: {
-      id: "TEMPLATE_PRODUCT_BASE_QTY",
+      id: "supplieder_products_base_qty_template",
       type: "list",
-      body: "🔢 *מה כמות הבסיס של המוצרים הבאים ביחידות {unit}?*\n\nבחר את המוצרים שברצונך לעדכן:",
-      options: [] // Will be dynamically populated in conversationState.ts
+      body: `📦 *הגדרת מצבת בסיס למוצרים*
+      \n\n
+      כדי שנוכל ליעל את תהליך ההזמנה, נגדיר כמות בסיס לכל מוצר. כמות זו תעזור לנו לחשב את ההזמנה המומלצת שלך אוטומטית.
+      \n\n
+      עבור כל מוצר, הזן את הכמות הבסיסית הנדרשת למסעדה לאמצע שבוע, ואת הכמות הנדרשת לסוף שבוע בפורמט: [שם מוצר] - [כמות אמצע שבוע], [כמות סוף שבוע].
+      \n\n
+      לדוגמה:
+      \n
+      עגבניות- 15, 20
+      \n
+      מלפפון- 10, 15
+      \n
+      חסה- 5, 10`,
+      options: [] // Will be dynamically populated with the pre-defined products
     },
-    message: "🔢 ",
-    description: "Iterate over products and ask for their base quantity in the specified unit, for midweek and for weekend.",
-    validationMessage: "❌ אנא הזן מספר תקין גדול מ-0.",
-  
+    description: "Iterate over the defined products and ask for their base quantity in the specified unit, for midweek and for weekend.",
+    aiValidation: {
+      prompt: "עליך לבקש מהמשתמש להזין את הכמות הבסיסית הנדרשת ליחידה אחת של כל מוצר ברשימה, עבור כל מוצר יש להזין כמות בסיס לשימוש באמצע השבוע ובסוף השבוע.",
+      schema: z.array(ProductSchema)
+    },
+    validator: z.array(ProductSchema)
   },
   
-  "PRODUCT_PAR_MIDWEEK": {
-    message: "📊 *כמה {productName} דרושים באמצע השבוע (ראשון-רביעי)?*\n\nהזן כמות ביחידות {unit}:",
-    description: "Set the par level for this product during regular weekdays.",
-    validationMessage: "❌ אנא הזן מספר תקין גדול מ-0.",
-    validator: "number"
-  },
-  
-  "PRODUCT_PAR_WEEKEND": {
-    message: "📈 *כמה {productName} דרושים בסוף השבוע (חמישי-שבת)?*\n\nהזן כמות ביחידות {unit}:",
-    description: "Set the par level for this product during weekend days.",
-    validationMessage: "❌ אנא הזן מספר תקין גדול מ-0.",
-    validator: "number"
-  },
   
   // === INVENTORY SNAPSHOT STATES === //
   
@@ -379,14 +478,14 @@ export const STATE_MESSAGES: Record<BotState, StateMessage> = {
     message: "📋 *עדכון מלאי - {categoryName}*\n\nהמוצרים בקטגוריה זו:\n{productList}\n\nבחר מספר מוצר או הקלד 'הבא' למוצר הבא:",
     description: "Show products in selected category and prompt user to choose one to update.",
     validationMessage: "❌ אנא בחר מספר מוצר תקין מהרשימה או הקלד 'הבא'.",
-    validator: "selection"
+    // validator: "selection"
   },
   
   "INVENTORY_SNAPSHOT_QTY": {
     message: "📊 *כמה {productName} יש במלאי כרגע?*\n\nהזן כמות ביחידות {unit}:",
     description: "Ask for current stock quantity of the selected product.",
     validationMessage: "❌ אנא הזן מספר תקין גדול או שווה ל-0.",
-    validator: "number"
+    // validator: "number"
   },
   
   "INVENTORY_CALCULATE_SNAPSHOT": {
@@ -471,14 +570,14 @@ export const STATE_MESSAGES: Record<BotState, StateMessage> = {
     message: "🔢 *כמה {productName} התקבלו בפועל?*\n\nהזן את הכמות שהתקבלה ביחידות {unit}:",
     description: "Ask for the actual received quantity of a partially received item.",
     validationMessage: "❌ אנא הזן מספר תקין גדול או שווה ל-0 וקטן מהכמות שהוזמנה.",
-    validator: "number"
+    // validator: "number"
   },
   
   "DELIVERY_INVOICE_PHOTO": {
     message: "📸 *צילום חשבונית*\n\nאנא צלם את החשבונית שקיבלת מהספק ושלח את התמונה כאן.\n\nהתמונה תישמר במערכת לצורך מעקב והתחשבנות.",
     description: "Request a photo of the invoice for record-keeping.",
     validationMessage: "❌ לא התקבלה תמונה תקינה. אנא שלח תמונה של החשבונית.",
-    validator: "photo"
+    // validator: "photo"
   },
   
   // === IDLE STATE === //
@@ -533,21 +632,6 @@ export const SYSTEM_MESSAGES = {
                      "היום יש לעדכן את המלאי עבור הספקים הבאים:\n" +
                      "{supplierList}\n\n" +
                      "הקלד 'מלאי' כדי להתחיל."
-};
-
-/**
- * Validation error messages that can be reused across multiple states
- */
-export const VALIDATION_ERRORS : Record<string, string> = {
-  text: "❌ הטקסט שהזנת אינו תקין. נדרשים לפחות 2 תווים.",
-  number: "❌ אנא הזן מספר תקין.",
-  phone: "❌ אנא הזן מספר טלפון ישראלי תקין (לדוגמה: 0501234567).",
-  email: "❌ אנא הזן כתובת אימייל תקינה או 'דלג'.",
-  selection: "❌ אנא בחר אפשרות מהרשימה.",
-  days: "❌ אנא בחר ימים תקינים (מספרים בין 0-6).",
-  time: "❌ אנא הזן שעה תקינה (מספר בין 0-23).",
-  yesNo: "❌ אנא ענה 'כן' או 'לא'.",
-  photo: "❌ אנא שלח תמונה תקינה."
 };
 
 /*

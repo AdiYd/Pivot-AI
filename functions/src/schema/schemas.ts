@@ -2,14 +2,17 @@ import { z } from "zod";
 
 // ==== ZOD SCHEMAS FOR DATA VALIDATION and TYPE SAFETY ====
 
-export const textSchema = z.string().min(2, "שדה זה אינו יכול להיות ריק");  // Generic text schema for non-empty strings
+// General schemas
+export const textSchema = z.string().min(2, "שדה זה אינו יכול להיות ריק וצריך להכיל לפחות 2 תווים");  // Generic text schema for non-empty strings
+export const timestampSchema = z.any().optional(); // Placeholder for server timestamp, will be replaced with serverTimestamp in Firestore
+export const daysSchema = z.enum(["sun", "mon", "tue", "wed", "thu", "fri", "sat"]); // Enum for days of the week, used for reminders and delivery days
+export const timeSchema = z.string().regex(/^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/, "שעה חייבת להיות בפורמט HH:MM, לדוגמה: 20:00"); // Regex for time in HH:MM format
 
 // Onboarding Types
 export const restaurantLegalIdSchema = z.string().regex(/^\d{9}$/, "מספר ח.פ של המסעדה חייב להיות באורך של 9 ספרות בלבד, לדוגמה: 123456789"); // 9-digit legal ID
 export const restaurantLegalNameSchema = z.string().min(2, "השם החוקי של המסעדה חייב להיות באורך של לפחות 2 תווים");
-export const restaurantNameSchema = z.string().min(2, "שם המסעדה חייב להיות באורך של לפחות 2 תווים");
-export const paymentProviderSchema = z.enum(["trial", "stripe", "cash"]).default("trial");
-export const timestampSchema = z.any().optional(); // Placeholder for server timestamp, will be replaced with serverTimestamp in Firestore
+export const restaurantNameSchema = z.string().min(2, "שם המסעדה (השם שהלקוחות מכירים) חייב להיות באורך של לפחות 2 תווים");
+export const paymentProviderSchema = z.enum(["trial", "credit_card", "paypal"]).default("trial");
 
 
 // Contact types
@@ -30,13 +33,21 @@ export const emojySchema = z.string().default("📦"); // Optional emoji for pro
 // Supplier types
 export const supplierRatingSchema = z.number().min(0).max(5); // Rating from 0 to 5
 export const supplierCategorySchema = z.union([z.enum(["general", "vegetables","fruits","herbs","coffee","spices", "meat", "dairy", "bakery", "beverages", "fish", "frozen", "dry", "other"]), z.string().min(2,'שם הקטגוריה חייב להיות לפחות 2 תווים')]).default("general");
-export const supplierDeliveryDaysSchema = z.array(z.enum(["sun", "mon", "tue", "wed", "thu", "fri", "sat"]));
+export const supplierRemindersSchema = z.array(z.object({
+  day: daysSchema,
+  // Time in HH:MM format, e.g., 20:00 between 06:00 and 23:59
+  time: timeSchema.refine((time) => {
+    const [hours, minutes] = time.split(':').map(Number);
+    return (hours >= 6 && hours <= 23) || (hours === 23 && minutes === 59);
+  }, {
+    message: "שעת המסירה חייבת להיות בין 06:00 ל-23:59",
+  })
+}));
 export const supplierCutoffHourSchema = z.number().min(0, "אנא הזן שעה תקינה בין 0 ל-23").max(23, 'שעת סיום חייבת להיות בין 0 ל-23'); // Cutoff hour for placing orders, default to 20:00
 
 // Order types
+export const orderIdSchema = z.string().min(5, "מספר ההזמנה חייב להיות באורך של לפחות 5 תווים");
 export const orderStatusSchema = z.enum(["pending", "confirmed","sent", "delivered","cancelled"]).default("pending");
-
-
 
 
 
@@ -73,9 +84,8 @@ export const ProductSchema = z.object({
 // Supplier schema
 export const SupplierSchema = ContactSchema.extend({
     role: contactRoleSchema.default('supplier').transform(()=> "supplier"), // All suppliers have the role of "supplier"
-    category: supplierCategorySchema,
-    deliveryDays: supplierDeliveryDaysSchema,
-    cutoffHour: supplierCutoffHourSchema, 
+    category: z.array(supplierCategorySchema).default([]).transform((categories) => new Set(categories)), // Array of supplier categories, transformed to a Set for uniqueness
+    reminders: supplierRemindersSchema.default([]), // Array of reminders for the supplier
     products: z.array(ProductSchema).default([]), // Array of products of the supplier
     rating: supplierRatingSchema.default(0), // Rating from 0 to 5
     createdAt: timestampSchema,
@@ -102,7 +112,7 @@ export const RestaurantSchema = z.object({
 
 // Order schema (with all related entities) for validation
 export const OrderSchema = z.object({
-  id: z.string().min(5, "מספר ההזמנה חייב להיות באורך של לפחות 5 תווים"),
+  id: orderIdSchema,
   category: SupplierSchema.pick({ category: true }), // Only include necessary fields of the supplier
   supplier: SupplierSchema.pick({ whatsapp: true, name: true, email: true }), // Only include necessary fields of the supplier
   restaurant: RestaurantSchema.pick({
@@ -148,7 +158,7 @@ export const OrderSchema = z.object({
 // Conversations schemas (for conversation & messages)
 export const MessageSchema = z.object({
     role: z.enum(["user", "assistant"]).default("user"),                     // Role of the message sender, e.g., "user", "assistant", "system"
-    body: z.string().max(1024, "תוכן ההודעה לא יכול להיות ארוך מ-1024 תווים").default(""), // Content of the message
+    body: z.string().max(4000, "תוכן ההודעה לא יכול להיות ארוך מ-4000 תווים").default(""), // Content of the message
     templateId: z.string().uuid().optional(),                              // Optional template ID for the message
     hasTemplate: z.boolean().default(false),                              // Whether the message has a whatsApp template
     mediaUrl: z.string().url().optional(),                               // Optional media URL for the message, e.g., image or video
@@ -164,6 +174,12 @@ export const ConversationSchema = z.object({
     restaurantId: restaurantLegalIdSchema.optional(),                // Optional restaurant ID to link between a conversation and a restaurant
     role: contactRoleSchema.optional(),                             // Role of the contact in the conversation, e.g., "owner", "manager", etc.
     createdAt: timestampSchema,                                    // Timestamp of when the conversation was created
-    updatedAt: timestampSchema,                                   // Timestamp of when the conversation was last updated
+    updatedAt: timestampSchema,                                   // Timestamp of when the conversation was last updated (e.g., last message timestamp)
 });
 
+
+export const DatabaseSchema = z.object({
+  restaurants: z.array(RestaurantSchema).default([]), // Array of restaurants
+  orders: z.array(OrderSchema).default([]),           // Array of orders
+  conversations: z.array(ConversationSchema).default([]) // Array of conversations
+});
