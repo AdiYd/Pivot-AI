@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { 
   Plus, 
   Search, 
@@ -35,30 +36,45 @@ import {
   TrendingUp,
   AlertTriangle,
   Save,
-  X
+  X,
+  Filter,
+  ArrowUpDown,
+  Table as TableIcon
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Timestamp } from 'firebase/firestore';
+import { Icon } from '@iconify/react/dist/iconify.js';
 
 // Import the actual database
 import exampleDatabase from '@/schema/example';
-import { Contact, paymentProvider, Restaurant, RestaurantData, SupplierCategory } from '@/schema/types';
+import { Contact, Order, paymentProvider, Restaurant, Supplier, SupplierCategory } from '@/schema/types';
 import { getCategoryBadge } from '@/components/ui/badge';
+import { DebugButton, debugFunction } from '@/components/debug';
 
 
-
-
+declare type Stats = {
+    suppliersCount : number,
+    productsCount: number,
+    totalOrders: number,
+    pendingOrders: number,
+    deliveredOrders: number,
+    recentOrderDate: Date | null,
+};
 
 export default function RestaurantsPage() {
   const [data, setData] = useState(exampleDatabase);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedRestaurant, setSelectedRestaurant] = useState<any | null>(null);
+  const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant & { stats: Stats } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingRestaurant, setEditingRestaurant] = useState<any | null>(null);
+  const [editingRestaurant, setEditingRestaurant] = useState<Restaurant | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
+  const [sortBy, setSortBy] = useState<'name' | 'status' | 'suppliers' | 'orders'>('name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'pending' | 'inactive'>('all');
   const [newRestaurant, setNewRestaurant] = useState<Restaurant>({
     name: '',
     legalName: '',
@@ -76,7 +92,7 @@ export default function RestaurantsPage() {
     createdAt: Timestamp.now(),
   } as Restaurant);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  const editingRestaurantRef = useRef<any | null>(null);
+  const editingRestaurantRef = useRef<Restaurant | null>(null);
   const { toast } = useToast();
 
   // Validation function for new restaurant
@@ -124,18 +140,18 @@ export default function RestaurantsPage() {
       // Simulate API call delay
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      const newRestaurantData: Restaurant = {
-        legalId: newRestaurant.legalId,
-        legalName: newRestaurant.legalName,
-        name: newRestaurant.name,
+      const newRestaurant : Restaurant = {
+        legalId: '',
+        legalName:  '',
+        name:  '',
         contacts: [{
-          whatsapp: newRestaurant.contacts[0].whatsapp || '',
-          name: newRestaurant.contacts[0].name || '',
-          role: newRestaurant.contacts[0].role,
-          email: newRestaurant.contacts[0].email || undefined
+          whatsapp: '',
+          name: '',
+          role: 'owner',
+          email: undefined
         }],
         payment: {
-          provider: newRestaurant.payment.provider,
+          provider: 'credit_card',
           status: false // New restaurants start with pending payment
         },
         isActivated: false,
@@ -149,7 +165,7 @@ export default function RestaurantsPage() {
         ...prevData,
         restaurants: {
           ...prevData.restaurants,
-          [newRestaurant.legalId]: newRestaurantData
+          [newRestaurant.legalId]: newRestaurant
         }
       }));
 
@@ -211,7 +227,7 @@ export default function RestaurantsPage() {
       }));
 
       // Update selectedRestaurant to reflect changes
-      setSelectedRestaurant((prev: any) => ({ ...prev, ...updatedData }));
+      setSelectedRestaurant((prev: Restaurant | null) => ({ ...prev, ...updatedData }));
 
       toast({
         title: "מסעדה עודכנה",
@@ -342,12 +358,59 @@ export default function RestaurantsPage() {
     }
   }, [data]);
 
-  // Filter restaurants based on search term
-  const filteredRestaurants = restaurantsWithStats.filter(restaurant =>
-    restaurant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    restaurant.legalName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    restaurant.legalId.includes(searchTerm)
-  );
+  // Filter restaurants based on search term and status filter
+  const filteredRestaurants = useMemo(() => {
+    return restaurantsWithStats
+      .filter(restaurant => {
+        // Text search filtering
+        const matchesSearch = restaurant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          restaurant.legalName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          restaurant.legalId.includes(searchTerm) ||
+          restaurant.contacts.some(contact => 
+            contact.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+            contact.whatsapp.includes(searchTerm)
+          );
+        
+        // Status filtering
+        let matchesStatus = true;
+        if (statusFilter === 'active') {
+          matchesStatus = restaurant.isActivated && restaurant.payment.status;
+        } else if (statusFilter === 'pending') {
+          matchesStatus = !restaurant.payment.status;
+        } else if (statusFilter === 'inactive') {
+          matchesStatus = !restaurant.isActivated;
+        }
+        
+        return matchesSearch && matchesStatus;
+      })
+      .sort((a, b) => {
+        // Sorting logic
+        let comparison = 0;
+        
+        switch (sortBy) {
+          case 'name':
+            comparison = a.name.localeCompare(b.name);
+            break;
+          case 'status':
+            // Custom status ordering: active -> pending -> inactive
+            const statusOrder = (r: Restaurant) => {
+              if (r.isActivated && r.payment.status) return 0;
+              if (!r.payment.status) return 1;
+              return 2;
+            };
+            comparison = statusOrder(a) - statusOrder(b);
+            break;
+          case 'suppliers':
+            comparison = a.stats.suppliersCount - b.stats.suppliersCount;
+            break;
+          case 'orders':
+            comparison = a.stats.totalOrders - b.stats.totalOrders;
+            break;
+        }
+        
+        return sortOrder === 'asc' ? comparison : -comparison;
+      });
+  }, [restaurantsWithStats, searchTerm, statusFilter, sortBy, sortOrder]);
 
   // Calculate overall stats
   const overallStats = useMemo(() => {
@@ -370,7 +433,7 @@ export default function RestaurantsPage() {
     };
   }, [restaurantsWithStats]);
 
-  const getStatusBadge = (restaurant: any) => {
+  const getStatusBadge = (restaurant: Restaurant) => {
     if (restaurant.isActivated && restaurant.payment.status) {
       return <Badge variant="default" className="bg-green-500 mx-auto text-nowrap"><CheckCircle className="w-3 h-3 ml-1" />פעיל</Badge>;
     } else if (!restaurant.payment.status) {
@@ -380,20 +443,9 @@ export default function RestaurantsPage() {
     }
   };
 
-  const getConversationBadge = (state: string) => {
-    switch (state) {
-      case 'IDLE':
-        return <Badge variant="outline" className="text-gray-600 flex justify-center">רגיל</Badge>;
-      case 'INVENTORY_SNAPSHOT_PRODUCT':
-        return <Badge variant="outline" className="text-blue-600 flex justify-center">בודק מלאי</Badge>;
-      case 'ONBOARDING_PAYMENT_METHOD':
-        return <Badge variant="outline" className="text-orange-600 flex justify-center">רישום</Badge>;
-      default:
-        return <Badge variant="outline" className="text-purple-600 flex justify-center">פעיל</Badge>;
-    }
-  };
+  const getRelativeTime = (date: Date | null): string => {
+    if (!date) return '';
 
-  const getRelativeTime = (date: Date): string => {
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
@@ -405,8 +457,8 @@ export default function RestaurantsPage() {
     return `לפני ${Math.floor(diffDays / 30)} חודשים`;
   };
 
-  const RestaurantCard = ({ restaurant }: { restaurant: any }) => (
-    <Card className="hover:shadow-lg cursor-default transition-shadow flex flex-col justify-between">
+  const RestaurantCard = ({ restaurant }: { restaurant: Restaurant & { stats: Stats } }) => (
+    <Card key={restaurant.legalId} className="hover:shadow-lg cursor-default transition-shadow flex flex-col justify-between">
       <CardHeader className="pb-4">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
@@ -420,7 +472,6 @@ export default function RestaurantsPage() {
           </div>
           <div className="flex flex-col gap-1">
             {getStatusBadge(restaurant)}
-            {getConversationBadge(restaurant.stats.conversationState)}
           </div>
         </div>
       </CardHeader>
@@ -432,11 +483,11 @@ export default function RestaurantsPage() {
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Users className="w-4 h-4" />
-            <span>{restaurant.primaryContact.name} - {restaurant.primaryContact.role}</span>
+            <span>{restaurant.contacts[0].name} - {restaurant.contacts[0].role}</span>
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Phone className="w-4 h-4" />
-            <span>{restaurant.primaryContact.whatsapp}</span>
+            <span>{restaurant.contacts[0].whatsapp}</span>
           </div>
 
           {/* Quick Stats */}
@@ -545,6 +596,203 @@ export default function RestaurantsPage() {
     </Card>
   );
 
+  const RestaurantTable = ({ restaurants }: { restaurants: (Restaurant & { stats: Stats })[] }) => (
+    <div className="border rounded-lg overflow-hidden">
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="text-right">
+                <div className="flex items-center cursor-pointer" onClick={() => {
+                  if (sortBy === 'name') {
+                    setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                  } else {
+                    setSortBy('name');
+                    setSortOrder('asc');
+                  }
+                }}>
+                  שם מסעדה
+                  <ArrowUpDown className="mr-2 h-4 w-4" />
+                </div>
+              </TableHead>
+              <TableHead className="text-right">איש קשר</TableHead>
+              <TableHead className="text-right">
+                <div className="flex items-center cursor-pointer" onClick={() => {
+                  if (sortBy === 'status') {
+                    setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                  } else {
+                    setSortBy('status');
+                    setSortOrder('asc');
+                  }
+                }}>
+                  סטטוס
+                  <ArrowUpDown className="mr-2 h-4 w-4" />
+                </div>
+              </TableHead>
+              <TableHead className="text-right">
+                <div className="flex items-center cursor-pointer" onClick={() => {
+                  if (sortBy === 'suppliers') {
+                    setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                  } else {
+                    setSortBy('suppliers');
+                    setSortOrder('desc');
+                  }
+                }}>
+                  ספקים
+                  <ArrowUpDown className="mr-2 h-4 w-4" />
+                </div>
+              </TableHead>
+              <TableHead className="text-right">
+                <div className="flex items-center cursor-pointer" onClick={() => {
+                  if (sortBy === 'orders') {
+                    setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                  } else {
+                    setSortBy('orders');
+                    setSortOrder('desc');
+                  }
+                }}>
+                  הזמנות
+                  <ArrowUpDown className="mr-2 h-4 w-4" />
+                </div>
+              </TableHead>
+              <TableHead className="text-right">פריטים</TableHead>
+              <TableHead className="text-right">פעילות אחרונה</TableHead>
+              <TableHead className="text-right">פעולות</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {restaurants.map((restaurant) => (
+              <TableRow key={restaurant.legalId} className="hover:bg-gray-50 dark:hover:bg-gray-900/50">
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{restaurant.name}</span>
+                    <span className="text-xs text-muted-foreground">{restaurant.legalId}</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">{restaurant.legalName}</div>
+                </TableCell>
+                <TableCell>
+                  <div className="text-sm">{restaurant.contacts[0]?.name}</div>
+                  <div className="text-xs text-muted-foreground">{restaurant.contacts[0]?.whatsapp}</div>
+                </TableCell>
+                <TableCell>
+                  {getStatusBadge(restaurant)}
+                </TableCell>
+                <TableCell>
+                  <div className="font-medium">{restaurant.stats.suppliersCount}</div>
+                </TableCell>
+                <TableCell>
+                  <div className="grid items-center">
+                    <span className="font-medium">{restaurant.stats.totalOrders}</span>
+                    {restaurant.stats.pendingOrders > 0 && (
+                      <span className="text-xs text-amber-500">
+                        +{restaurant.stats.pendingOrders} ממתינות
+                      </span>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="text-sm">{restaurant.stats.productsCount}</div>
+                </TableCell>
+                <TableCell>
+                  <div className="text-sm">
+                    {restaurant.stats.recentOrderDate ? getRelativeTime(restaurant.stats.recentOrderDate) : 'אין פעילות'}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex gap-2">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedRestaurant(restaurant);
+                            setIsDialogOpen(true);
+                          }}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>צפייה בפרטים</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            editingRestaurantRef.current = { ...restaurant };
+                            setIsEditing(true);
+                            setSelectedRestaurant(restaurant);
+                            setIsDialogOpen(true);
+                          }}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>עריכה</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>מחיקה</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>האם אתה בטוח?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            פעולה זו תמחק את המסעדה &quot;{restaurant.name}&quot; לצמיתות.
+                            כל הנתונים הקשורים כולל ספקים, מוצרים והזמנות יימחקו.
+                            פעולה זו לא ניתנת לביטול.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>ביטול</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDelete(restaurant.legalId)}
+                            className="bg-red-600 hover:bg-red-700"
+                          >
+                            מחק מסעדה
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+            
+            {restaurants.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={8} className="h-24 text-center">
+                  <div className="flex flex-col items-center justify-center">
+                    <Store className="w-12 h-12 text-muted-foreground mb-2" />
+                    <h3 className="text-lg font-medium mb-1">לא נמצאו מסעדות</h3>
+                    <p className="text-muted-foreground text-sm">נסה לשנות את הסינון או לחפש מחדש</p>
+                  </div>
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+
   // Enhanced Edit form component with better UX
   const EditableField = ({ 
     label, 
@@ -623,145 +871,45 @@ export default function RestaurantsPage() {
     );
   }
 
+
   return (
     <div className="p-6 max-sm:p-2 space-y-6">
+      <DebugButton debugFunction={debugFunction} />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">מסעדות</h1>
           <p className="text-muted-foreground">נהל את כל המסעדות במערכת</p>
         </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 ml-2" />
-              הוסף מסעדה
-            </Button>
-          </DialogTrigger>
-          <DialogContent  className="max-w-2xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>הוסף מסעדה חדשה</DialogTitle>
-              <DialogDescription>
-                הזן את פרטי המסעדה החדשה
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <EditableField
-                  label="שם המסעדה"
-                  value={newRestaurant.name}
-                  onChange={(value) => setNewRestaurant(prev => ({ ...prev, name: value as string }))}
-                  error={formErrors.name}
-                />
-                <EditableField
-                  label="מספר חברה"
-                  value={newRestaurant.legalId}
-                  onChange={(value) => setNewRestaurant(prev => ({ ...prev, legalId: value as string }))}
-                  error={formErrors.legalId}
-                />
-              </div>
-              <EditableField
-                label="שם עסקי מלא"
-                value={newRestaurant.legalName}
-                onChange={(value) => setNewRestaurant(prev => ({ ...prev, legalName: value as string }))}
-                error={formErrors.legalName}
-              />
-              <EditableField
-                label="איש קשר ראשי"
-                value={newRestaurant.contacts[0].name}
-                onChange={(value) => setNewRestaurant(prev => ({ ...prev, contacts: [{ ...prev.contacts[0], name: value as string }] }))}
-                error={formErrors.contactName}
-              />
-              <div className="grid grid-cols-2 gap-4">
-                <EditableField
-                  label="WhatsApp"
-                  value={newRestaurant.contacts[0].whatsapp}
-                  onChange={(value) => setNewRestaurant(prev => ({ ...prev, contacts: [{ ...prev.contacts[0], whatsapp: value as string }] }))}
-                  error={formErrors.contactPhone}
-                />
-                <EditableField
-                  label="אימייל (אופציונלי)"
-                  value={newRestaurant.contacts[0]?.email || ''}
-                  onChange={(value) => setNewRestaurant(prev => ({ ...prev, contacts: [{ ...prev.contacts[0], email: value as string }] }))}
-                  type="email"
-                  error={formErrors.contactEmail}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>תפקיד איש קשר</Label>
-                  <Select
-                    value={newRestaurant.contacts[0].role}
-                    onValueChange={(value: "owner" | "manager" | "shift" | "other") =>
-                      setNewRestaurant((prev: any) => ({ ...prev, contacts: [{ ...prev.contacts[0], role: value }] }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="owner">בעלים</SelectItem>
-                      <SelectItem value="manager">מנהל</SelectItem>
-                      <SelectItem value="shift">משמרת</SelectItem>
-                      <SelectItem value="other">אחר</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>ספק תשלומים</Label>
-                  <Select
-                    value={newRestaurant.payment.provider}
-                    onValueChange={(value: paymentProvider) =>
-                      setNewRestaurant(prev => ({ ...prev, payment: { ...prev.payment, provider: value } }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Stripe">Stripe</SelectItem>
-                      <SelectItem value="Paylink">Paylink</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  setIsCreateDialogOpen(false);
-                  setNewRestaurant({
-                    name: '',
-                    legalName: '',
-                    legalId: '',
-                    contacts: [{
-                      name: '',
-                      whatsapp: '',
-                      email: '',
-                      role: 'owner'
-                    }],
-                    payment: {
-                      provider: 'credit_card',
-                      status: false
-                    }
-                  } as Restaurant);
-                  setFormErrors({});
-                }}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 max-sm:hidden">
+            <span className="text-sm opacity-80">תצוגה:</span>
+            <div className="flex flex-row-reverse gap-2 items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+              <Button
+                title='הצג בכרטיסיות'
+                variant={viewMode === 'cards' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('cards')}
+                className="h-8 w-8 p-0"
               >
-                ביטול
+                <Icon icon="mdi:id-card" width="1.5em" height="1.5em" />
               </Button>
-              <Button onClick={handleCreateRestaurant} disabled={isLoading}>
-                {isLoading ? 'יוצר...' : 'צור מסעדה'}
+              <Button
+                title='הצג בטבלה'
+                variant={viewMode === 'table' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('table')}
+                className="h-8 w-8 p-0"
+              >
+                <TableIcon className="w-4 h-4" />
               </Button>
             </div>
-          </DialogContent>
-        </Dialog>
+          </div>
+          {/* Add restaurant button (commented out) */}
+        </div>
       </div>
 
-     
-
-      {/* Enhanced Stats Cards */}
+      {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Card>
           <CardHeader className="pb-2">
@@ -846,35 +994,77 @@ export default function RestaurantsPage() {
       )}
 
 
-      {/* Search */}
-      <div className="flex gap-4 mb-6">
+      {/* Search and Filters */}
+      <div className="flex flex-wrap items-center gap-4 mb-6">
+        <div className="flex items-center gap-2 sm:hidden">
+          <span className="text-sm opacity-80">תצוגה:</span>
+          <div className="flex flex-row-reverse gap-2 items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+            <Button
+              title='הצג בכרטיסיות'
+              variant={viewMode === 'cards' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('cards')}
+              className="h-8 w-8 p-0"
+            >
+              <Icon icon="mdi:id-card" width="1.5em" height="1.5em" />
+            </Button>
+            <Button
+              title='הצג בטבלה'
+              variant={viewMode === 'table' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('table')}
+              className="h-8 w-8 p-0"
+            >
+              <TableIcon className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
         <div className="relative max-w-md flex-1">
           <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
           <Input
-            placeholder="חיפוש לפי שם, ח.פ או שם עסקי..."
+            placeholder="חיפוש לפי שם, ח.פ, שם עסקי או איש קשר..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pr-10"
           />
         </div>
+        
+        <div className="flex items-center gap-2">
+          <Filter className="w-4 h-4 text-muted-foreground" />
+          <Select value={statusFilter} onValueChange={(value: any) => setStatusFilter(value)}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="כל הסטטוסים" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">כל הסטטוסים</SelectItem>
+              <SelectItem value="active">פעילות</SelectItem>
+              <SelectItem value="pending">ממתינות לתשלום</SelectItem>
+              <SelectItem value="inactive">לא פעילות</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      {/* Restaurants Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredRestaurants.length > 0 ? (
-          filteredRestaurants.map((restaurant) => (
-            <RestaurantCard key={restaurant.legalId} restaurant={restaurant} />
-          ))
-        ) : (
-          <div className="col-span-full text-center py-12">
-            <Store className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium mb-2">לא נמצאו מסעדות</h3>
-            <p className="text-muted-foreground">נסה לשנות את מונחי החיפוש או הוסף מסעדה חדשה</p>
-          </div>
-        )}
-      </div>
+      {/* Restaurants Display */}
+      {viewMode === 'cards' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredRestaurants.length > 0 ? (
+            filteredRestaurants.map((restaurant) => (
+              <RestaurantCard key={restaurant.legalId} restaurant={restaurant} />
+            ))
+          ) : (
+            <div className="col-span-full text-center py-12">
+              <Store className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">לא נמצאו מסעדות</h3>
+              <p className="text-muted-foreground">נסה לשנות את מונחי החיפוש או המסנן</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <RestaurantTable restaurants={filteredRestaurants} />
+      )}
 
-      {/* Enhanced Restaurant Details Dialog with Better UX */}
+      {/* Restaurant Details Dialog */}
       <Dialog 
         open={isDialogOpen} 
         onOpenChange={(open) => {
@@ -952,32 +1142,29 @@ export default function RestaurantsPage() {
                         <div className="grid grid-cols-2 gap-4">
                           <EditableField
                             label="שם המסעדה"
+                            type='text'
                             value={editingRestaurantRef.current?.name || ''}
-                            onChange={(value) => editingRestaurantRef.current = { ...editingRestaurantRef.current, name: value }}
+                            onChange={(value) => editingRestaurantRef.current = { ...editingRestaurantRef.current, name: value as string } as Restaurant }
                           />
                           <EditableField
                             label="ח.פ"
+                            type='text'
                             value={editingRestaurantRef.current?.legalId || ''}
-                            onChange={(value) => editingRestaurantRef.current = { ...editingRestaurantRef.current, legalId: value }}
+                            onChange={(value) => editingRestaurantRef.current = { ...editingRestaurantRef.current, legalId: value as string } as Restaurant }
                             disabled
                           />
                         </div>
                         <EditableField
                           label="שם עסקי מלא"
+                          type='text'
                           value={editingRestaurantRef.current?.legalName || ''}
-                          onChange={(value) => editingRestaurantRef.current = { ...editingRestaurantRef.current, legalName: value }}
-                        />
-                        <EditableField
-                          label="שנות פעילות"
-                          value={editingRestaurantRef.current?.yearsActive || 0}
-                          onChange={(value) => editingRestaurantRef.current = { ...editingRestaurantRef.current, yearsActive: value }}
-                          type="number"
+                          onChange={(value) => editingRestaurantRef.current = { ...editingRestaurantRef.current, legalName: value as string } as Restaurant }
                         />
                         
                         <div dir='ltr' className="flex items-center space-x-2">
                           <Switch
                             checked={editingRestaurantRef.current?.isActivated || false}
-                            onCheckedChange={(checked) => editingRestaurantRef.current = { ...editingRestaurantRef.current, isActivated: checked }}
+                            onCheckedChange={(checked) => editingRestaurantRef.current = { ...editingRestaurantRef.current, isActivated: checked } as Restaurant }
                           />
                           <Label>מסעדה פעילה</Label>
                         </div>
@@ -1018,11 +1205,7 @@ export default function RestaurantsPage() {
                           <Label>שם עסקי מלא</Label>
                           <Input value={selectedRestaurant.legalName} readOnly />
                         </div>
-                        <div className="grid grid-cols-3 gap-4">
-                          <div className="space-y-2">
-                            <Label>שנות פעילות</Label>
-                            <Input value={selectedRestaurant.yearsActive.toString()} readOnly />
-                          </div>
+                        <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <Label>תאריך הצטרפות</Label>
                             <Input value={selectedRestaurant.createdAt.toDate().toLocaleDateString('he-IL')} readOnly />
@@ -1050,7 +1233,7 @@ export default function RestaurantsPage() {
                           </Card>
                           <Card>
                             <CardContent className="p-4 text-center">
-                              <div className="text-2xl font-bold">{selectedRestaurant.stats.totalOrders}</div>
+                              <div className="text-2xl font-bold">{selectedRestaurant.orders.length}</div>
                               <div className="text-sm text-muted-foreground">הזמנות</div>
                             </CardContent>
                           </Card>
@@ -1065,31 +1248,31 @@ export default function RestaurantsPage() {
                         <div className="grid grid-cols-2 gap-4">
                           <EditableField
                             label="שם"
-                            value={editingRestaurantRef.current?.primaryContact?.name || ''}
+                            value={editingRestaurantRef.current?.contacts[0]?.name || ''}
                             onChange={(value) => editingRestaurantRef.current = {
                               ...editingRestaurantRef.current,
-                              primaryContact: { ...editingRestaurantRef.current.primaryContact, name: value }
-                            }}
+                              contacts: [{ ...editingRestaurantRef.current?.contacts[0], name: value as string }]
+                            } as Restaurant}
                           />
                           <div className="space-y-2">
                             <Label>תפקיד</Label>
                             <Select
-                              value={editingRestaurantRef.current?.primaryContact?.role || 'Owner'}
-                              onValueChange={(value: "Owner" | "Manager" | "Shift" | "Other") => 
+                              value={editingRestaurantRef.current?.contacts[0]?.role || 'owner'}
+                              onValueChange={(value: Contact["role"]) => 
                                 editingRestaurantRef.current = {
                                   ...editingRestaurantRef.current,
-                                  primaryContact: { ...editingRestaurantRef.current.primaryContact, role: value }
-                                }
+                                  contacts: [{ ...editingRestaurantRef.current?.contacts[0], role: value }]
+                                } as Restaurant
                               }
                             >
                               <SelectTrigger>
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="Owner">בעלים</SelectItem>
-                                <SelectItem value="Manager">מנהל</SelectItem>
-                                <SelectItem value="Shift">משמרת</SelectItem>
-                                <SelectItem value="Other">אחר</SelectItem>
+                                <SelectItem value="owner">בעלים</SelectItem>
+                                <SelectItem value="manager">מנהל</SelectItem>
+                                <SelectItem value="shift">משמרת</SelectItem>
+                                <SelectItem value="general">אחר</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
@@ -1097,19 +1280,19 @@ export default function RestaurantsPage() {
                         <div className="grid grid-cols-2 gap-4">
                           <EditableField
                             label="WhatsApp"
-                            value={editingRestaurantRef.current?.primaryContact?.whatsapp || ''}
+                            value={editingRestaurantRef.current?.contacts[0]?.whatsapp || ''}
                             onChange={(value) => editingRestaurantRef.current = {
                               ...editingRestaurantRef.current,
-                              primaryContact: { ...editingRestaurantRef.current.primaryContact, whatsapp: value }
-                            }}
+                              contacts: [{ ...editingRestaurantRef.current?.contacts[0], whatsapp: value }]
+                            } as Restaurant}
                           />
                           <EditableField
                             label="אימייל"
-                            value={editingRestaurantRef.current?.primaryContact?.email || ''}
+                            value={editingRestaurantRef.current?.contacts[0]?.email || ''}
                             onChange={(value) => editingRestaurantRef.current = {
                               ...editingRestaurantRef.current,
-                              primaryContact: { ...editingRestaurantRef.current.primaryContact, email: value }
-                            }}
+                              contacts: [{ ...editingRestaurantRef.current?.contacts[0], email: value }]
+                            } as Restaurant}
                             type="email"
                           />
                         </div>
@@ -1138,36 +1321,36 @@ export default function RestaurantsPage() {
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <Label>שם</Label>
-                            <Input value={selectedRestaurant.primaryContact.name} readOnly />
+                            <Input value={selectedRestaurant.contacts[0].name} readOnly />
                           </div>
                           <div className="space-y-2">
                             <Label>תפקיד</Label>
-                            <Input value={selectedRestaurant.primaryContact.role} readOnly />
+                            <Input value={selectedRestaurant.contacts[0].role} readOnly />
                           </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <Label>WhatsApp</Label>
-                            <Input value={selectedRestaurant.primaryContact.whatsapp} readOnly />
+                            <Input value={selectedRestaurant.contacts[0].whatsapp} readOnly />
                           </div>
-                          {selectedRestaurant.primaryContact.email && (
+                          {selectedRestaurant.contacts[0].email && (
                             <div className="space-y-2">
                               <Label>אימייל</Label>
-                              <Input value={selectedRestaurant.primaryContact.email} readOnly />
+                              <Input value={selectedRestaurant.contacts[0].email} readOnly />
                             </div>
                           )}
                         </div>
                         
                         <div className="border-t pt-4">
                           <h4 className="font-medium mb-3">פרטי תשלום</h4>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
+                          <div className="flex justify-start gap-4">
+                            <div className="space-y-2 min-w-[60%]">
                               <Label>ספק תשלומים</Label>
                               <Input value={selectedRestaurant.payment.provider} readOnly />
                             </div>
-                            <div className="space-y-2">
-                              <Label>מזהה לקוח</Label>
-                              <Input value={selectedRestaurant.payment.customerId} readOnly />
+                            <div className="space-y-2 grid ">
+                              <Label>סטטוס תשלום</Label>
+                              {getStatusBadge(selectedRestaurant)}
                             </div>
                           </div>
                         </div>
@@ -1176,17 +1359,17 @@ export default function RestaurantsPage() {
                   </TabsContent>
 
                   <TabsContent dir='rtl' value="suppliers" className="space-y-4 mt-6">
-                    <div className="space-y-4">
-                      {Object.values(selectedRestaurant.suppliers).map((supplier: any) => (
-                        <Card key={supplier.whatsapp}>
+                    <div className="grid lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1 gap-4">
+                      {Object.values(selectedRestaurant.suppliers).map((supplier: Supplier) => (
+                        <Card className='' key={supplier.whatsapp}>
                           <CardHeader>
                             <CardTitle className="text-lg flex items-center justify-between">
-                              <div className="flex items-center gap-2">
+                              <div className="flex flex-2 items-center gap-2">
                                 <Package className="w-5 h-5" />
                                 {supplier.name}
                               </div>
-                              <div className='flex items-center gap-2'>
-                                {supplier.category.map((category: SupplierCategory, i: number) => getCategoryBadge(category))}
+                              <div className='flex flex-1 items-center justify-end flex-wrap gap-2'>
+                                {supplier.category.map((category: SupplierCategory, i: number) => (<div key={i}>{getCategoryBadge(category)}</div>))}
                               </div>
                             </CardTitle>
                           </CardHeader>
@@ -1203,9 +1386,9 @@ export default function RestaurantsPage() {
                             </div>
                             <div className="space-y-2">
                               <Label className="text-sm">מוצרים ({Object.keys(supplier.products).length})</Label>
-                              <div className="grid grid-cols-2 gap-2">
+                              <div className="flex flex-wrap gap-2">
                                 {Object.values(supplier.products).map((product: any) => (
-                                  <div key={product.id} className="flex items-center gap-2 p-2 border rounded text-sm">
+                                  <div key={product.id} className="flex items-center gap-2 p-2 border rounded-lg hover:bg-slate-400/10 cursor-default text-sm">
                                     <span>{product.emoji}</span>
                                     <span>{product.name}</span>
                                     <Badge variant="outline" className="text-xs">{product.unit}</Badge>
@@ -1220,19 +1403,20 @@ export default function RestaurantsPage() {
                   </TabsContent>
 
                   <TabsContent dir='rtl' value="orders" className="space-y-4 mt-6">
-                    <div className="space-y-4">
+                    <div className="grid lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1 gap-4">
                       {Object.values(selectedRestaurant.orders).length > 0 ? (
-                        Object.values(selectedRestaurant.orders).map((order: any) => {
-                          const supplier = selectedRestaurant.suppliers[order.supplierId];
+                        Object.values(selectedRestaurant.orders).map((orderId: string) => {
+                          const order = data.orders[orderId] as Order;
+                          const supplier = selectedRestaurant.suppliers.find((s) => s.whatsapp === order.supplier.whatsapp);
                           return (
-                            <Card key={order.id}>
+                            <Card className='!min-w-[300px] max-sm:!min-w-fit' key={order.id}>
                               <CardHeader>
                                 <CardTitle className="text-lg flex items-center justify-between">
                                   <div className="flex items-center gap-2">
                                     <ShoppingCart className="w-5 h-5" />
-                                    הזמנה #{order.id}
+                                    #{order.id}
                                   </div>
-                                  {getStatusBadge({ ...order, isActivated: true, payment: { status: order.status === 'delivered' } })}
+                                  {/* {getStatusBadge({ ...selectedRestaurant, payment: { provider: selectedRestaurant.payment.provider, status: order.status === 'delivered' } })} */}
                                 </CardTitle>
                                 <CardDescription>
                                   ספק: {supplier?.name || 'לא זמין'} | {order.createdAt.toDate().toLocaleDateString('he-IL')}
@@ -1241,14 +1425,13 @@ export default function RestaurantsPage() {
                               <CardContent className='flex-1 overflow-y-auto'>
                                 <div className="space-y-2">
                                   <Label className="text-sm">פריטים</Label>
-                                  <div className="space-y-1">
+                                  <div className="space-y-1 list-disc">
                                     {order.items.map((item: any, index: number) => {
-                                      const product = supplier?.products[item.productId];
                                       return (
-                                        <div key={index} className="flex justify-between text-sm p-2 border rounded">
-                                          <span>{product?.name || 'מוצר לא זמין'}</span>
-                                          <span>{item.qty} {product?.unit}</span>
-                                        </div>
+                                        <li key={index} className="grid grid-cols-[3fr_1fr] text-sm p-2">
+                                          <span >{index+1}. {item?.name || 'מוצר לא זמין'}</span>
+                                          <span dir='ltr'>{item.qty} {item?.unit}</span>
+                                        </li>
                                       );
                                     })}
                                   </div>
@@ -1257,11 +1440,10 @@ export default function RestaurantsPage() {
                                       <Label className="text-sm text-red-600">מחסורים</Label>
                                       <div className="space-y-1">
                                         {order.shortages.map((shortage: any, index: number) => {
-                                          const product = supplier?.products[shortage.productId];
                                           return (
-                                            <div key={index} className="flex justify-between text-sm p-2 border border-red-200 rounded bg-red-50">
-                                              <span>{product?.name || 'מוצר לא זמין'}</span>
-                                              <span className="text-red-600">הוזמן: {shortage.qty}, התקבל: {shortage.received}</span>
+                                            <div key={index} className="flex justify-between text-sm p-2 border border-red-200 rounded-lg bg-red-50">
+                                              <span>{shortage?.name || 'מוצר לא זמין'}</span>
+                                              <span className="text-red-600">הוזמן: {shortage.requestedQty}, התקבל: {shortage.deliveredQty}</span>
                                             </div>
                                           );
                                         })}
@@ -1284,16 +1466,6 @@ export default function RestaurantsPage() {
                   </TabsContent>
                   
                   <TabsContent value="settings" className="space-y-4 mt-6">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>אזור זמן</Label>
-                        <Input value={selectedRestaurant.settings.timezone} readOnly />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>שפה ואזור</Label>
-                        <Input value={selectedRestaurant.settings.locale} readOnly />
-                      </div>
-                    </div>
                     <div className="flex items-center space-x-2">
                       <Switch checked={selectedRestaurant.isActivated} disabled />
                       <Label>מסעדה פעילה</Label>

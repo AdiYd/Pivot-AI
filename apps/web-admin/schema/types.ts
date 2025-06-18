@@ -11,6 +11,7 @@ import {
   productUnitSchema,
   supplierCategorySchema,
   orderStatusSchema,
+  daysSchema,
 } from './schemas';
 
 // ======== Schema-based types using z.infer ========
@@ -36,7 +37,8 @@ export type OrderStatus = z.infer<typeof orderStatusSchema>;
 // Rating type (1-5)
 export type Rating = 1 | 2 | 3 | 4 | 5;
 
-
+// Days type
+export type Days = z.infer<typeof daysSchema>;
 // Bot state types
 export type BotState =
   | "INIT"
@@ -151,9 +153,3 @@ export interface StateObject {
 
   action?: BotAction['type']; // Optional action to perform when this state is finished
 }
-// Re-export types with clearer names for external use
-export type RestaurantData = z.infer<typeof RestaurantSchema>;
-export type SupplierData = z.infer<typeof SupplierSchema>;
-export type ProductData = z.infer<typeof ProductSchema>;
-export type OrderData = z.infer<typeof OrderSchema>;
-export type ConversationData = z.infer<typeof ConversationSchema>;

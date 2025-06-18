@@ -22,6 +22,7 @@ import {
 // Import the actual database
 import exampleDatabase from "@/schema/example";
 import { BotState, Order, Restaurant, Conversation } from "@/schema/types";
+import { DebugButton, debugFunction } from "@/components/debug";
 
 // Helper function to get category name (previously imported from /schema/messages)
 function getCategoryName(category: string): string {
@@ -424,6 +425,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 pt-6">
+      <DebugButton debugFunction={debugFunction} />
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold tracking-tight">דף הבית</h1>

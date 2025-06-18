@@ -56,10 +56,18 @@ const getCategoryBadge = (category: string) => {
       vegetables: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
       fruits: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
       fish: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-      meat: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+      meats: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
       dairy: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
       bread: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
       coffee: 'bg-orange-950 text-white dark:bg-orange-950 dark:text-white',
+      alcohol: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+      eggs: 'bg-yellow-50 text-yellow-900 dark:bg-yellow-950 dark:text-yellow-100',
+      oliveOil: 'bg-green-50 text-green-900 dark:bg-green-950 dark:text-green-100',
+      disposables: 'bg-orange-200 text-gray-800 dark:bg-orange-800 dark:text-gray-200',
+      desserts: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200',
+      juices: 'bg-orange-50 text-orange-900 dark:bg-orange-950 dark:text-orange-100',
+      general: 'bg-slate-100 text-slate-800 dark:bg-slate-900 dark:text-slate-200',
+      meat: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200', // Keeping for compatibility
     };
     
     return (

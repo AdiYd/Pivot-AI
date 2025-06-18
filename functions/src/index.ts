@@ -3,7 +3,7 @@ import * as admin from "firebase-admin";
 import { FieldValue } from 'firebase-admin/firestore';
 
 import { conversationStateReducer, processActions } from "src/botEngine";
-import { Conversation, IncomingMessage, RestaurantData } from "src/schema/types";
+import { Conversation, IncomingMessage, Restaurant } from "src/schema/types";
 import { validateTwilioWebhook } from "./utils/twilio";
 import { getCollectionName } from "./utils/firestore";
 import { ConversationSchema } from "./schema/schemas";
@@ -126,16 +126,16 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
       } else {
         // Existing restaurant, new conversation
         const restaurantDoc = restaurantRef.docs[0];
-        const restaurantData = restaurantDoc.data() as RestaurantData;
-        const contactName = restaurantData.contacts.find(c => c.whatsapp === phoneNumber)?.name || "";
-        const contactRole = restaurantData.contacts.find(c => c.whatsapp === phoneNumber)?.role || "";
+        const Restaurant = restaurantDoc.data() as Restaurant;
+        const contactName = Restaurant.contacts.find(c => c.whatsapp === phoneNumber)?.name || "";
+        const contactRole = Restaurant.contacts.find(c => c.whatsapp === phoneNumber)?.role || "";
 
         conversation = ConversationSchema.parse({
           currentState: "IDLE",
           role: contactRole || "general",
           context: {
-            restaurantId: restaurantData.legalId,
-            restaurantName: restaurantData.name,
+            restaurantId: Restaurant.legalId,
+            restaurantName: Restaurant.name,
             contactNumber: phoneNumber,
             contactName,
             ...(isSimulator && { isSimulator })
@@ -220,7 +220,7 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
 //         .get();
 
 //       for (const restaurant of restaurants.docs) {
-//         const restaurantData = restaurant.data();
+//         const Restaurant = restaurant.data();
 //         const restaurantId = restaurant.id;
 
 //         // Get all suppliers for this restaurant
@@ -242,7 +242,7 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
 //             currentHour === supplierData.cutoffHour - 3 // 3 hours before cutoff
 //           ) {
 //             // TODO: Send reminder to the restaurant owner
-//             console.log(`Sending reminder for ${restaurantData.name} about ${supplierData.name}`);
+//             console.log(`Sending reminder for ${Restaurant.name} about ${supplierData.name}`);
 //           }
 //         }
 //       }

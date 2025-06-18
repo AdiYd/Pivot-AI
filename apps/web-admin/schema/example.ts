@@ -1,5 +1,5 @@
 import { Timestamp } from 'firebase/firestore';
-import { BotState, Conversation, Message, Order, Product, Restaurant, Supplier, SupplierData } from './types';
+import { BotState, Conversation, Message, Order, Product, Restaurant, Supplier } from './types';
 
 /**
  * Example Data
@@ -545,7 +545,7 @@ export const exampleConversations: Record<string, Conversation> = {
     // Nested messages sub-collection
     messages: [
       {
-    role: "user",
+        role: "user",
         body: "היי, אני צריך לבדוק את המלאי של הירקות שלי",
         messageState: "INIT",
         hasTemplate: false,

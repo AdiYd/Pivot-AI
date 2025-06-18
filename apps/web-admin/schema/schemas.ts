@@ -1,4 +1,3 @@
-import { FieldValue } from "firebase-admin/firestore";
 import { z } from "zod";
 import { BotState } from "./types";
 
@@ -6,7 +5,7 @@ import { BotState } from "./types";
 
 // General schemas
 export const textSchema = z.string().min(1, "שדה זה אינו יכול להיות ריק וצריך להכיל לפחות תו אחד");  // Generic text schema for non-empty strings
-export const timestampSchema = z.any().optional().default(FieldValue.serverTimestamp()); // Placeholder for server timestamp, will be replaced with serverTimestamp in Firestore
+export const timestampSchema = z.any().optional(); // Placeholder for server timestamp, will be replaced with serverTimestamp in Firestore
 export const daysSchema = z.enum(["sun", "mon", "tue", "wed", "thu", "fri", "sat"]); // Enum for days of the week, used for reminders and delivery days
 export const timeSchema = z.string().regex(/^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/, "שעה חייבת להיות בפורמט HH:MM, לדוגמה: 20:00"); // Regex for time in HH:MM format
 
@@ -180,7 +179,7 @@ export const OrderSchema = z.object({
   .max(500, "הערות מהמסעדה לספק, עד 500 תווים").optional(),    // Optional notes from the restaurant to the supplier
   supplierNotes: z.string()
   .max(500, "הערות מהספק למסעדה, עד 500 תווים").optional(),     // Optional notes for the supplier to the restaurant
-  createdAt: timestampSchema,
+  createdAt: timestampSchema, // Timestamp of when the order was created
   updatedAt: timestampSchema,
   deliveredAt: timestampSchema,
   invoiceUrl: z.string().url().optional()

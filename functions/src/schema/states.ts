@@ -1,11 +1,11 @@
 import { z } from 'zod';
 import { emailSchema, nameSchema, ProductSchema, restaurantLegalIdSchema, restaurantLegalNameSchema, restaurantNameSchema, supplierCategorySchema, SupplierSchema } from './schemas';
-import { BotConfig, BotState, ProductData, StateObject, SupplierCategory } from './types';
+import { BotConfig, BotState, Product, StateObject, SupplierCategory } from './types';
 
 
 
 // Supplier categories with emoji representation
-export const CATEGORIES_DICT: Record<string, Partial<ProductData>> = {
+export const CATEGORIES_DICT: Record<string, Partial<Product>> = {
   vegetables: { name: "ירקות", emoji: "🥬" },
   fruits: { name: "פירות", emoji: "🍎" },
   meats: { name: "בשרים", emoji: "🥩" },
@@ -20,7 +20,7 @@ export const CATEGORIES_DICT: Record<string, Partial<ProductData>> = {
 };
 
 // Product templates organized by category for faster setup
-export const CATEGORY_PRODUCTS: Record<string, Array<Partial<ProductData>>> = {
+export const CATEGORY_PRODUCTS: Record<string, Array<Partial<Product>>> = {
   vegetables: [
     { name: "עגבניות", emoji: "🍅", unit: "kg" },
     { name: "מלפפונים", emoji: "🥒", unit: "kg" },
@@ -121,7 +121,7 @@ export const getAvailableCategories = (excludeCategories: string[] = []): Array<
 };
 
 // Helper function to get products for multiple categories
-export const getProductsForCategories = (categories: SupplierCategory[]): Array<Partial<ProductData>> => {
+export const getProductsForCategories = (categories: SupplierCategory[]): Array<Partial<Product>> => {
   return categories.flatMap(category => 
     (CATEGORY_PRODUCTS[category] || []).map(product => ({
       name: product.name,

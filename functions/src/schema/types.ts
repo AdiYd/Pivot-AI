@@ -15,15 +15,18 @@ import {
 
 // ======== Schema-based types using z.infer ========
 
+
 // Core types derived directly from schemas
 export type Contact = z.infer<typeof ContactSchema>;
 export type PaymentMeta = z.infer<typeof PaymentMetaSchema>;
+export type paymentProvider = z.infer<typeof PaymentMetaSchema.shape.provider>;
 export type Product = z.infer<typeof ProductSchema>;
 export type Supplier = z.infer<typeof SupplierSchema>;
 export type Restaurant = z.infer<typeof RestaurantSchema>;
 export type Order = z.infer<typeof OrderSchema>;
 export type Message = z.infer<typeof MessageSchema>;
 export type Conversation = z.infer<typeof ConversationSchema>;
+
 
 // Derived types from enum schemas
 export type ProductUnit = z.infer<typeof productUnitSchema>;
@@ -150,9 +153,4 @@ export interface StateObject {
 
   action?: BotAction['type']; // Optional action to perform when this state is finished
 }
-// Re-export types with clearer names for external use
-export type RestaurantData = z.infer<typeof RestaurantSchema>;
-export type SupplierData = z.infer<typeof SupplierSchema>;
-export type ProductData = z.infer<typeof ProductSchema>;
-export type OrderData = z.infer<typeof OrderSchema>;
-export type ConversationData = z.infer<typeof ConversationSchema>;
+

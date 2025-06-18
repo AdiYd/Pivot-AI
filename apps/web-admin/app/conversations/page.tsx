@@ -22,27 +22,26 @@ import {
   Phone,
   MessageSquare,
   X,
-  RefreshCw
+  RefreshCw,
+  Table as TableIcon,
+  Eye
 } from 'lucide-react';
 import { useToast } from '@/components/ui';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
 
 // Import the example database
 import exampleDatabase from '@/schema/example';
 import { useTheme } from 'next-themes';
-import { BotState, Conversation, Message } from '@/schema/types';
+import { BotState, Contact, Conversation, Message } from '@/schema/types';
+import { DebugButton, debugFunction } from '@/components/debug';
 
 // Enhanced conversation type with display-specific properties
-interface EnhancedConversation {
-  phone: string;
-  restaurantId: string | undefined;
-  restaurantName: string;
-  contactName: string;
-  currentState: BotState;
-  context: Record<string, any>;
-  lastMessageTimestamp: Date;
-  messages: Array<Message>;
+interface EnhancedConversation extends Conversation {
+  phone: Contact['whatsapp'];
+  hasRestaurant: boolean;
+  restaurantName?: string;
+  contactName?: string;
   messageCount: number;
-  createdAt: Date;
   stateCategory: 'onboarding' | 'setup' | 'inventory' | 'order' | 'delivery' | 'idle' | 'other';
 }
 
@@ -108,87 +107,105 @@ export default function ConversationsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [sortBy, setSortBy] = useState<'activity' | 'created' | 'messages'>('activity');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
   const {theme} = useTheme();
   const isDark = theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
   // Extract and enhance conversation data from the example database
-  const enhancedConversations = useMemo((): EnhancedConversation[] => {
-    try {
-      const conversations: EnhancedConversation[] = [];
+const enhancedConversations = useMemo((): EnhancedConversation[] => {
+  try {
+    const conversations: EnhancedConversation[] = [];
 
-      Object.entries(data.conversations).forEach(([phone, conversation]) => {
-        // Find restaurant info if associated
-        const restaurantId = conversation.restaurantId;
-        const restaurant = restaurantId ? data.restaurants[restaurantId] : undefined;
-        
-        // Map messages to the format needed for UI
-        const mappedMessages = (conversation.messages || []).map((message) => ({
-         ...message,
-        })).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+    Object.entries(data.conversations).forEach(([phone, conversation]) => {
+      // Find restaurant info if associated
+      const restaurant = conversation.restaurantId ? data.restaurants[conversation.restaurantId] : undefined;
+      let contactName = undefined;
+      
+      // Add this section to include restaurant name
+      const restaurantName = restaurant?.name || conversation.context?.restaurantName || 'מסעדה לא רשומה';
+      
+      if (!!restaurant) {
+        contactName = restaurant.contacts?.find(c => c.whatsapp === phone)?.name || 'אורח';
+      } else {
+        // Try to get name from context
+        contactName = conversation.context?.contactName || conversation.context?.name || 'אורח';
+      }
+      
+      // Map messages to the format needed for UI - ensure createdAt is a Date object
+      const mappedMessages = (conversation.messages || []).map((message) => ({
+        ...message,
+        // Ensure createdAt is a Date object
+        createdAt: message.createdAt instanceof Date ? message.createdAt : message.createdAt?.toDate?.() || new Date(),
+      })).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
 
-        // Get context values
-        const contactName = conversation.context?.name || restaurant?.contacts?.[0]?.name || 'לא ידוע';
-        const restaurantName = restaurant?.name || conversation.context?.restaurantName || 'לא ידוע';
-
-        // Determine state category for filtering
-        const stateCategory = getStateCategory(conversation.currentState);
-        
-        // Determine if conversation is active (non-idle and recent activity)
-        const lastMessageTimestamp = conversation.updatedAt.toDate();
-        
-        conversations.push({
-          phone,
-          restaurantId,
-          restaurantName,
-          contactName,
-          currentState: conversation.currentState,
-          context: conversation.context || {},
-          lastMessageTimestamp,
-          messages: mappedMessages,
-          messageCount: mappedMessages.length,
-          createdAt: conversation.createdAt.toDate(),
-          stateCategory
-        });
+      // Determine state category for filtering
+      const stateCategory = getStateCategory(conversation.currentState);
+      
+      // Ensure dates are properly converted
+      const createdAt = conversation.createdAt instanceof Date ? conversation.createdAt : conversation.createdAt?.toDate?.() || new Date();
+      const updatedAt = conversation.updatedAt instanceof Date ? conversation.updatedAt : conversation.updatedAt?.toDate?.() || new Date();
+              
+      conversations.push({
+        ...conversation,
+        phone,
+        contactName,
+        restaurantName, // Add this line
+        hasRestaurant: !!restaurant,
+        restaurantId: conversation.restaurantId || undefined,
+        messages: mappedMessages,
+        messageCount: mappedMessages.length,
+        stateCategory,
+        createdAt,
+        updatedAt
       });
+    });
 
-      return conversations;
-    } catch (error) {
-      console.error('Error processing conversations:', error);
-      return [];
-    }
-  }, [data]);
+    return conversations;
+  } catch (error) {
+    console.error('Error processing conversations:', error);
+    return [];
+  }
+}, [data]);
 
   // Filter conversations based on search and filters
-  const filteredConversations = useMemo(() => {
-    return enhancedConversations
-      .filter(conversation => {
-        const matchesSearch = conversation.restaurantName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                             conversation.contactName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                             conversation.phone.includes(searchTerm) ||
-                             stateNames[conversation.currentState]?.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesCategory = selectedCategory === 'all' || conversation.stateCategory === selectedCategory;
-        const matchesRestaurant = selectedRestaurant === 'all' || conversation.restaurantId === selectedRestaurant;
+const filteredConversations = useMemo(() => {
+  return enhancedConversations
+    .filter(conversation => {
+      // Search filtering
+      const matchesSearch = !searchTerm || 
+        conversation.restaurantName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        conversation.contactName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        conversation.phone?.includes(searchTerm) ||
+        (stateNames[conversation.currentState]?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+        (conversation.context?.businessName?.toLowerCase() || '').includes(searchTerm.toLowerCase());
         
-        return matchesSearch && matchesCategory && matchesRestaurant;
-      })
-      .sort((a, b) => {
-        let comparison = 0;
-        switch (sortBy) {
-          case 'activity':
-            comparison = a.lastMessageTimestamp.getTime() - b.lastMessageTimestamp.getTime();
-            break;
-          case 'created':
-            comparison = a.createdAt.getTime() - b.createdAt.getTime();
-            break;
-          case 'messages':
-            comparison = a.messageCount - b.messageCount;
-            break;
-        }
-        return sortOrder === 'desc' ? -comparison : comparison;
-      });
-  }, [enhancedConversations, searchTerm, selectedCategory, selectedRestaurant, sortBy, sortOrder]);
+      // Category filtering  
+      const matchesCategory = selectedCategory === 'all' || conversation.stateCategory === selectedCategory;
+      
+      // Restaurant filtering - check if the conversation's restaurantId matches the selected restaurant
+      const matchesRestaurant = selectedRestaurant === 'all' || conversation.restaurantId === selectedRestaurant;
+      
+      return matchesSearch && matchesCategory && matchesRestaurant;
+    })
+    .sort((a, b) => {
+      let comparison = 0;
+      switch (sortBy) {
+        case 'activity':
+          comparison = a.updatedAt.getTime() - b.updatedAt.getTime();
+          break;
+        case 'created':
+          comparison = a.createdAt.getTime() - b.createdAt.getTime();
+          break;
+        case 'messages':
+          comparison = a.messageCount - b.messageCount;
+          break;
+      }
+      return sortOrder === 'desc' ? -comparison : comparison;
+    });
+}, [enhancedConversations, searchTerm, selectedCategory, selectedRestaurant, sortBy, sortOrder]);
+  
 
-  // Calculate statistics from real data
+// Calculate statistics from real data
   const stats = useMemo(() => {
     try {
       const total = enhancedConversations.length;
@@ -207,7 +224,6 @@ export default function ConversationsPage() {
         
         if (!acc[conversation.restaurantId]) {
           acc[conversation.restaurantId] = {
-            name: conversation.restaurantName,
             conversationCount: 0,
             messageCount: 0,
             lastActivity: null
@@ -216,8 +232,8 @@ export default function ConversationsPage() {
         acc[conversation.restaurantId].conversationCount++;
         acc[conversation.restaurantId].messageCount += conversation.messageCount;
         if (!acc[conversation.restaurantId].lastActivity || 
-            conversation.lastMessageTimestamp > acc[conversation.restaurantId].lastActivity) {
-          acc[conversation.restaurantId].lastActivity = conversation.lastMessageTimestamp;
+            conversation.updatedAt > acc[conversation.restaurantId].lastActivity) {
+          acc[conversation.restaurantId].lastActivity = conversation.updatedAt;
         }
         return acc;
       }, {} as Record<string, any>);
@@ -266,9 +282,12 @@ export default function ConversationsPage() {
     );
   };
 
-  const getRelativeTime = (date: Date): string => {
+  const getRelativeTime = (date: Date | any): string => {
+    // Convert to Date if it's a Timestamp
+    const dateObj = date instanceof Date ? date : date?.toDate?.() || new Date();
+    
     const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
+    const diffMs = now.getTime() - dateObj.getTime();
     const diffMinutes = Math.floor(diffMs / (1000 * 60));
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
@@ -282,6 +301,11 @@ export default function ConversationsPage() {
     return `לפני ${Math.floor(diffDays / 30)} חודשים`;
   };
 
+  const openConversation = (conversation: EnhancedConversation) => {
+    setSelectedConversation(conversation);
+    setIsDialogOpen(true);
+  };
+
   const ConversationCard = ({ conversation }: { conversation: EnhancedConversation }) => {
     const lastMessage = conversation.messages.length > 0 ? 
       conversation.messages[conversation.messages.length - 1] : null;
@@ -289,9 +313,8 @@ export default function ConversationsPage() {
     
     return (
       <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => {
-        setSelectedConversation(conversation);
-        setIsDialogOpen(true);
-        toast({ title: `פתיחת שיחה עם ${conversation.restaurantName}`, description: `מספר: ${conversation.phone}`, duration: 2000});
+        openConversation(conversation);
+        toast({ title: `פתיחת שיחה עם ${conversation.phone}`, description: `מספר: ${conversation.phone}`, duration: 2000});
       }}>
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
@@ -322,7 +345,7 @@ export default function ConversationsPage() {
             </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Clock className="w-4 h-4" />
-              <span>{getRelativeTime(conversation.lastMessageTimestamp)}</span>
+              <span>{getRelativeTime(conversation.updatedAt)}</span>
             </div>
             {lastMessage && (
               <div className="p-2 bg-muted rounded-md">
@@ -343,7 +366,100 @@ export default function ConversationsPage() {
     );
   };
 
-  const ChatBubble = ({ message, isBot, index }: { message: any; isBot: boolean, index: number }) => (
+  const ConversationTable = ({ conversations }: { conversations: EnhancedConversation[] }) => (
+    <div className="border rounded-lg overflow-hidden">
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="text-right">מספר טלפון</TableHead>
+              <TableHead className="text-right">
+                <div className="flex items-center cursor-pointer" onClick={() => {
+                  if (sortBy === 'activity') {
+                    setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                  } else {
+                    setSortBy('activity');
+                    setSortOrder('desc');
+                  }
+                }}>
+                  עדכון אחרון
+                  <ArrowUpDown className="mr-2 h-4 w-4" />
+                </div>
+              </TableHead>
+              <TableHead className="text-right">מסעדה</TableHead>
+              <TableHead className="text-right">איש קשר</TableHead>
+              <TableHead className="text-right">
+                <div className="flex items-center cursor-pointer" onClick={() => {
+                  if (sortBy === 'messages') {
+                    setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                  } else {
+                    setSortBy('messages');
+                    setSortOrder('desc');
+                  }
+                }}>
+                  הודעות
+                  <ArrowUpDown className="mr-2 h-4 w-4" />
+                </div>
+              </TableHead>
+              <TableHead className="text-right">מצב שיחה</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {conversations.map((conversation) => (
+              <TableRow  onClick={() => openConversation(conversation)} key={conversation.phone} className="hover:bg-gray-50 cursor-pointer dark:hover:bg-gray-900/50">
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <Icon icon="ic:outline-whatsapp" className="w-4 h-4 text-green-500" />
+                    <span className="font-mono text-sm">{conversation.phone}</span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <span className="text-sm">{getRelativeTime(conversation.updatedAt)}</span>
+                </TableCell>
+                <TableCell>
+                  <div className="font-medium">{conversation.restaurantName || 'לא משויך'}</div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <User className="w-3 h-3" />
+                    <span>{conversation.contactName}</span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="text-start font-medium">
+                    {conversation.messageCount}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  {getStateBadge(conversation.currentState)}
+                </TableCell>
+              </TableRow>
+            ))}
+            
+            {conversations.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={7} className="h-24 text-center">
+                  <div className="flex flex-col items-center justify-center">
+                    <MessageCircle className="w-12 h-12 text-muted-foreground mb-2" />
+                    <h3 className="text-lg font-medium mb-1">לא נמצאו שיחות</h3>
+                    <p className="text-muted-foreground text-sm">נסה לשנות את הסינון או לחפש מחדש</p>
+                  </div>
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+
+  const ChatBubble = ({ message, isBot, index }: { message: any; isBot: boolean, index: number }) => {
+  // Ensure we have a proper date
+  const messageDate = message.createdAt instanceof Date ? 
+    message.createdAt : 
+    message.createdAt?.toDate?.() || new Date();
+    
+  return (
     <div className={`flex ${isBot ? 'justify-start' : 'justify-end'} mb-4 ${index === 0 ? 'mt-16' : ''}`}>
       <div className={`flex my-2 items-end gap-2 max-w-[70%] ${isBot ? 'flex-row' : 'flex-row-reverse'}`}>
         <div className={`p-2 max-sm:hidden rounded-full ${isBot ? 'bg-green-100 dark:bg-green-900' : 'bg-blue-100 dark:bg-blue-900'}`}>
@@ -362,12 +478,13 @@ export default function ConversationsPage() {
           <div className={`text-xs mt-1 ${
             isBot ? 'text-gray-500 dark:text-gray-400' : 'text-blue-100'
           }`}>
-            {message.createdAt.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+            {messageDate.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
           </div>
         </div>
       </div>
     </div>
   );
+};
 
   if (isLoading) {
     return (
@@ -401,8 +518,10 @@ export default function ConversationsPage() {
     );
   }
 
+
   return (
     <div className="p-6 max-sm:p-2 space-y-6">
+      <DebugButton debugFunction={debugFunction} />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -411,14 +530,68 @@ export default function ConversationsPage() {
             נהל את כל השיחות עם הבוט
           </p>
         </div>
-        <Button onClick={() => window.location.reload()}>
-          <RefreshCw className="w-4 h-4 ml-2" />
-          רענן
-        </Button>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 max-sm:hidden">
+            <span className="text-sm opacity-80">תצוגה:</span>
+            <div className="flex flex-row-reverse gap-2 items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+              <Button
+                title='הצג בכרטיסיות'
+                variant={viewMode === 'cards' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('cards')}
+                className="h-8 w-8 p-0"
+              >
+                <Icon icon="mdi:id-card" width="1.5em" height="1.5em" />
+              </Button>
+              <Button
+                title='הצג בטבלה'
+                variant={viewMode === 'table' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('table')}
+                className="h-8 w-8 p-0"
+              >
+                <TableIcon className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+          <Button onClick={() => window.location.reload()}>
+            <RefreshCw className="w-4 h-4 ml-2" />
+            רענן
+          </Button>
+        </div>
+      </div>
+
+      <div className="text-xs text-muted-foreground mb-4">
+        {`נמצאו ${filteredConversations.length} שיחות מתוך ${enhancedConversations.length} סה"כ`}
       </div>
 
       {/* Search and Filters */}
       <div className="flex gap-4 mb-6 flex-wrap">
+        {/* View Mode Toggle (mobile) */}
+        <div className="flex items-center gap-2 sm:hidden">
+          <span className="text-sm opacity-80">תצוגה:</span>
+          <div className="flex flex-row-reverse gap-2 items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+            <Button
+              title='הצג בכרטיסיות'
+              variant={viewMode === 'cards' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('cards')}
+              className="h-8 w-8 p-0"
+            >
+              <Icon icon="mdi:id-card" width="1.5em" height="1.5em" />
+            </Button>
+            <Button
+              title='הצג בטבלה'
+              variant={viewMode === 'table' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('table')}
+              className="h-8 w-8 p-0"
+            >
+              <TableIcon className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+        
         <div className="relative flex-1 min-w-64 max-w-md">
           <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
           <Input
@@ -442,6 +615,8 @@ export default function ConversationsPage() {
             </SelectContent>
           </Select>
         </div>
+
+        {/* Improved restaurant filter with proper labeling */}
         <Select value={selectedRestaurant} onValueChange={setSelectedRestaurant}>
           <SelectTrigger className="w-48">
             <SelectValue placeholder="כל המסעדות" />
@@ -469,25 +644,31 @@ export default function ConversationsPage() {
             <SelectContent>
               <SelectItem value="activity-desc">הכי חדשות</SelectItem>
               <SelectItem value="activity-asc">הכי ישנות</SelectItem>
+              <SelectItem value="messages-desc">הכי הרבה הודעות</SelectItem>
+              <SelectItem value="messages-asc">הכי מעט הודעות</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </div>
 
-      {/* Conversations Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredConversations.length > 0 ? (
-          filteredConversations.map((conversation) => (
-            <ConversationCard key={conversation.phone} conversation={conversation} />
-          ))
-        ) : (
-          <div className="col-span-full text-center py-12">
-            <Icon icon='ic:outline-whatsapp' className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium mb-2">לא נמצאו שיחות</h3>
-            <p className="text-muted-foreground">נסה לשנות את מונחי החיפוש או המסנן</p>
-          </div>
-        )}
-      </div>
+      {/* Content: Table or Cards */}
+      {viewMode === 'cards' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredConversations.length > 0 ? (
+            filteredConversations.map((conversation) => (
+              <ConversationCard key={conversation.phone} conversation={conversation} />
+            ))
+          ) : (
+            <div className="col-span-full text-center py-12">
+              <Icon icon='ic:outline-whatsapp' className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">לא נמצאו שיחות</h3>
+              <p className="text-muted-foreground">נסה לשנות את מונחי החיפוש או המסנן</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <ConversationTable conversations={filteredConversations} />
+      )}
 
       {/* Enhanced Conversation Details Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -563,7 +744,7 @@ export default function ConversationsPage() {
                         </div>
                         <div className="space-y-2">
                           <Label>עדכון אחרון</Label>
-                          <Input value={selectedConversation.lastMessageTimestamp.toLocaleString('he-IL')} readOnly />
+                          <Input value={selectedConversation.updatedAt.toLocaleString('he-IL')} readOnly />
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-4">

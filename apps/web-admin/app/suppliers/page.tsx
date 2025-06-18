@@ -12,64 +12,35 @@ import {
 } from '@/components/ui';
 import { 
   Plus, Search, Truck, Calendar, Clock, Phone, Star, Package, 
-  Edit, Trash2, Eye, Store, Filter, TrendingUp, X, Grid3X3, Table as TableIcon
+  Eye, Store, Filter, TrendingUp, X, Table as TableIcon
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
 // Import the actual database
 import exampleDatabase from '@/schema/example';
-import { ProductUnit, SupplierCategory } from '@/schema/types';
+import { Days, Supplier, SupplierCategory } from '@/schema/types';
 import { getCategoryBadge } from '@/components/ui/badge';
 import { Icon } from '@iconify/react/dist/iconify.js';
+import { CATEGORIES_DICT, WEEKDAYS_DICT } from '@/schema/states';
+import { DebugButton, debugFunction } from '@/components/debug';
 
 // Types for enhanced supplier data
-interface EnhancedSupplier {
-  id: string;
-  whatsapp: string;
-  name: string;
-  email?: string;
-  category: SupplierCategory[];
-  reminders: Array<{
-    day: string;
-    time: string;
-  }>;
-  deliveryDays: number[];
-  cutoffHour: number;
-  rating?: number;
+interface EnhancedSupplier extends Supplier {
   restaurantId: string;
   restaurantName: string;
   productCount: number;
-  products: Array<{
-    id?: string;
-    name: string;
-    unit: ProductUnit;
-    emoji: string;
-    parMidweek: number;
-    parWeekend: number;
-    createdAt: Date;
-  }>;
   recentOrdersCount: number;
-  createdAt: Date;
 }
 
-const categoryNames: Record<string, string> = {
-  vegetables: 'ירקות',
-  fruits: 'פירות',
-  fish: 'דגים',
-  meat: 'בשר',
-  dairy: 'מחלבה',
-  alcohol: 'אלכוהול',
-  oliveOil: 'שמן זית',
-  disposables: 'כלים חד פעמיים',
-  dessert: 'קינוחים',
-  juices: 'משקאות',
-  eggs: 'ביצים',
-  bread: 'לחם',
-  coffee: 'קפה',
-  general: 'כללי'
-};
-
-const dayNames = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+const weekDaysDict: Record<number, Days> = {
+  0: 'sun',
+  1: 'mon',
+  2: 'tue',
+  3: 'wed',
+  4: 'thu',
+  5: 'fri',
+  6: 'sat'
+}
 
 export default function SuppliersPage() {
   const [data, setData] = useState(exampleDatabase);
@@ -89,46 +60,16 @@ export default function SuppliersPage() {
       Object.entries(data.restaurants).forEach(([restaurantId, restaurant]) => {
         // Each restaurant has an array of suppliers
         restaurant.suppliers.forEach(supplier => {
-          // Get delivery days from reminders
-          const deliveryDays = supplier.reminders.map(reminder => {
-            const dayIndex = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'].indexOf(reminder.day);
-            return dayIndex >= 0 ? dayIndex : -1;
-          }).filter(day => day >= 0);
-
-          // Get cutoff hour from first reminder time
-          const cutoffHour = supplier.reminders.length > 0 
-            ? parseInt(supplier.reminders[0].time.split(':')[0]) 
-            : 12; // Default to noon if no reminders
 
           // Count recent orders for this supplier
-          const recentOrdersCount = Object.values(data.orders)
-            .filter(order => order.supplier.whatsapp === supplier.whatsapp)
-            .length;
+          const recentOrdersCount = restaurant.orders.length;
 
           suppliers.push({
-            id: supplier.whatsapp,
-            whatsapp: supplier.whatsapp,
-            name: supplier.name,
-            email: supplier.email,
-            category: supplier.category,
-            reminders: supplier.reminders,
-            deliveryDays,
-            cutoffHour,
-            rating: supplier.rating,
+            ...supplier,
             restaurantId,
             restaurantName: restaurant.name,
             productCount: supplier.products.length,
-            products: supplier.products.map(product => ({
-              id: `${product.name}-${product.unit}`.toLowerCase().replace(/\s+/g, '-'),
-              name: product.name,
-              unit: product.unit,
-              emoji: product.emoji,
-              parMidweek: product.parMidweek,
-              parWeekend: product.parWeekend,
-              createdAt: product.createdAt.toDate()
-            })),
             recentOrdersCount,
-            createdAt: supplier.createdAt.toDate()
           });
         });
       });
@@ -178,7 +119,7 @@ export default function SuppliersPage() {
         averageRating,
         categoryStats,
         mostPopularCategory: mostPopularCategory ? {
-          name: categoryNames[mostPopularCategory[0]] || mostPopularCategory[0],
+          name: CATEGORIES_DICT[mostPopularCategory[0]].name || mostPopularCategory[0],
           count: mostPopularCategory[1]
         } : null
       };
@@ -204,6 +145,10 @@ export default function SuppliersPage() {
   };
 
   const getRelativeTime = (date: Date): string => {
+    if (!(date instanceof Date)) {
+      console.error('Invalid date:', date);
+      return '';
+    }
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
@@ -231,7 +176,7 @@ export default function SuppliersPage() {
               </CardDescription>
             </div>
           </div>
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap justify-end gap-1">
             {supplier.category.map((cat, idx) => (
               getCategoryBadge(cat)
             ))}
@@ -247,15 +192,12 @@ export default function SuppliersPage() {
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Calendar className="w-4 h-4" />
             <span>
-              {supplier.deliveryDays.length > 0 
-                ? supplier.deliveryDays.map(day => dayNames[day]).join(', ')
+              {supplier.reminders.length > 0
+                ? supplier.reminders.map(reminder => WEEKDAYS_DICT[reminder.day]).join(', ')
                 : 'אין ימי משלוח מוגדרים'}
             </span>
           </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Clock className="w-4 h-4" />
-            <span>סגירת הזמנות: {supplier.cutoffHour}:00</span>
-          </div>
+         
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Package className="w-4 h-4" />
             <span>{supplier.productCount} מוצרים</span>
@@ -313,7 +255,7 @@ export default function SuppliersPage() {
           </TableHeader>
           <TableBody>
             {suppliers.map((supplier) => (
-              <TableRow key={supplier.id} className="hover:bg-gray-50 dark:hover:bg-gray-900/50">
+              <TableRow key={supplier.whatsapp} className="hover:bg-gray-50 dark:hover:bg-gray-900/50">
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{supplier.name}</span>
@@ -343,17 +285,12 @@ export default function SuppliersPage() {
                 </TableCell>
                 <TableCell>
                   <div className="text-sm">
-                    {supplier.deliveryDays.length > 0 
-                      ? supplier.deliveryDays.map(day => dayNames[day]).slice(0, 3).join(', ')
+                    {supplier.reminders.length > 0
+                      ? supplier.reminders.map(reminder => `${WEEKDAYS_DICT[reminder.day]} ${reminder.time}`).slice(0, 3).join(', ')
                       : 'לא מוגדר'}
-                    {supplier.deliveryDays.length > 3 && (
-                      <span className="text-muted-foreground"> +{supplier.deliveryDays.length - 3}</span>
+                    {supplier.reminders.length > 3 && (
+                      <span className="text-muted-foreground"> +{supplier.reminders.length - 3}</span>
                     )}
-                  </div>
-                </TableCell>
-                <TableCell className="hidden">
-                  <div className="flex items-center justify-center gap-1">
-                    <span className="text-sm">{supplier.cutoffHour}:00</span>
                   </div>
                 </TableCell>
                 <TableCell>
@@ -433,6 +370,7 @@ export default function SuppliersPage() {
 
   return (
     <div className="p-6 max-sm:p-2 space-y-6">
+      <DebugButton debugFunction={debugFunction} />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -441,64 +379,85 @@ export default function SuppliersPage() {
             נהל את כל הספקים במערכת
           </p>
         </div>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 ml-2" />
-              הוסף ספק
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>הוסף ספק חדש</DialogTitle>
-              <DialogDescription>
-                הזן את פרטי הספק החדש
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="supplier-name">שם הספק</Label>
-                  <Input id="supplier-name" placeholder="שם הספק" />
+        <div className='flex gap-4'>
+          <div className="flex items-center gap-2 max-sm:hidden">
+            <span className="text-sm opacity-80">תצוגה:</span>
+            <div className="flex flex-row-reverse gap-2 items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+              <Button
+                title='הצג בכרטיסיות'
+                variant={viewMode === 'cards' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('cards')}
+                className="h-8 w-8 p-0"
+              >
+                <Icon icon="mdi:id-card" width="1.5em" height="1.5em" />
+              </Button>
+              <Button
+                title='הצג בטבלה'
+                variant={viewMode === 'table' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('table')}
+                className="h-8 w-8 p-0"
+              >
+                <TableIcon className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+          {/* <Dialog>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 ml-2" />
+                הוסף ספק
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>הוסף ספק חדש</DialogTitle>
+                <DialogDescription>
+                  הזן את פרטי הספק החדש
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="supplier-name">שם הספק</Label>
+                    <Input id="supplier-name" placeholder="שם הספק" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="whatsapp">מספר WhatsApp</Label>
+                    <Input id="whatsapp" placeholder="+972-50-1234567" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="category">קטגוריה</Label>
+                    <select className="w-full p-2 border rounded-md">
+                      <option value="">בחר קטגוריה</option>
+                      {Object.entries(CATEGORIES_DICT).map(([key, value]) => (
+                        <option key={key} value={key}>{value.name}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="whatsapp">מספר WhatsApp</Label>
-                  <Input id="whatsapp" placeholder="+972-50-1234567" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="category">קטגוריה</Label>
-                  <select className="w-full p-2 border rounded-md">
-                    <option value="">בחר קטגוריה</option>
-                    {Object.entries(categoryNames).map(([key, value]) => (
-                      <option key={key} value={key}>{value}</option>
+                  <Label>ימי משלוח</Label>
+                  <div className="grid grid-cols-7 gap-1">
+                    {Object.entries(WEEKDAYS_DICT).map(([key, value]) => (
+                      <div key={key} className="flex items-center space-x-2">
+                        <input type="checkbox" className='mx-1' id={`day-${key}`} />
+                        <Label htmlFor={`day-${key}`} className="text-sm">{value}</Label>
+                      </div>
                     ))}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="cutoff-hour">שעת סגירת הזמנות</Label>
-                  <Input id="cutoff-hour" type="number" min="0" max="23" placeholder="16" />
+                  </div>
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label>ימי משלוח</Label>
-                <div className="grid grid-cols-7 gap-1">
-                  {dayNames.map((day, index) => (
-                    <div key={index} className="flex items-center space-x-2">
-                      <input type="checkbox" className='mx-1' id={`day-${index}`} />
-                      <Label htmlFor={`day-${index}`} className="text-sm">{day}</Label>
-                    </div>
-                  ))}
-                </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline">ביטול</Button>
+                <Button>שמור</Button>
               </div>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline">ביטול</Button>
-              <Button>שמור</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog> */}
+        </div>
       </div>
 
       {/* Enhanced Stats Cards */}
@@ -570,29 +529,6 @@ export default function SuppliersPage() {
 
       {/* Search and Filters */}
       <div className="flex items-center gap-4 mb-6">
-         <div className="flex items-center gap-2 max-sm:hidden">
-          <span className="text-sm opacity-80">תצוגה:</span>
-          <div className="flex flex-row-reverse gap-2 items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-            <Button
-              title='הצג בכרטיסיות'
-              variant={viewMode === 'cards' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('cards')}
-              className="h-8 w-8 p-0"
-            >
-              <Icon icon="mdi:id-card" width="1.5em" height="1.5em" />
-            </Button>
-            <Button
-              title='הצג בטבלה'
-              variant={viewMode === 'table' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('table')}
-              className="h-8 w-8 p-0"
-            >
-              <TableIcon className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
         <div className="relative max-w-md flex-1">
           <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
           <Input
@@ -610,8 +546,8 @@ export default function SuppliersPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">כל הקטגוריות</SelectItem>
-              {Object.entries(categoryNames).map(([key, value]) => (
-                <SelectItem key={key} value={key}>{value}</SelectItem>
+              {Object.entries(CATEGORIES_DICT).map(([key, value]) => (
+                <SelectItem key={key} value={key}>{value.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -683,7 +619,7 @@ export default function SuppliersPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredSuppliers.length > 0 ? (
             filteredSuppliers.map((supplier) => (
-              <SupplierCard key={supplier.id} supplier={supplier} />
+              <SupplierCard key={supplier.whatsapp} supplier={supplier} />
             ))
           ) : (
             <div className="col-span-full text-center py-12">
@@ -793,22 +729,22 @@ export default function SuppliersPage() {
                   <TabsContent dir='rtl' value="schedule" className="space-y-6 mt-6">
                     <div className="space-y-6">
                       <div>
-                        <h3 className="text-lg font-medium mb-4">לוח זמני משלוח שבועי</h3>
+                        <h3 className="text-lg font-medium mb-4">לוח זמני תזכורות שבועי</h3>
                         <div className="border rounded-xl overflow-hidden shadow-sm">
                           <div className="grid grid-cols-7 bg-muted/20">
-                            {dayNames.map((day, index) => (
+                            {Object.entries(WEEKDAYS_DICT).map(([key, value], index) => (
                               <div key={index} className="text-center p-2 border-b font-medium">
-                                {day}
+                                {value}
                               </div>
                             ))}
                           </div>
                           <div className="grid grid-cols-7">
-                            {dayNames.map((day, index) => {
-                              const isDeliveryDay = selectedSupplier.deliveryDays.includes(index);
+                            {Object.entries(WEEKDAYS_DICT).map(([key, value], index) => {
+                              const isDeliveryDay = selectedSupplier.reminders.find(reminder => reminder.day === weekDaysDict[index]);
                               return (
                                 <div 
                                   key={index} 
-                                  className={` flex flex-col items-center justify-center p-4 border-l last:border-r-0 relative ${
+                                  className={`flex flex-col items-center justify-center p-4 border-l last:border-r-0 relative ${
                                     isDeliveryDay 
                                       ? 'bg-green-50 dark:bg-green-900/30' 
                                       : ''
@@ -818,11 +754,12 @@ export default function SuppliersPage() {
                                     <>
                                       <Truck className="w-8 h-8 text-green-600 dark:text-green-400 mb-2" />
                                       <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border-green-200">
-                                        יום משלוח
+                                        תזכורת
                                       </Badge>
-                                      {index === selectedSupplier.deliveryDays[0] && (
-                                        <div className="absolute top-2 right-2 w-2 h-2 bg-green-500 rounded-full" />
-                                      )}
+                                      <div className="text-sm mt-2">
+                                        {isDeliveryDay.time}
+                                      </div>
+
                                     </>
                                   ) : (
                                     <span className="text-muted-foreground text-sm">אין משלוח</span>
@@ -832,40 +769,6 @@ export default function SuppliersPage() {
                             })}
                           </div>
                         </div>
-                      </div>
-
-                      <div className="flex justify-center">
-                        <Card>
-                          <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium flex items-center gap-2">
-                              <Clock className="w-4 h-4" />
-                              שעת סגירת הזמנות:
-                                  <div className="relative font-bold">{selectedSupplier.cutoffHour}:00</div>
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent className='flex-1 overflow-y-auto'>
-                            <div className="flex items-center justify-center pt-2">
-                              <div className="relative w-24 h-24">
-                                <div className="w-full h-full rounded-full border-4 border-muted flex items-center justify-center">
-                                </div>
-                                <div 
-                                  className="absolute w-[2px] h-12 bg-blue-500/20 rounded-full origin-bottom" 
-                                  style={{ 
-                                    bottom: '50%', 
-                                    left: 'calc(50% - 1px)', 
-                                    transform: `rotate(${(selectedSupplier.cutoffHour / 12) * 360}deg)` 
-                                  }}
-                                />
-                                <div className="absolute top-0 left-0 right-0 bottom-0 flex items-center justify-center">
-                                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                                </div>
-                              </div>
-                            </div>
-                            <p className="text-center text-sm text-muted-foreground mt-4">
-                              יש לשלוח הזמנות לפני השעה {selectedSupplier.cutoffHour}:00
-                            </p>
-                          </CardContent>
-                        </Card>
                       </div>
                     </div>
                   </TabsContent>
@@ -878,7 +781,7 @@ export default function SuppliersPage() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {selectedSupplier.products.length > 0 ? (
                           selectedSupplier.products.map((product) => (
-                            <Card key={product.id}>
+                            <Card key={product.name}>
                               <CardContent className="p-4">
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center gap-2">

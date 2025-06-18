@@ -1,13 +1,9 @@
 import { z } from 'zod';
 import * as admin from 'firebase-admin';
 import {SupplierSchema, ConversationSchema, MessageSchema} from 'src/schema/schemas';
-import { ConversationData, SupplierData, RestaurantData, Contact, Message } from 'src/schema/types';
+import { Conversation, Supplier,SupplierCategory, Restaurant, Contact, Message } from 'src/schema/types';
 import { FieldValue, DocumentReference, Query, CollectionReference } from 'firebase-admin/firestore';
-import {
-  Restaurant,
-  Supplier,
-  SupplierCategory,
-} from 'src/schema/types';
+
 
 
 if (!admin.apps?.length) {
@@ -32,7 +28,7 @@ export function getCollectionName(baseName: BaseName, isSimulator: boolean = fal
  * @param isSimulator Whether to use simulator collections
  * @returns The ID of the created restaurant
  */
-export async function createRestaurant(data: RestaurantData, isSimulator: boolean = false): Promise<string> {
+export async function createRestaurant(data: Restaurant, isSimulator: boolean = false): Promise<string> {
   console.log(`[Firestore] Creating restaurant${isSimulator ? ' (simulator)' : ''}:`, {
     legalId: data.legalId,
     legalName: data.legalName,
@@ -41,7 +37,7 @@ export async function createRestaurant(data: RestaurantData, isSimulator: boolea
 
   try {
     // Create the restaurant document
-    const restaurantDoc: RestaurantData = {
+    const restaurantDoc: Restaurant = {
       legalId: data.legalId,
       legalName: data.legalName,
       name: data.name,
@@ -81,7 +77,7 @@ export async function createRestaurant(data: RestaurantData, isSimulator: boolea
  * @param isSimulator Whether to use simulator collections
  * @returns Restaurant data or null if not found
  */
-export async function getRestaurant(restaurantId: RestaurantData['legalId'], isSimulator: boolean = false): Promise<Restaurant | null> {
+export async function getRestaurant(restaurantId: Restaurant['legalId'], isSimulator: boolean = false): Promise<Restaurant | null> {
   try {
     const collectionName = getCollectionName('restaurants', isSimulator);
     const doc = await firestore.collection(collectionName).doc(restaurantId).get();
@@ -144,7 +140,7 @@ export async function getRestaurantByPhone(
  * @param restaurantId Restaurant ID
  * @param isActivated Activation status
  */
-export async function updateRestaurantActivation(restaurantId: RestaurantData['legalId'], isActivated: boolean, isSimulator: boolean = false): Promise<void> {
+export async function updateRestaurantActivation(restaurantId: Restaurant['legalId'], isActivated: boolean, isSimulator: boolean = false): Promise<void> {
   try {
     const collectionName = getCollectionName('restaurants', isSimulator);
     await firestore.collection(collectionName).doc(restaurantId).update({
@@ -191,7 +187,7 @@ export async function getAllRestaurants(isSimulator: boolean = false): Promise<R
  * @returns Updated restaurant data
  */
 export async function updateRestaurantContacts(
-  restaurantId: RestaurantData['legalId'], 
+  restaurantId: Restaurant['legalId'], 
   contacts: Contact[], 
   isSimulator: boolean = false
 ): Promise<Restaurant | null> {
@@ -223,7 +219,7 @@ export async function updateRestaurantContacts(
  * @returns The supplier ID (whatsapp number)
  */
 export async function updateSupplier(
-  data: SupplierData & { restaurantId: RestaurantData['legalId'] },  
+  data: Supplier & { restaurantId: Restaurant['legalId'] },  
   isSimulator: boolean = false
 ): Promise<string> {
   console.log(`[Firestore] Adding/updating supplier to restaurant${isSimulator ? ' (simulator)' : ''}:`, {
@@ -254,7 +250,7 @@ export async function updateSupplier(
     const existingSupplier = await supplierRef.get();  // Returns DocumentSnapshot or null if not found
     // Validate input data
     const validData = SupplierSchema.parse(data);
-    const supplierDoc: SupplierData = {
+    const supplierDoc: Supplier = {
       ...(existingSupplier.exists ? existingSupplier.data() : {}),
       ...validData,
       createdAt: existingSupplier.exists ? existingSupplier.data()?.createdAt || FieldValue.serverTimestamp() : FieldValue.serverTimestamp(),
@@ -281,7 +277,7 @@ export async function updateSupplier(
  * @param category Optional category to filter by
  * @returns Array of suppliers
  */
-export async function getSuppliersByCategory(restaurantId: RestaurantData['legalId'], category?: SupplierCategory, isSimulator: boolean = false): Promise<Supplier[]> {
+export async function getSuppliersByCategory(restaurantId: Restaurant['legalId'], category?: SupplierCategory, isSimulator: boolean = false): Promise<Supplier[]> {
   try {
     const collectionName = getCollectionName('restaurants', isSimulator);
     let query: Query | CollectionReference = firestore.collection(collectionName).doc(restaurantId).collection('suppliers');
@@ -309,7 +305,7 @@ export async function getSuppliersByCategory(restaurantId: RestaurantData['legal
  * @param supplierId Supplier ID (whatsapp)
  * @returns Supplier data or null if not found
  */
-export async function getSupplier(restaurantId: RestaurantData['legalId'], supplierId: Contact['whatsapp'], isSimulator: boolean = false): Promise<Supplier | null> {
+export async function getSupplier(restaurantId: Restaurant['legalId'], supplierId: Contact['whatsapp'], isSimulator: boolean = false): Promise<Supplier | null> {
   try {
     const collectionName = getCollectionName('restaurants', isSimulator);
     const doc = await firestore
@@ -354,7 +350,7 @@ export async function getSupplier(restaurantId: RestaurantData['legalId'], suppl
 export async function getConversationState(
   phone: Contact['whatsapp'],
   isSimulator: boolean = false
-): Promise<ConversationData | null> {
+): Promise<Conversation | null> {
   try {
     console.log(`[Firestore] Getting conversation state for phone: ${phone}`);
     
@@ -369,7 +365,7 @@ export async function getConversationState(
       return null;
     }
     
-    const state = doc.data() as ConversationData;
+    const state = doc.data() as Conversation;
     console.log(`[Firestore] ✅ Found conversation state for phone: ${phone}`, {
       currentState: state?.currentState,
       contextKeys: Object.keys(state?.context || {})
@@ -390,10 +386,10 @@ export async function getConversationState(
  * @returns The created conversation state
  */
 export async function initializeConversationState(
-  conversationData: ConversationData,
+  conversation: Conversation,
   phone: Contact['whatsapp'],
   isSimulator: boolean = false
-): Promise<ConversationData> {
+): Promise<Conversation> {
   try {
     console.log(`[Firestore] Initializing conversation state for phone: ${phone}`);
     
@@ -404,11 +400,11 @@ export async function initializeConversationState(
     const conversationsCollection = getCollectionName('conversations', isSimulator);
 
 
-    const newState = ConversationSchema.parse({...conversationData, ...(restaurantId ? { restaurantId } : {})});
+    const newState = ConversationSchema.parse({...conversation, ...(restaurantId ? { restaurantId } : {})});
     await firestore
       .collection(conversationsCollection)
       .doc(phone)
-      .set(newState as ConversationData, { merge: true });
+      .set(newState as Conversation, { merge: true });
 
     console.log(`[Firestore] ✅ Initialized conversation state for phone: ${phone}`);
     return newState;
@@ -428,7 +424,7 @@ export async function initializeConversationState(
  */
 export async function saveConversationState(
   phone: string, 
-  state: ConversationData,
+  state: Conversation,
   isSimulator: boolean = false
 ): Promise<void> {
   try {
