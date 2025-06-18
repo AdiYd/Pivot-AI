@@ -25,7 +25,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 import axios from 'axios';
 import { Icon } from '@iconify/react/dist/iconify.js';
-import { ConversationState, StateMessage } from '@/schema/types';
+import { BotState, StateMessage } from '@/schema/types';
 import Image from 'next/image';
 import { useTheme } from 'next-themes';
 
@@ -35,6 +35,12 @@ interface Message {
   content: {
     body?: string;
     template?: StateMessage['whatsappTemplate'];
+    // Add all possible message fields for rendering
+    role?: string;
+    hasTemplate?: boolean;
+    templateId?: string;
+    messageState?: string;
+    mediaUrl?: string;
   };
   timestamp: Date;
   isBot: boolean;
@@ -46,7 +52,7 @@ interface Message {
 interface SimulatorSession {
   phoneNumber: string;
   messages: Message[];
-  conversationState?: ConversationState;
+  conversationState?: BotState;
   isConnected: boolean;
   isLoading: boolean;
 }
@@ -650,7 +656,6 @@ const loadSession = async (phoneNumber: string): Promise<SimulatorSession | null
       currentState: conversationData.currentState || 'INIT',
       context: conversationData.context || {},
       lastMessageTimestamp: conversationData.lastMessageTimestamp?.toDate() || new Date(),
-      
     };
     
     // Get previous messages
@@ -664,11 +669,20 @@ const loadSession = async (phoneNumber: string): Promise<SimulatorSession | null
     
     messagesSnapshot.forEach((messageDoc) => {
       const messageData = messageDoc.data();
+      // Map backend message structure to frontend Message type
       messages.push({
         id: messageDoc.id,
-        content: messageData.body || '',
+        content: {
+          body: messageData.body || '',
+          template: messageData.template, // If template object exists
+          role: messageData.role,
+          hasTemplate: messageData.hasTemplate,
+          templateId: messageData.templateId,
+          messageState: messageData.messageState,
+          mediaUrl: messageData.mediaUrl,
+        },
         timestamp: messageData.createdAt?.toDate() || new Date(),
-        isBot: messageData.direction === 'outgoing',
+        isBot: messageData.role === 'assistant',
         status: 'delivered'
       });
     });
@@ -789,9 +803,9 @@ const WhatsAppTemplateRenderer = ({whatsAppTemplate, onSelect}: {whatsAppTemplat
       <div className={styles.container}>
         {renderHeader()}
         <div className={styles.body}>
-          {whatsAppTemplate.body.split('\n').map((line, i) => (
+          {whatsAppTemplate.body.split('\n').map((line: any, i: number) => (
             <p key={i} className={i > 0 ? 'mt-2' : ''}>
-              {line.split(/(\*[^*]+\*)/g).map((part, j) => {
+              {line.split(/(\*[^*]+\*)/g).map((part: any, j: number) => {
                 if (part.startsWith('*') && part.endsWith('*')) {
                   return <strong key={j}>{part.slice(1, -1)}</strong>;
                 }
@@ -810,9 +824,9 @@ const WhatsAppTemplateRenderer = ({whatsAppTemplate, onSelect}: {whatsAppTemplat
       <div className={styles.container}>
         {renderHeader()}
         <div className={styles.body}>
-          {whatsAppTemplate.body.split('\n').map((line, i) => (
+          {whatsAppTemplate.body.split('\n').map((line: any, i: number) => (
             <p key={i} className={i > 0 ? 'mt-2' : ''}>
-              {line.split(/(\*[^*]+\*)/g).map((part, j) => {
+              {line.split(/(\*[^*]+\*)/g).map((part: any, j: number) => {
                 if (part.startsWith('*') && part.endsWith('*')) {
                   return <strong key={j}>{part.slice(1, -1)}</strong>;
                 }
@@ -824,9 +838,9 @@ const WhatsAppTemplateRenderer = ({whatsAppTemplate, onSelect}: {whatsAppTemplat
         {whatsAppTemplate.options && whatsAppTemplate.options.length > 0 && (
           <div className={styles.footer}>
             <div className={styles.buttonContainer}>
-              {whatsAppTemplate.options.map((option, index) => (
-                <button 
-                  key={option.id} 
+              {whatsAppTemplate.options.map((option: any, index: number) => (
+                <button
+                  key={option.id}
                   onClick={() => onSelect(option.id)}
                   className={whatsAppTemplate.options?.length === 1 ? styles.buttonSingle : styles.buttonMultiple}
                 >
@@ -846,9 +860,9 @@ const WhatsAppTemplateRenderer = ({whatsAppTemplate, onSelect}: {whatsAppTemplat
       <div className={styles.container}>
         {renderHeader()}
         <div className={styles.body}>
-          {whatsAppTemplate.body.split('\n').map((line, i) => (
+          {whatsAppTemplate.body.split('\n').map((line : any, i: number) => (
             <p key={i} className={i > 0 ? 'mt-2' : ''}>
-              {line.split(/(\*[^*]+\*)/g).map((part, j) => {
+              {line.split(/(\*[^*]+\*)/g).map((part : any, j: number) => {
                 if (part.startsWith('*') && part.endsWith('*')) {
                   return <strong key={j}>{part.slice(1, -1)}</strong>;
                 }
@@ -859,7 +873,7 @@ const WhatsAppTemplateRenderer = ({whatsAppTemplate, onSelect}: {whatsAppTemplat
         </div>
         {whatsAppTemplate.options && whatsAppTemplate.options.length > 0 && (
           <div className={styles.listContainer}>
-            {whatsAppTemplate.options.map((option) => (
+            {whatsAppTemplate.options.map((option : any) => (
               <div key={option.id} className={styles.listItem} onClick={() => onSelect(option.id)}>
                 <span className='mx-auto'>{option.name}</span>
                 {/* <Icon icon="lucide:chevron-right" className="text-gray-400" /> */}
@@ -877,9 +891,9 @@ const WhatsAppTemplateRenderer = ({whatsAppTemplate, onSelect}: {whatsAppTemplat
       <div className={styles.container}>
         {renderHeader()}
         <div className={styles.body}>
-          {whatsAppTemplate.body.split('\n').map((line, i) => (
+          {whatsAppTemplate.body.split('\n').map((line: any, i) => (
             <p key={i} className={i > 0 ? 'mt-2' : ''}>
-              {line.split(/(\*[^*]+\*)/g).map((part, j) => {
+              {line.split(/(\*[^*]+\*)/g).map((part: any, j) => {
                 if (part.startsWith('*') && part.endsWith('*')) {
                   return <strong key={j}>{part.slice(1, -1)}</strong>;
                 }

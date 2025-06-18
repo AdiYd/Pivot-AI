@@ -1,156 +1,89 @@
-import { Timestamp } from 'firebase-admin/firestore';
+import { z } from 'zod';
+import {
+  ContactSchema,
+  PaymentMetaSchema,
+  ProductSchema,
+  RestaurantSchema,
+  SupplierSchema,
+  OrderSchema,
+  ConversationSchema,
+  MessageSchema,
+  productUnitSchema,
+  supplierCategorySchema,
+  orderStatusSchema,
+} from './schemas';
 
-// Represents a contact person for a restaurant or supplier
-export interface Contact {
-  whatsapp: string;  // This is also the document ID in Firestore
-  name: string;
-  role: "Owner" | "Manager" | "Shift" | "Other" | "Supplier";
-  email?: string;
-}
+// ======== Schema-based types using z.infer ========
 
-// Represents payment metadata for a restaurant - will be updated to true after payment by external API calls
-export interface PaymentMeta {
-  provider: "Stripe" | "Paylink";
-  customerId: string;
-  status: boolean; // true if payment is confirmed
-}
+// Core types derived directly from schemas
+export type Contact = z.infer<typeof ContactSchema>;
+export type PaymentMeta = z.infer<typeof PaymentMetaSchema>;
+export type paymentProvider = z.infer<typeof PaymentMetaSchema.shape.provider>;
+export type Product = z.infer<typeof ProductSchema>;
+export type Supplier = z.infer<typeof SupplierSchema>;
+export type Restaurant = z.infer<typeof RestaurantSchema>;
+export type Order = z.infer<typeof OrderSchema>;
+export type Message = z.infer<typeof MessageSchema>;
+export type Conversation = z.infer<typeof ConversationSchema>;
 
+// Derived types from enum schemas
+export type ProductUnit = z.infer<typeof productUnitSchema>;
+export type SupplierCategory = z.infer<typeof supplierCategorySchema>;
+export type OrderStatus = z.infer<typeof orderStatusSchema>;
 
+// ======== Extended or custom types ========
 
-export interface Inventory {
-  [category: SupplierCategory]: {
-    products: Product[];
-    supplier: Supplier;
-  };
-}
-
-// Represents a supplier with its details and products
-export interface Supplier extends Contact {
-  // The contact's WhatsApp number is used as the supplier ID in Firestore
-  restaurantId: string;             // ref→ /restaurants/{id}
-  category: SupplierCategory[];    // Array of Category of the supplier (e.g vegetables, fruits, etc.)
-  deliveryDays: number[];         // Array of delivery days (e.g 1=Monday, 2=Tuesday, etc.)
-  cutoffHour: number;            // 0–23 local
-  rating?: Rating;              // Rating of the supplier (1–5)
-  createdAt: Timestamp;
-}
-
-// Represents a rating for a supplier
+// Rating type (1-5)
 export type Rating = 1 | 2 | 3 | 4 | 5;
 
-// Represents a category for suppliers (can be extended with custom categories)
-export type SupplierCategory =
-  | "vegetables" | "fruits" | "fish" | "meat" | "alcohol" | "dairy"
-  | "oliveOil" | "disposables" | "dessert" | "juices" | "eggs" | string;
 
-// Represents a unit of measurement for products
-export type ProductUnit = "kg" | "pcs" | "l" | "bottle" | "box" | "pack" | string;
-
-// Represents a product supplied by a supplier (e.g tomatoes, ice-cream, salmon, etc.)
-export interface Product {
-  id: string;                             // This is also the product's document ID in Firestore
-  supplierId: Supplier["whatsapp"];      // ref→ /restaurants/{r}/suppliers/{s}
-  category: SupplierCategory;           // Category of the product (e.g vegetables, fruits, etc.)
-  name: string;                        // Name of the product (e.g tomatoes, ice-cream, salmon, etc.)
-  emoji?: string;                     // Emoji representing the product
-  unit: ProductUnit;                 // Unit of measurement for the product (e.g kg, pcs, etc.)
-  parMidweek: number;               // Par stock level for midweek (e.g 50 <unit> of tomatoes)
-  parWeekend: number;              // Par stock level for weekend (e.g 100 <unit> of tomatoes)
-  createdAt: Timestamp;
-}
-
-// Represents a line item in an order
-// Contains the product ID and quantity ordered
-export interface ItemLine {
-  productId: Product["id"];
-  qty: number;
-}
-
-// Represents a shortage of an item in an order
-// Contains the product ID, quantity ordered, and quantity received
-export interface ItemShortage extends ItemLine {
-  received: number;
-}
-
-// Stock line for inventory snapshots
-// Represents the current stock level of a product
-export interface StockLine {
-  productId: string; // ref→ /restaurants/{r}/suppliers/{s}/products/{id}
-  currentQty: number;
-}
-
-export interface Order {
-  id: string;
-  supplierId: string;  // ref→ /restaurants/{r}/suppliers/{id}
-  status: "pending" | "sent" | "delivered";
-  items: ItemLine[];
-  shortages: ItemShortage[];
-  midweek: boolean;
-  sentAt?: Timestamp;
-  receivedAt?: Timestamp;
-  invoiceUrl?: string;
-  createdAt: Timestamp;
-}
-
-export interface InventorySnapshot {
-  id: string;
-  supplierId: string;  // ref→ /restaurants/{r}/suppliers/{id}
-  lines: StockLine[];
-  createdAt: Timestamp;
-}
-
-// Conversation state types for the WhatsApp bot
-export interface ConversationState {
-  currentState: BotState; // Current state of the bot conversation
-  context: Record<string, any>;  // Additional context for the conversation, to collect information and user input
-  lastMessageTimestamp: Timestamp;
-}
-
-
-
+// Bot state types
 export type BotState =
-  | "INIT" // Initial state when the bot starts - Ask what the user wants to do (e.g "sign in new restaurant", "Ask a question")
-  
-  // Onboarding states for new restaurants - collecting necessary information
-  | "ONBOARDING_COMPANY_NAME"         // Onboarding states for new restaurants - Company name collection
-  | "ONBOARDING_LEGAL_ID"            // Legal ID collection
-  | "ONBOARDING_RESTAURANT_NAME"    // Restaurant name collection
-  | "ONBOARDING_YEARS_ACTIVE"      // Years active collection
-  | "ONBOARDING_CONTACT_NAME"     // Contact (owner) name collection
-  | "ONBOARDING_CONTACT_EMAIL"   // Contact email collection (Role defaults to "Owner")
-  | "ONBOARDING_PAYMENT_METHOD" // Showing Payment Link
-  | "WAITING_FOR_PAYMENT"      // Waiting for payment confirmation state - show until payment is confirmed
-  
-  // Setting up restaurant's base inventory
-  | "SETUP_SUPPLIERS_START"         
-    // Supplier details collection states  (Iterate here for each supplier within a restaurant)
-    | "SUPPLIER_CATEGORY"             // Supplier category collection (this is a multi-select and can be multiple categories)
-    | "SUPPLIER_NAME"                // Supplier name collection
-    | "SUPPLIER_WHATSAPP"           // Supplier WhatsApp collection
-    | "SUPPLIER_DELIVERY_DAYS"     // Supplier delivery days collection
-    | "SUPPLIER_CUTOFF_TIME"      // Supplier cutoff time collection
-      // Supplier products collection states (Iterative here for each product within a supplier)
-      | "PRODUCT_NAME"                  // Product name collection 
-      | "PRODUCT_UNIT"                 // Product unit collection
-      | "PRODUCT_QTY"                 // Product quantity collection
-      | "PRODUCT_PAR_MIDWEEK"        // Product par midweek collection
-      | "PRODUCT_PAR_WEEKEND"       // Product par weekend collection
- 
-  // Inventory snapshot states (snapshot of current stock levels and generating orders)
-  | "INVENTORY_SNAPSHOT_START"              // Starting inventory snapshot (Iterative for each supplier / category)
-  | "INVENTORY_SNAPSHOT_CATEGORY"          // Inventory snapshot category selection
-  | "INVENTORY_SNAPSHOT_PRODUCT"          // Inventory snapshot product selection
-  | "INVENTORY_SNAPSHOT_QTY"             // Inventory snapshot quantity collection
-  | "INVENTORY_CALCULATE_SNAPSHOT"      // Calculating inventory snapshot and showing results
+  | "INIT"
 
-  // Order management states (creating and managing orders)
-  | "ORDER_SETUP_START"                     // Starting order process
-  | "ORDER_CONFIRMATION"                   // Order confirmation by the user
-  | "DELIVERY_START"                      // Starting delivery process
-  | "DELIVERY_CHECK_ITEM"                // Checking delivery items
-  | "DELIVERY_RECEIVED_AMOUNT"          // Confirming received delivery amount
-  | "DELIVERY_INVOICE_PHOTO"           // Requesting delivery invoice photo
-  | "IDLE";                   // Idle state when no conversation is active - suggest options like "Add or edit Supplier", "Add or edit Product", "Create order", etc.
+// Onboarding states  - restaurant creation
+  | "ONBOARDING_COMPANY_NAME"
+  | "ONBOARDING_LEGAL_ID"
+  | "ONBOARDING_RESTAURANT_NAME"
+  | "ONBOARDING_CONTACT_NAME"
+  | "ONBOARDING_CONTACT_EMAIL"
+  | "ONBOARDING_PAYMENT_METHOD"
+  | "WAITING_FOR_PAYMENT"
+
+// Supplier setup states 
+  | "SETUP_SUPPLIERS_START"
+  | "SETUP_SUPPLIERS_ADDITIONAL"
+  | "SUPPLIER_CATEGORY"
+  | "SUPPLIER_CONTACT"
+  | "SUPPLIER_REMINDERS"
+// Product setup states
+  | "PRODUCTS_LIST"
+// Base quantity setup states
+  | "PRODUCTS_BASE_QTY"
+
+// Finalization restaurant creation
+  | "RESTAURANT_FINISHED"
+
+ // Order states 
+  | "INVENTORY_SNAPSHOT_START"
+  | "INVENTORY_SNAPSHOT_CATEGORY"
+  | "INVENTORY_SNAPSHOT_PRODUCT"
+  | "INVENTORY_SNAPSHOT_QTY"
+  | "INVENTORY_CALCULATE_SNAPSHOT"
+  | "ORDER_SETUP_START"
+  | "ORDER_CONFIRMATION"
+  | "DELIVERY_START"
+  | "DELIVERY_CHECK_ITEM"
+  | "DELIVERY_RECEIVED_AMOUNT"
+  | "DELIVERY_INVOICE_PHOTO"
+
+// IDLE state
+  | "IDLE";
+
+
+
+// Extended context that can contain fields from any type
+export interface ConversationContext extends Record<string, any> {}
 
 // Bot engine types
 export interface IncomingMessage {
@@ -160,36 +93,23 @@ export interface IncomingMessage {
 }
 
 export interface BotAction {
-  type: "SEND_MESSAGE" | "CREATE_RESTAURANT" | "UPDATE_SUPPLIER" | "UPDATE_PRODUCT" | "CREATE_INVENTORY_SNAPSHOT" | "SEND_ORDER" | "LOG_DELIVERY";
-  payload: Record<string, any>;  // Additional data needed for the action
+  type: "SEND_MESSAGE" | "CREATE_RESTAURANT" | "CREATE_SUPPLIER" | "UPDATE_SUPPLIER" | "UPDATE_PRODUCT" | "CREATE_INVENTORY_SNAPSHOT" | "SEND_ORDER" | "LOG_DELIVERY";
+  payload: Record<string, any>;
 }
+
 
 export interface BotConfig {
-  inventoryReminderInterval: number;          // Set the interval in hours for inventory reminders
-  orderCutoffReminderHours: number;          // Set the cutoff time in hours for order reminders (meaning the bot will remind the restaurant to place an order before this time)
-  supplierCategories: SupplierCategory[];   // List of supplier categories to be used in the bot
-  showPaymentLink: boolean;                // Whether to show the payment link during onboarding
-  paymentLink: string;                    // Payment link to be shown during onboarding (if showPaymentLink is true)
-  skipPaymentCoupon: string;             // Coupon code to skip payment during onboarding
-  paymentMethods: string[];             // List of payment methods to be used in the bot (e.g ["Stripe", "Paylink"])
+  inventoryReminderInterval: number;
+  orderCutoffReminderHours: number;
+  supplierCategories: SupplierCategory[];
+  showPaymentLink: boolean;
+  paymentLink: string;
+  skipPaymentCoupon: string;
+  paymentMethods: string[];
 }
 
-// new Firestore‐doc shapes for conversations & messages
-export interface ConversationDoc {
-  currentState: BotState;   // Current state of the bot conversation
-  messages: MessageDoc[];
-  context: Record<string, any>;  // Additional context for the conversation, to collect information and user input
-  lastMessageTimestamp: Timestamp;
-}
 
-export interface MessageDoc {
-  body: string;
-  direction: "incoming" | "outgoing";
-  currentState: BotState;   // State when the message was sent
-  createdAt: Timestamp;
-}
-
-export interface StateMessage {
+export interface StateObject {
   // If defined, use a WhatsApp template with structured responses
   whatsappTemplate?: {
     id: string;                // Template ID registered with WhatsApp Business API
@@ -216,5 +136,24 @@ export interface StateMessage {
   validationMessage?: string;
   
   // Type of validation to perform (if any)
-  validator?: "text" | "number" | "email" | "phone" | "yesNo" | "selection" | "days" | "time" | "photo" | "skip";
+  validator?: z.ZodTypeAny;
+
+  // callback function to execute when this state is reached
+  callback?: (context: ConversationContext, data: any) => void;
+
+  // Use ai for validation
+  aiValidation?: {
+    prompt?: string; // The prompt to send to the AI for validation
+    schema?: z.ZodTypeAny; // If provided, use this schema to validate the response
+  }
+
+  nextState?: Record<string, BotState>; // Mapping of user responses to next states
+
+  action?: BotAction['type']; // Optional action to perform when this state is finished
 }
+// Re-export types with clearer names for external use
+export type RestaurantData = z.infer<typeof RestaurantSchema>;
+export type SupplierData = z.infer<typeof SupplierSchema>;
+export type ProductData = z.infer<typeof ProductSchema>;
+export type OrderData = z.infer<typeof OrderSchema>;
+export type ConversationData = z.infer<typeof ConversationSchema>;

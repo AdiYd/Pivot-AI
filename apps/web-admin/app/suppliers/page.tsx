@@ -1,41 +1,24 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Label } from '@/components/ui/label';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Progress } from '@/components/ui/progress';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
-  Plus, 
-  Search, 
-  Truck, 
-  Calendar,
-  Clock,
-  Phone,
-  Star,
-  Package,
-  Edit,
-  Trash2,
-  Eye,
-  Store,
-  Filter,
-  TrendingUp,
-  X,
-  Grid3X3,
-  Table
+  Card, CardContent, CardDescription, CardHeader, CardTitle,
+  Button, Input, Badge, Dialog, DialogContent, DialogDescription, 
+  DialogHeader, DialogTitle, DialogTrigger, Tabs, TabsContent, 
+  TabsList, TabsTrigger, Label, Skeleton, Tooltip, TooltipContent, 
+  TooltipTrigger, Progress, Select, SelectContent, SelectItem, 
+  SelectTrigger, SelectValue,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow
+} from '@/components/ui';
+import { 
+  Plus, Search, Truck, Calendar, Clock, Phone, Star, Package, 
+  Edit, Trash2, Eye, Store, Filter, TrendingUp, X, Grid3X3, Table as TableIcon
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
 // Import the actual database
 import exampleDatabase from '@/schema/example';
-import { Product, SupplierCategory } from '@/schema/types';
+import { ProductUnit, SupplierCategory } from '@/schema/types';
 import { getCategoryBadge } from '@/components/ui/badge';
 import { Icon } from '@iconify/react/dist/iconify.js';
 
@@ -44,14 +27,27 @@ interface EnhancedSupplier {
   id: string;
   whatsapp: string;
   name: string;
+  email?: string;
   category: SupplierCategory[];
+  reminders: Array<{
+    day: string;
+    time: string;
+  }>;
   deliveryDays: number[];
   cutoffHour: number;
   rating?: number;
   restaurantId: string;
   restaurantName: string;
   productCount: number;
-  products: Product[];
+  products: Array<{
+    id?: string;
+    name: string;
+    unit: ProductUnit;
+    emoji: string;
+    parMidweek: number;
+    parWeekend: number;
+    createdAt: Date;
+  }>;
   recentOrdersCount: number;
   createdAt: Date;
 }
@@ -69,7 +65,8 @@ const categoryNames: Record<string, string> = {
   juices: 'משקאות',
   eggs: 'ביצים',
   bread: 'לחם',
-  coffee: 'קפה'
+  coffee: 'קפה',
+  general: 'כללי'
 };
 
 const dayNames = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
@@ -90,38 +87,46 @@ export default function SuppliersPage() {
       const suppliers: EnhancedSupplier[] = [];
 
       Object.entries(data.restaurants).forEach(([restaurantId, restaurant]) => {
-        Object.entries(restaurant.suppliers).forEach(([supplierWhatsapp, supplier]) => {
-          // Get products for this supplier
-          const products = supplier.products.map(product => ({
-            id: product.id,
-            supplierId: supplierWhatsapp,
-            category: product.category,
-            name: product.name,
-            emoji: product.emoji,
-            unit: product.unit,
-            parMidweek: product.parMidweek,
-            parWeekend: product.parWeekend,
-            createdAt: product.createdAt
+        // Each restaurant has an array of suppliers
+        restaurant.suppliers.forEach(supplier => {
+          // Get delivery days from reminders
+          const deliveryDays = supplier.reminders.map(reminder => {
+            const dayIndex = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'].indexOf(reminder.day);
+            return dayIndex >= 0 ? dayIndex : -1;
+          }).filter(day => day >= 0);
 
-          }));
+          // Get cutoff hour from first reminder time
+          const cutoffHour = supplier.reminders.length > 0 
+            ? parseInt(supplier.reminders[0].time.split(':')[0]) 
+            : 12; // Default to noon if no reminders
 
           // Count recent orders for this supplier
-          const recentOrdersCount = Object.values(restaurant.orders)
-            .filter(order => order.supplierId === supplierWhatsapp)
+          const recentOrdersCount = Object.values(data.orders)
+            .filter(order => order.supplier.whatsapp === supplier.whatsapp)
             .length;
 
           suppliers.push({
-            id: supplierWhatsapp,
+            id: supplier.whatsapp,
             whatsapp: supplier.whatsapp,
             name: supplier.name,
+            email: supplier.email,
             category: supplier.category,
-            deliveryDays: supplier.deliveryDays,
-            cutoffHour: supplier.cutoffHour,
+            reminders: supplier.reminders,
+            deliveryDays,
+            cutoffHour,
             rating: supplier.rating,
             restaurantId,
             restaurantName: restaurant.name,
-            productCount: products.length,
-            products: products,
+            productCount: supplier.products.length,
+            products: supplier.products.map(product => ({
+              id: `${product.name}-${product.unit}`.toLowerCase().replace(/\s+/g, '-'),
+              name: product.name,
+              unit: product.unit,
+              emoji: product.emoji,
+              parMidweek: product.parMidweek,
+              parWeekend: product.parWeekend,
+              createdAt: product.createdAt.toDate()
+            })),
             recentOrdersCount,
             createdAt: supplier.createdAt.toDate()
           });
@@ -141,7 +146,7 @@ export default function SuppliersPage() {
       const matchesSearch = supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            supplier.restaurantName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            supplier.whatsapp.includes(searchTerm);
-      const matchesCategory = selectedCategory === 'all' || supplier.category.includes(selectedCategory);
+      const matchesCategory = selectedCategory === 'all' || supplier.category.includes(selectedCategory as SupplierCategory);
       
       return matchesSearch && matchesCategory;
     });
@@ -226,7 +231,11 @@ export default function SuppliersPage() {
               </CardDescription>
             </div>
           </div>
-          {supplier.category.map(categor => getCategoryBadge(categor))}
+          <div className="flex flex-wrap gap-1">
+            {supplier.category.map((cat, idx) => (
+              getCategoryBadge(cat)
+            ))}
+          </div>
         </div>
       </CardHeader>
       <CardContent className='h-[fill-available]* overflow-y-auto'>
@@ -238,7 +247,9 @@ export default function SuppliersPage() {
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Calendar className="w-4 h-4" />
             <span>
-              {supplier.deliveryDays.map(day => dayNames[day]).join(', ')}
+              {supplier.deliveryDays.length > 0 
+                ? supplier.deliveryDays.map(day => dayNames[day]).join(', ')
+                : 'אין ימי משלוח מוגדרים'}
             </span>
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -252,7 +263,7 @@ export default function SuppliersPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1">
               {getRatingStars(supplier.rating || 0)}
-              <span className="text-sm text-muted-foreground mr-1">({supplier.rating})</span>
+              <span className="text-sm text-muted-foreground mr-1">({supplier.rating || 0})</span>
             </div>
             <div className="text-xs text-muted-foreground">
               {getRelativeTime(supplier.createdAt)}
@@ -277,26 +288,6 @@ export default function SuppliersPage() {
               <p>צפייה בפרטים</p>
             </TooltipContent>
           </Tooltip>
-          {/* <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Edit className="w-4 h-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>עריכה</p>
-            </TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>מחיקה</p>
-            </TooltipContent>
-          </Tooltip> */}
         </div>
       </CardContent>
     </Card>
@@ -305,84 +296,81 @@ export default function SuppliersPage() {
   const SupplierTable = ({ suppliers }: { suppliers: EnhancedSupplier[] }) => (
     <div className="border rounded-lg overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="w-full backdrop-blur-lg bg-card/80">
-          <thead className="bg-gray-50 dark:bg-gray-900">
-            <tr className="border-b">
-              <th className="text-right p-3 font-medium text-sm">שם הספק</th>
-              <th className="text-right p-3 font-medium text-sm">מסעדה</th>
-              <th className="text-right hidden p-3 font-medium text-sm">WhatsApp</th>
-              <th className="text-right p-3 font-medium text-sm">קטגוריות</th>
-              <th className="text-right p-3 font-medium text-sm">ימי משלוח</th>
-              <th className="text-right hidden p-3 font-medium text-sm">שעת סגירה</th>
-              <th className="text-right p-3 font-medium text-sm">מוצרים</th>
-              <th className="text-right hidden p-3 font-medium text-sm">דירוג</th>
-              <th className="text-right p-3 font-medium text-sm">הזמנות</th>
-              <th className="text-right p-3 font-medium text-sm">פעולות</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="text-right">שם הספק</TableHead>
+              <TableHead className="text-right">מסעדה</TableHead>
+              <TableHead className="text-right hidden">WhatsApp</TableHead>
+              <TableHead className="text-right">קטגוריות</TableHead>
+              <TableHead className="text-right">ימי משלוח</TableHead>
+              <TableHead className="text-right hidden">שעת סגירה</TableHead>
+              <TableHead className="text-right">מוצרים</TableHead>
+              <TableHead className="text-right hidden">דירוג</TableHead>
+              <TableHead className="text-right">הזמנות</TableHead>
+              <TableHead className="text-right">פעולות</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {suppliers.map((supplier) => (
-              <tr key={supplier.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-900/50">
-                <td className="p-3">
+              <TableRow key={supplier.id} className="hover:bg-gray-50 dark:hover:bg-gray-900/50">
+                <TableCell>
                   <div className="flex items-center gap-2">
-                    {/* <Truck className="w-4 h-4 text-muted-foreground" /> */}
                     <span className="font-medium">{supplier.name}</span>
                   </div>
-                </td>
-                <td className="p-3">
+                </TableCell>
+                <TableCell>
                   <div className="flex items-center gap-2">
-                    {/* <Store className="w-4 h-4 text-muted-foreground" /> */}
                     <span>{supplier.restaurantName}</span>
                   </div>
-                </td>
-                <td className="p-3 hidden">
+                </TableCell>
+                <TableCell className="hidden">
                   <div className="flex items-center gap-2">
-                    {/* <Phone className="w-4 h-4 text-muted-foreground" /> */}
                     <span className="text-sm">{supplier.whatsapp}</span>
                   </div>
-                </td>
-                <td className="p-3">
+                </TableCell>
+                <TableCell>
                   <div className="flex flex-wrap gap-1 max-w-xs">
-                    {supplier.category.slice(0, 2).map(category => getCategoryBadge(category))}
+                    {supplier.category.slice(0, 2).map((category, idx) => (
+                      getCategoryBadge(category)
+                    ))}
                     {supplier.category.length > 2 && (
                       <Badge variant="outline" className="text-xs">
                         +{supplier.category.length - 2}
                       </Badge>
                     )}
                   </div>
-                </td>
-                <td className="p-3">
+                </TableCell>
+                <TableCell>
                   <div className="text-sm">
-                    {supplier.deliveryDays.map(day => dayNames[day]).slice(0, 3).join(', ')}
+                    {supplier.deliveryDays.length > 0 
+                      ? supplier.deliveryDays.map(day => dayNames[day]).slice(0, 3).join(', ')
+                      : 'לא מוגדר'}
                     {supplier.deliveryDays.length > 3 && (
                       <span className="text-muted-foreground"> +{supplier.deliveryDays.length - 3}</span>
                     )}
                   </div>
-                </td>
-                <td className="p-3 hidden">
+                </TableCell>
+                <TableCell className="hidden">
                   <div className="flex items-center justify-center gap-1">
-                    {/* <Clock className="w-4 h-4 text-muted-foreground" /> */}
                     <span className="text-sm">{supplier.cutoffHour}:00</span>
                   </div>
-                </td>
-                <td className="p-3">
-                    {/* <Package className="w-4 h-4 text-muted-foreground" /> */}
-                    <span className="text-sm mr-3 font-medium">{supplier.productCount}</span>
-                </td>
-                <td className="p-3 hidden">
+                </TableCell>
+                <TableCell>
+                  <span className="text-sm mr-3 font-medium">{supplier.productCount}</span>
+                </TableCell>
+                <TableCell className="hidden">
                   <div className="flex items-center gap-1">
                     {getRatingStars(supplier.rating || 0).slice(0, 1)}
                     <span className="text-sm">{supplier.rating || 0}</span>
                   </div>
-                </td>
-                <td className="p-3 ">
+                </TableCell>
+                <TableCell>
                   <div className='mr-3'>
                     {supplier.recentOrdersCount}
                   </div>
-                  {/* <Badge variant="default" className="text-xs">
-                  </Badge> */}
-                </td>
-                <td className="p-3">
+                </TableCell>
+                <TableCell>
                   <div className="flex gap-2">
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -402,11 +390,11 @@ export default function SuppliersPage() {
                       </TooltipContent>
                     </Tooltip>
                   </div>
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     </div>
   );
@@ -538,7 +526,9 @@ export default function SuppliersPage() {
           <CardContent className='flex-1 overflow-y-auto'>
             <div className="text-2xl font-bold text-blue-600">{stats.totalProducts}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              ממוצע {Math.round(stats.totalProducts / stats.totalSuppliers)} מוצרים לספק
+              ממוצע {stats.totalSuppliers > 0 
+                ? Math.round(stats.totalProducts / stats.totalSuppliers) 
+                : 0} מוצרים לספק
             </p>
           </CardContent>
         </Card>
@@ -599,7 +589,7 @@ export default function SuppliersPage() {
               onClick={() => setViewMode('table')}
               className="h-8 w-8 p-0"
             >
-              <Table className="w-4 h-4" />
+              <TableIcon className="w-4 h-4" />
             </Button>
           </div>
         </div>
@@ -647,7 +637,6 @@ export default function SuppliersPage() {
                 <div key={category} className="flex flex-col items-center gap-4 justify-between">
                   <div className="flex items-center gap-2">
                     {getCategoryBadge(category)}
-                    {/* <span className="text-sm">{categoryNames[category] || category}</span> */}
                   </div>
                   <div className="flex items-center gap-2">
                     <Progress 
@@ -663,7 +652,7 @@ export default function SuppliersPage() {
       </Card>
 
       {/* View Mode Toggle */}
-      <div className="items-center justify-between md:hidden ">
+      <div className="items-center justify-between md:hidden">
         <div className="flex items-center gap-2">
           <span className="text-sm opacity-80">תצוגה:</span>
           <div className="flex flex-row-reverse gap-2 items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
@@ -683,7 +672,7 @@ export default function SuppliersPage() {
               onClick={() => setViewMode('table')}
               className="h-8 w-8 p-0"
             >
-              <Table className="w-4 h-4" />
+              <TableIcon className="w-4 h-4" />
             </Button>
           </div>
         </div>
@@ -774,7 +763,9 @@ export default function SuppliersPage() {
                       <div className="space-y-2">
                         <Label>קטגוריה</Label>
                         <div className="pt-2 flex gap-2">
-                          {selectedSupplier.category.map((cat) => getCategoryBadge(cat))}
+                          {selectedSupplier.category.map((cat) => (
+                            getCategoryBadge(cat)
+                          ))}
                         </div>
                       </div>
                     </div>
@@ -883,31 +874,34 @@ export default function SuppliersPage() {
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <h3 className="text-lg font-medium">מוצרים ({selectedSupplier.productCount})</h3>
-                        {/* <Button variant="outline" size="sm">
-                          <Plus className="w-4 h-4 mr-1" />
-                          הוסף מוצר
-                        </Button> */}
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {selectedSupplier.products.map((product) => (
-                          <Card key={product.id}>
-                            <CardContent className="p-4">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-lg">{product.emoji}</span>
-                                  <div>
-                                    <div className="font-medium">{product.name}</div>
-                                    <div className="text-sm text-muted-foreground"> {product.unit}</div>
+                        {selectedSupplier.products.length > 0 ? (
+                          selectedSupplier.products.map((product) => (
+                            <Card key={product.id}>
+                              <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-lg">{product.emoji}</span>
+                                    <div>
+                                      <div className="font-medium">{product.name}</div>
+                                      <div className="text-sm text-muted-foreground"> {product.unit}</div>
+                                    </div>
+                                  </div>
+                                  <div className="text-right text-sm">
+                                    <div>אמצע שבוע: {product.parMidweek}</div>
+                                    <div>סוף שבוע: {product.parWeekend}</div>
                                   </div>
                                 </div>
-                                <div className="text-right text-sm">
-                                  <div>אמצע שבוע: {product.parMidweek}</div>
-                                  <div>סוף שבוע: {product.parWeekend}</div>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
+                              </CardContent>
+                            </Card>
+                          ))
+                        ) : (
+                          <div className="col-span-2 text-center py-8">
+                            <Package className="w-12 h-12 mx-auto text-muted-foreground mb-2" />
+                            <p className="text-muted-foreground">אין מוצרים להצגה</p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </TabsContent>
@@ -943,3 +937,4 @@ export default function SuppliersPage() {
     </div>
   );
 }
+

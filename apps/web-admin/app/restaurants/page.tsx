@@ -43,21 +43,10 @@ import { Timestamp } from 'firebase/firestore';
 
 // Import the actual database
 import exampleDatabase from '@/schema/example';
-import { SupplierCategory } from '@/schema/types';
+import { Contact, paymentProvider, Restaurant, RestaurantData, SupplierCategory } from '@/schema/types';
 import { getCategoryBadge } from '@/components/ui/badge';
 
-// Interface for new restaurant form
-interface NewRestaurantForm {
-  name: string;
-  businessName: string;
-  legalId: string;
-  yearsActive: number;
-  contactName: string;
-  contactPhone: string;
-  contactEmail: string;
-  contactRole: "Owner" | "Manager" | "Shift" | "Other";
-  paymentProvider: "Stripe" | "Paylink";
-}
+
 
 
 
@@ -70,36 +59,40 @@ export default function RestaurantsPage() {
   const [editingRestaurant, setEditingRestaurant] = useState<any | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [newRestaurant, setNewRestaurant] = useState<NewRestaurantForm>({
+  const [newRestaurant, setNewRestaurant] = useState<Restaurant>({
     name: '',
-    businessName: '',
+    legalName: '',
     legalId: '',
-    yearsActive: 1,
-    contactName: '',
-    contactPhone: '',
-    contactEmail: '',
-    contactRole: 'Owner',
-    paymentProvider: 'Stripe'
-  });
+    contacts: [{
+      name: '',
+      whatsapp: '',
+      email: '',
+      role: 'owner',
+    }],
+    payment: {
+      provider: 'credit_card',
+      status: false
+    },
+    createdAt: Timestamp.now(),
+  } as Restaurant);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const editingRestaurantRef = useRef<any | null>(null);
   const { toast } = useToast();
 
   // Validation function for new restaurant
-  const validateNewRestaurant = (form: NewRestaurantForm): Record<string, string> => {
+  const validateNewRestaurant = (form: Restaurant): Record<string, string> => {
     const errors: Record<string, string> = {};
 
     if (!form.name.trim()) errors.name = 'שם המסעדה נדרש';
-    if (!form.businessName.trim()) errors.businessName = 'שם עסקי נדרש';
+    if (!form.legalName.trim()) errors.legalName = 'שם עסקי נדרש';
     if (!form.legalId.trim()) errors.legalId = 'מספר חברה נדרש';
     if (!/^\d{9}$/.test(form.legalId)) errors.legalId = 'מספר חברה חייב להיות 9 ספרות';
-    if (form.yearsActive < 0 || form.yearsActive > 100) errors.yearsActive = 'שנות פעילות חייבות להיות בין 0-100';
-    if (!form.contactName.trim()) errors.contactName = 'שם איש קשר נדרש';
-    if (!form.contactPhone.trim()) errors.contactPhone = 'מספר טלפון נדרש';
-    if (!/^\+972-?\d{9}$/.test(form.contactPhone.replace(/\s/g, ''))) {
+    if (!form.contacts[0].name.trim()) errors.contactName = 'שם איש קשר נדרש';
+    if (!form.contacts[0].whatsapp.trim()) errors.contactPhone = 'מספר טלפון נדרש';
+    if (!/^\+972-?\d{9}$/.test(form.contacts[0].whatsapp.replace(/\s/g, ''))) {
       errors.contactPhone = 'מספר טלפון לא תקין (צריך להתחיל ב +972)';
     }
-    if (form.contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.contactEmail)) {
+    if (form.contacts[0].email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.contacts[0].email)) {
       errors.contactEmail = 'כתובת אימייל לא תקינה';
     }
 
@@ -131,31 +124,24 @@ export default function RestaurantsPage() {
       // Simulate API call delay
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      const newRestaurantData = {
+      const newRestaurantData: Restaurant = {
         legalId: newRestaurant.legalId,
-        businessName: newRestaurant.businessName,
+        legalName: newRestaurant.legalName,
         name: newRestaurant.name,
-        primaryContact: {
-          whatsapp: newRestaurant.contactPhone,
-          name: newRestaurant.contactName,
-          role: newRestaurant.contactRole,
-          email: newRestaurant.contactEmail || undefined
-        },
-        yearsActive: newRestaurant.yearsActive,
+        contacts: [{
+          whatsapp: newRestaurant.contacts[0].whatsapp || '',
+          name: newRestaurant.contacts[0].name || '',
+          role: newRestaurant.contacts[0].role,
+          email: newRestaurant.contacts[0].email || undefined
+        }],
         payment: {
-          provider: newRestaurant.paymentProvider,
-          customerId: `${newRestaurant.paymentProvider.toLowerCase()}_${Date.now()}`,
+          provider: newRestaurant.payment.provider,
           status: false // New restaurants start with pending payment
         },
         isActivated: false,
-        settings: {
-          timezone: "Asia/Jerusalem",
-          locale: "he-IL"
-        },
         createdAt: Timestamp.now(),
-        suppliers: {},
-        orders: {},
-        inventorySnapshots: {}
+        suppliers: [],
+        orders: [],
       };
 
       // Update local state (later this will be a Firestore create)
@@ -175,15 +161,20 @@ export default function RestaurantsPage() {
       // Reset form and close dialog
       setNewRestaurant({
         name: '',
-        businessName: '',
+        legalName: '',
         legalId: '',
-        yearsActive: 1,
-        contactName: '',
-        contactPhone: '',
-        contactEmail: '',
-        contactRole: 'Owner',
-        paymentProvider: 'Stripe'
-      });
+        contacts: [{
+          name: '',
+          whatsapp: '',
+          email: '',
+          role: 'owner',
+        }],
+        payment: {
+          provider: 'credit_card',
+          status: false
+        },
+        createdAt: Timestamp.now(),
+      } as Restaurant);
       setFormErrors({});
       setIsCreateDialogOpen(false);
 
@@ -319,7 +310,7 @@ export default function RestaurantsPage() {
         });
 
         // Calculate orders stats
-        const orders = Object.values(restaurant.orders);
+        const orders = Object.values(restaurant.orders).map(order=>data.orders[order]);
         const totalOrders = orders.length;
         const pendingOrders = orders.filter(o => o.status === 'pending').length;
         const deliveredOrders = orders.filter(o => o.status === 'delivered').length;
@@ -354,7 +345,7 @@ export default function RestaurantsPage() {
   // Filter restaurants based on search term
   const filteredRestaurants = restaurantsWithStats.filter(restaurant =>
     restaurant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    restaurant.businessName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    restaurant.legalName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     restaurant.legalId.includes(searchTerm)
   );
 
@@ -424,7 +415,7 @@ export default function RestaurantsPage() {
             </div>
             <div>
               <CardTitle className="text-lg">{restaurant.name}</CardTitle>
-              <CardDescription className="text-sm">{restaurant.businessName}</CardDescription>
+              <CardDescription className="text-sm">{restaurant.legalName}</CardDescription>
             </div>
           </div>
           <div className="flex flex-col gap-1">
@@ -671,34 +662,27 @@ export default function RestaurantsPage() {
               </div>
               <EditableField
                 label="שם עסקי מלא"
-                value={newRestaurant.businessName}
-                onChange={(value) => setNewRestaurant(prev => ({ ...prev, businessName: value as string }))}
-                error={formErrors.businessName}
-              />
-              <EditableField
-                label="שנות פעילות"
-                value={newRestaurant.yearsActive}
-                onChange={(value) => setNewRestaurant(prev => ({ ...prev, yearsActive: value as number }))}
-                type="number"
-                error={formErrors.yearsActive}
+                value={newRestaurant.legalName}
+                onChange={(value) => setNewRestaurant(prev => ({ ...prev, legalName: value as string }))}
+                error={formErrors.legalName}
               />
               <EditableField
                 label="איש קשר ראשי"
-                value={newRestaurant.contactName}
-                onChange={(value) => setNewRestaurant(prev => ({ ...prev, contactName: value as string }))}
+                value={newRestaurant.contacts[0].name}
+                onChange={(value) => setNewRestaurant(prev => ({ ...prev, contacts: [{ ...prev.contacts[0], name: value as string }] }))}
                 error={formErrors.contactName}
               />
               <div className="grid grid-cols-2 gap-4">
                 <EditableField
                   label="WhatsApp"
-                  value={newRestaurant.contactPhone}
-                  onChange={(value) => setNewRestaurant(prev => ({ ...prev, contactPhone: value as string }))}
+                  value={newRestaurant.contacts[0].whatsapp}
+                  onChange={(value) => setNewRestaurant(prev => ({ ...prev, contacts: [{ ...prev.contacts[0], whatsapp: value as string }] }))}
                   error={formErrors.contactPhone}
                 />
                 <EditableField
                   label="אימייל (אופציונלי)"
-                  value={newRestaurant.contactEmail}
-                  onChange={(value) => setNewRestaurant(prev => ({ ...prev, contactEmail: value as string }))}
+                  value={newRestaurant.contacts[0]?.email || ''}
+                  onChange={(value) => setNewRestaurant(prev => ({ ...prev, contacts: [{ ...prev.contacts[0], email: value as string }] }))}
                   type="email"
                   error={formErrors.contactEmail}
                 />
@@ -707,28 +691,28 @@ export default function RestaurantsPage() {
                 <div className="space-y-2">
                   <Label>תפקיד איש קשר</Label>
                   <Select
-                    value={newRestaurant.contactRole}
-                    onValueChange={(value: "Owner" | "Manager" | "Shift" | "Other") => 
-                      setNewRestaurant(prev => ({ ...prev, contactRole: value }))
+                    value={newRestaurant.contacts[0].role}
+                    onValueChange={(value: "owner" | "manager" | "shift" | "other") =>
+                      setNewRestaurant((prev: any) => ({ ...prev, contacts: [{ ...prev.contacts[0], role: value }] }))
                     }
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Owner">בעלים</SelectItem>
-                      <SelectItem value="Manager">מנהל</SelectItem>
-                      <SelectItem value="Shift">משמרת</SelectItem>
-                      <SelectItem value="Other">אחר</SelectItem>
+                      <SelectItem value="owner">בעלים</SelectItem>
+                      <SelectItem value="manager">מנהל</SelectItem>
+                      <SelectItem value="shift">משמרת</SelectItem>
+                      <SelectItem value="other">אחר</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>ספק תשלומים</Label>
                   <Select
-                    value={newRestaurant.paymentProvider}
-                    onValueChange={(value: "Stripe" | "Paylink") => 
-                      setNewRestaurant(prev => ({ ...prev, paymentProvider: value }))
+                    value={newRestaurant.payment.provider}
+                    onValueChange={(value: paymentProvider) =>
+                      setNewRestaurant(prev => ({ ...prev, payment: { ...prev.payment, provider: value } }))
                     }
                   >
                     <SelectTrigger>
@@ -749,15 +733,19 @@ export default function RestaurantsPage() {
                   setIsCreateDialogOpen(false);
                   setNewRestaurant({
                     name: '',
-                    businessName: '',
+                    legalName: '',
                     legalId: '',
-                    yearsActive: 1,
-                    contactName: '',
-                    contactPhone: '',
-                    contactEmail: '',
-                    contactRole: 'Owner',
-                    paymentProvider: 'Stripe'
-                  });
+                    contacts: [{
+                      name: '',
+                      whatsapp: '',
+                      email: '',
+                      role: 'owner'
+                    }],
+                    payment: {
+                      provider: 'credit_card',
+                      status: false
+                    }
+                  } as Restaurant);
                   setFormErrors({});
                 }}
               >
@@ -976,8 +964,8 @@ export default function RestaurantsPage() {
                         </div>
                         <EditableField
                           label="שם עסקי מלא"
-                          value={editingRestaurantRef.current?.businessName || ''}
-                          onChange={(value) => editingRestaurantRef.current = { ...editingRestaurantRef.current, businessName: value }}
+                          value={editingRestaurantRef.current?.legalName || ''}
+                          onChange={(value) => editingRestaurantRef.current = { ...editingRestaurantRef.current, legalName: value }}
                         />
                         <EditableField
                           label="שנות פעילות"
@@ -1028,7 +1016,7 @@ export default function RestaurantsPage() {
                         </div>
                         <div className="space-y-2">
                           <Label>שם עסקי מלא</Label>
-                          <Input value={selectedRestaurant.businessName} readOnly />
+                          <Input value={selectedRestaurant.legalName} readOnly />
                         </div>
                         <div className="grid grid-cols-3 gap-4">
                           <div className="space-y-2">

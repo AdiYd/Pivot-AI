@@ -20,8 +20,27 @@ import {
 } from "recharts";
 
 // Import the actual database
-import exampleDatabase  from "@/schema/example";
-import { getCategoryName } from "@/schema/messages";
+import exampleDatabase from "@/schema/example";
+import { BotState, Order, Restaurant, Conversation } from "@/schema/types";
+
+// Helper function to get category name (previously imported from /schema/messages)
+function getCategoryName(category: string): string {
+  const categoryMap: Record<string, string> = {
+    'vegetables': 'ירקות',
+    'fruits': 'פירות',
+    'meats': 'בשרים',
+    'fish': 'דגים',
+    'dairy': 'מוצרי חלב',
+    'alcohol': 'אלכוהול',
+    'eggs': 'ביצים',
+    'oliveOil': 'שמן זית',
+    'disposables': 'חד פעמי',
+    'desserts': 'קינוחים',
+    'juices': 'מיצים',
+    'general': 'כללי'
+  };
+  return categoryMap[category] || category;
+}
 
 function StatCard({ 
   title, 
@@ -126,36 +145,36 @@ export default function DashboardPage() {
   // Calculate statistics from real data
   const stats = useMemo(() => {
     try {
-      const restaurants = Object.values(data.restaurants);
-      const conversations = Object.values(data.conversations);
+      // Properly access the data structure from exampleDatabase
+      const restaurants = Object.values(data.restaurants || {});
+      const conversations = Object.values(data.conversations || {});
+      const orders = Object.values(data.orders || {});
 
       // Restaurant stats
       const totalRestaurants = restaurants.length;
       const activeRestaurants = restaurants.filter(r => r.isActivated).length;
-      const pendingPaymentRestaurants = restaurants.filter(r => r.payment.status === false).length;
+      const pendingPaymentRestaurants = restaurants.filter(r => !r.payment.status).length;
 
       // Supplier and product stats
       let totalSuppliers = 0;
       let totalProducts = 0;
       restaurants.forEach(restaurant => {
-        totalSuppliers += Object.keys(restaurant.suppliers).length;
-        Object.values(restaurant.suppliers).forEach(supplier => {
-          totalProducts += Object.keys(supplier.products).length;
-        });
+        if (Array.isArray(restaurant.suppliers)) {
+          totalSuppliers += restaurant.suppliers.length;
+          
+          restaurant.suppliers.forEach(supplier => {
+            if (Array.isArray(supplier.products)) {
+              totalProducts += supplier.products.length;
+            }
+          });
+        }
       });
 
-      // Order stats
-      let totalOrders = 0;
-      let pendingOrders = 0;
-      let sentOrders = 0;
-      let deliveredOrders = 0;
-      restaurants.forEach(restaurant => {
-        const orders = Object.values(restaurant.orders);
-        totalOrders += orders.length;
-        pendingOrders += orders.filter(o => o.status === "pending").length;
-        sentOrders += orders.filter(o => o.status === "sent").length;
-        deliveredOrders += orders.filter(o => o.status === "delivered").length;
-      });
+      // Order stats - use the orders collection directly
+      const totalOrders = orders.length;
+      const pendingOrders = orders.filter(o => o.status === "pending").length;
+      const sentOrders = orders.filter(o => o.status === "sent").length;
+      const deliveredOrders = orders.filter(o => o.status === "delivered").length;
 
       // Conversation stats
       const totalConversations = conversations.length;
@@ -209,35 +228,35 @@ export default function DashboardPage() {
         status: string;
       }> = [];
 
-      // Add order activities
-      Object.values(data.restaurants).forEach(restaurant => {
-        Object.values(restaurant.orders).forEach(order => {
-          const supplier = restaurant.suppliers[order.supplierId];
-          if (supplier) {
-            activities.push({
-              id: `order-${order.id}`,
-              type: "order",
-              restaurant: restaurant.name,
-              action: `הזמינה מ${supplier.name}`,
-              timestamp: getRelativeTime(order.createdAt.toDate()),
-              status: order.status
-            });
-          }
-        });
+      // Add order activities from the orders collection
+      const orders = Object.values(data.orders || {});
+      orders.forEach(order => {
+        if (order.restaurant && order.supplier) {
+          activities.push({
+            id: `order-${order.id}`,
+            type: "order",
+            restaurant: order.restaurant.name,
+            action: `הזמינה מ${order.supplier.name}`,
+            timestamp: getRelativeTime(order.createdAt.toDate()),
+            status: order.status
+          });
+        }
       });
 
       // Add conversation activities
-      Object.entries(data.conversations).forEach(([phone, conversation]) => {
-        const restaurant = Object.values(data.restaurants).find(r => r.legalId === conversation.restaurantId);
-        if (restaurant && conversation.currentState !== "IDLE") {
-          activities.push({
-            id: `conv-${phone}`,
-            type: "conversation",
-            restaurant: restaurant.name,
-            action: getConversationAction(conversation.currentState),
-            timestamp: getRelativeTime(conversation.lastMessageTimestamp.toDate()),
-            status: conversation.currentState
-          });
+      Object.entries(data.conversations || {}).forEach(([phone, conversation]) => {
+        if (conversation.restaurantId) {
+          const restaurant = data.restaurants[conversation.restaurantId];
+          if (restaurant && conversation.currentState !== "IDLE") {
+            activities.push({
+              id: `conv-${phone}`,
+              type: "conversation",
+              restaurant: restaurant.name,
+              action: getConversationAction(conversation.currentState),
+              timestamp: getRelativeTime(conversation.updatedAt.toDate()), // Use updatedAt as lastMessageTimestamp
+              status: conversation.currentState
+            });
+          }
         }
       });
 
@@ -308,22 +327,34 @@ export default function DashboardPage() {
     { name: "פעילות", value: stats.activeRestaurants },
     { name: "לא פעילות", value: stats.totalRestaurants - stats.activeRestaurants }
   ];
+  
   // Pie: Order status
   const orderPieData = [
     { name: "ממתינות", value: stats.pendingOrders },
     { name: "נשלחו", value: stats.sentOrders },
     { name: "נמסרו", value: stats.deliveredOrders }
   ];
+  
   // Bar: Suppliers per category
   const supplierCategoryCounts: Record<string, number> = {};
-  Object.values(data.restaurants).forEach(r =>
-    Object.values(r.suppliers).forEach(s =>
-      s.category.forEach(cat => {
-        supplierCategoryCounts[cat] = (supplierCategoryCounts[cat] || 0) + 1;
-      })
-    )
-  );
-  const supplierBarData = Object.entries(supplierCategoryCounts).map(([name, value]) => ({ name: getCategoryName(name), value }));
+  
+  // Correct iteration over suppliers and their categories
+  Object.values(data.restaurants || {}).forEach(restaurant => {
+    if (Array.isArray(restaurant.suppliers)) {
+      restaurant.suppliers.forEach(supplier => {
+        if (Array.isArray(supplier.category)) {
+          supplier.category.forEach(cat => {
+            supplierCategoryCounts[cat] = (supplierCategoryCounts[cat] || 0) + 1;
+          });
+        }
+      });
+    }
+  });
+  
+  const supplierBarData = Object.entries(supplierCategoryCounts).map(([name, value]) => ({ 
+    name: getCategoryName(name), 
+    value 
+  }));
 
   // Line: Orders per day (last 7 days)
   const orderLineData: { date: string; value: number }[] = [];
@@ -334,24 +365,28 @@ export default function DashboardPage() {
     const label = d.toLocaleDateString('he-IL', { month: 'short', day: 'numeric' });
     orderLineData.push({ date: label, value: 0 });
   }
-  Object.values(data.restaurants).forEach(r =>
-    Object.values(r.orders).forEach(o => {
-      const d = o.createdAt.toDate();
+  
+  // Count orders per day using the orders collection
+  Object.values(data.orders || {}).forEach(order => {
+    if (order.createdAt) {
+      const d = order.createdAt.toDate();
       const label = d.toLocaleDateString('he-IL', { month: 'short', day: 'numeric' });
       const found = orderLineData.find(x => x.date === label);
       if (found) found.value += 1;
-    })
-  );
+    }
+  });
 
   // Pie: Conversation state
   const conversationStateCounts: Record<string, number> = {};
-  Object.values(data.conversations).forEach(c => {
-    const state = c.currentState.startsWith("ONBOARDING") ? "רישום"
-      : c.currentState.startsWith("INVENTORY") ? "מלאי"
-      : c.currentState.startsWith("ORDER") ? "הזמנה"
-      : c.currentState === "IDLE" ? "רגיל"
-      : "אחר";
-    conversationStateCounts[state] = (conversationStateCounts[state] || 0) + 1;
+  Object.values(data.conversations || {}).forEach(c => {
+    if (c.currentState) {
+      const state = c.currentState.startsWith("ONBOARDING") ? "רישום"
+        : c.currentState.startsWith("INVENTORY") ? "מלאי"
+        : c.currentState.startsWith("ORDER") ? "הזמנה"
+        : c.currentState === "IDLE" ? "רגיל"
+        : "אחר";
+      conversationStateCounts[state] = (conversationStateCounts[state] || 0) + 1;
+    }
   });
   const conversationPieData = Object.entries(conversationStateCounts).map(([name, value]) => ({ name, value }));
 
@@ -404,28 +439,46 @@ export default function DashboardPage() {
           value={stats.totalRestaurants}
           description={`${stats.activeRestaurants} פעילות`}
           icon={Store}
-          trend={{ value: Math.round((stats.activeRestaurants / stats.totalRestaurants) * 100), isPositive: true }}
+          trend={{ 
+            value: stats.totalRestaurants > 0 
+              ? Math.round((stats.activeRestaurants / stats.totalRestaurants) * 100) 
+              : 0, 
+            isPositive: true 
+          }}
         />
         <StatCard
           title="ספקים במערכת"
           value={stats.totalSuppliers}
           description={`${stats.totalProducts} מוצרים`}
           icon={Package}
-          trend={{ value: Math.round((stats.totalProducts / stats.totalSuppliers) * 10), isPositive: true }}
+          trend={{ 
+            value: stats.totalSuppliers > 0 
+              ? Math.min(Math.round((stats.totalProducts / stats.totalSuppliers) * 10), 100) 
+              : 0, 
+            isPositive: true 
+          }}
         />
         <StatCard
           title="הזמנות סה״כ"
           value={stats.totalOrders}
           description={`${stats.pendingOrders} ממתינות`}
           icon={ShoppingCart}
-          trend={{ value: stats.deliveredOrders > stats.pendingOrders ? 15 : -5, isPositive: stats.deliveredOrders > stats.pendingOrders }}
+          trend={{ 
+            value: stats.deliveredOrders > stats.pendingOrders ? 15 : -5, 
+            isPositive: stats.deliveredOrders > stats.pendingOrders 
+          }}
         />
         <StatCard
           title="שיחות פעילות"
           value={stats.activeConversations}
           description={`מתוך ${stats.totalConversations} שיחות`}
           icon={MessageSquare}
-          trend={{ value: Math.round((stats.activeConversations / stats.totalConversations) * 100), isPositive: stats.activeConversations > 0 }}
+          trend={{ 
+            value: stats.totalConversations > 0 
+              ? Math.round((stats.activeConversations / stats.totalConversations) * 100) 
+              : 0, 
+            isPositive: stats.activeConversations > 0 
+          }}
         />
       </div>
       {/* --- Enhanced Visual Dashboard Section --- */}
@@ -459,7 +512,6 @@ export default function DashboardPage() {
                   outerRadius={80}
                   innerRadius={45}
                   paddingAngle={4}
-                  // activeIndex={activePieIndex}
                   activeShape={renderActiveShape}
                   onMouseEnter={(_, index) => setActivePieIndex(index)}
                   onMouseLeave={() => setActivePieIndex(null)}
@@ -522,7 +574,6 @@ export default function DashboardPage() {
                   outerRadius={80}
                   innerRadius={45}
                   paddingAngle={4}
-                  // activeIndex={activeOrderPieIndex}
                   activeShape={renderActiveShape}
                   onMouseEnter={(_, index) => setActiveOrderPieIndex(index)}
                   onMouseLeave={() => setActiveOrderPieIndex(null)}
@@ -562,7 +613,6 @@ export default function DashboardPage() {
           <CardContent className="">
             <ResponsiveContainer width="100%" height={240}>
               <BarChart 
-            
                 data={supplierBarData}
                 barGap={8}
               >
@@ -652,7 +702,6 @@ export default function DashboardPage() {
                   outerRadius={80}
                   innerRadius={45}
                   paddingAngle={4}
-                  // activeIndex={activeConversationPieIndex}
                   activeShape={renderActiveShape}
                   onMouseEnter={(_, index) => setActiveConversationPieIndex(index)}
                   onMouseLeave={() => setActiveConversationPieIndex(null)}
@@ -732,8 +781,6 @@ export default function DashboardPage() {
                     stroke: 'white',
                     strokeWidth: 2,
                     r: 6,
-                    
-                    // boxShadow: '0 0 6px #2563eb'
                   }}
                   isAnimationActive={true}
                   animationDuration={1500}
@@ -771,7 +818,7 @@ function getRelativeTime(date: Date): string {
   }
 }
 
-function getConversationAction(state: string): string {
+function getConversationAction(state: BotState): string {
   switch (state) {
     case "INVENTORY_SNAPSHOT_PRODUCT":
       return "בודק מלאי מוצרים";

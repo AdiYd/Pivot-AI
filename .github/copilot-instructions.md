@@ -74,7 +74,11 @@ Copilot: keep this context in memory when suggesting code.
 /**
  * Firestore Data Model
  *
- Organized into 3 main collections: restaurants, orders, and conversations
+/**
+ * Firestore Data Model
+ * 
+ * Based on the Zod schemas defined in schemas.ts
+ * Organized into 3 main collections: restaurants, orders, and conversations
  *
  * /restaurants (collection)
  *   {restaurantId} (doc)               // Use legalId as restaurantId
@@ -88,8 +92,7 @@ Copilot: keep this context in memory when suggesting code.
  *     ├─ createdAt: Timestamp
  *     └─ updatedAt: Timestamp
  *
- *     /suppliers (sub-collection)
- *       {supplierWhatsapp} (doc)              // Use WhatsApp number as ID
+ *     /suppliers[] (array of suppliers objects)
  *         ├─ whatsapp: string                // WhatsApp number (matches document ID)
  *         ├─ name: string
  *         ├─ role: "supplier"              // Always "supplier"
@@ -100,8 +103,7 @@ Copilot: keep this context in memory when suggesting code.
  *         ├─ createdAt: Timestamp
  *         └─ updatedAt: Timestamp
  *
- *         /products (sub-collection)
- *           {productId} (doc)
+ *         /products[] (array of products objects)
  *             ├─ name: string
  *             ├─ unit: string                // "kg", "pcs", etc.
  *             ├─ emoji: string              // Emoji representation
@@ -165,8 +167,7 @@ Copilot: keep this context in memory when suggesting code.
  *     ├─ createdAt: Timestamp
  *     └─ updatedAt: Timestamp
  *     
- *     /messages (sub-collection)
- *       {messageId} (doc)
+ *     /messages[] (array of messages objects)
  *         ├─ role: string      // "user" or "assistant"
  *         ├─ body: string      // Message content
  *         ├─ templateId: string (optional) // WhatsApp template ID
@@ -174,6 +175,7 @@ Copilot: keep this context in memory when suggesting code.
  *         ├─ mediaUrl: string (optional) // URL for attached media
  *         ├─ messageState: string // State when message was sent
  *         └─ createdAt: Timestamp
+
  */
 
 
