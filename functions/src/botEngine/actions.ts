@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { BotAction } from 'src/schema/types';
+import { BotAction, Contact } from 'src/schema/types';
 import { sendWhatsAppMessage } from 'src/utils/twilio';
-import { createRestaurant, updateSupplier, logMessage, updateProduct } from 'src/utils/firestore';
-import { ProductSchema, RestaurantSchema, SupplierSchema } from 'src/schema/schemas';
+import { createRestaurant, updateSupplier, logMessage } from 'src/utils/firestore';
+import { MessageSchema, RestaurantSchema, SupplierSchema } from 'src/schema/schemas';
 
 // Zod schemas for payload validation
 const SendMessagePayloadSchema = z.object({
@@ -21,14 +21,14 @@ const SendMessagePayloadSchema = z.object({
 /**
  * Process all bot actions sequentially
  * Each action is executed and logged appropriately
- * @param actions Array of bot actions to execute
  * @param phone Phone number for logging context
+ * @param actions Array of bot actions to execute
  * @param isSimulator Whether to use simulator mode (don't send real WhatsApp messages)
  * @returns Array of message responses (only used in simulator mode)
  */
 export async function processActions(
+  phone: Contact['whatsapp'],
   actions: BotAction[],
-  phone?: string,
   isSimulator: boolean = false
 ): Promise<Record<string, any>[]> {
   console.log(`[BotActions] Processing ${actions.length} bot actions for phone: ${phone} ${isSimulator ? '(simulator)' : ''}`);
@@ -60,8 +60,14 @@ export async function processActions(
             
             // Log outgoing message
             if (phone) {
-              const phoneNumber = phone.replace("whatsapp:", "");
-              await logMessage(phoneNumber, validPayload.body || '', 'outgoing', undefined, isSimulator);
+              const message = MessageSchema.parse({
+                role: "assistant",
+                body: validPayload.body || '',
+                templateId: validPayload.template?.id,
+                hasTemplate: !!validPayload.template,
+              });
+              const phoneNumber = phone.replace("whatsapp:", "") as Contact['whatsapp'];
+              await logMessage(phoneNumber, message, isSimulator);
             }
           } catch (validationError) {
             if (validationError instanceof z.ZodError) {
@@ -86,7 +92,9 @@ export async function processActions(
 
         case "UPDATE_SUPPLIER":
           try {
-            const validPayload = SupplierSchema.parse(action.payload);
+            const validPayload = SupplierSchema.extend({
+              restaurantId: z.string().min(1, "Restaurant ID is required"),
+            }).parse(action.payload);
             await updateSupplier(validPayload, isSimulator);
           } catch (validationError) {
             if (validationError instanceof z.ZodError) {
@@ -98,12 +106,12 @@ export async function processActions(
 
         case "UPDATE_PRODUCT":
           try {
-            const validPayload = ProductSchema.parse(action.payload);
+            // const validPayload = ProductSchema.parse(action.payload);
             
 
             
             // Call the Firestore utility to update/create the product
-            await updateProduct(action.payload.restaurantId, action.payload.supplierId, validPayload);
+            // await updateProduct(action.payload.restaurantId, action.payload.supplierId, validPayload);
           } catch (validationError) {
             if (validationError instanceof z.ZodError) {
               throw new Error(`Invalid UPDATE_PRODUCT payload: ${validationError.errors.map(e => e.message).join(', ')}`);

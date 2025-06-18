@@ -1,7 +1,8 @@
-import { ConversationState, IncomingMessage, StateTransition, BotAction, BotState } from '../schema/types';
+import { Conversation, IncomingMessage, BotAction, BotState } from 'src/schema/types';
+import { conversationStateReducer } from './conversationStateReducer';
 
-export * from './conversationState';
 export * from './actions';
+export { conversationStateReducer };
 
 // Re-export types for convenience
-export type { ConversationState, IncomingMessage, StateTransition, BotAction, BotState };
+export type { Conversation, IncomingMessage, BotAction, BotState };

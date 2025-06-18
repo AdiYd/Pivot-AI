@@ -5,7 +5,7 @@ import { BotState } from "./types";
 // ==== ZOD SCHEMAS FOR DATA VALIDATION and TYPE SAFETY ====
 
 // General schemas
-export const textSchema = z.string().min(2, "שדה זה אינו יכול להיות ריק וצריך להכיל לפחות 2 תווים");  // Generic text schema for non-empty strings
+export const textSchema = z.string().min(1, "שדה זה אינו יכול להיות ריק וצריך להכיל לפחות תו אחד");  // Generic text schema for non-empty strings
 export const timestampSchema = z.any().optional().default(FieldValue.serverTimestamp()); // Placeholder for server timestamp, will be replaced with serverTimestamp in Firestore
 export const daysSchema = z.enum(["sun", "mon", "tue", "wed", "thu", "fri", "sat"]); // Enum for days of the week, used for reminders and delivery days
 export const timeSchema = z.string().regex(/^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/, "שעה חייבת להיות בפורמט HH:MM, לדוגמה: 20:00"); // Regex for time in HH:MM format
@@ -22,7 +22,9 @@ export const whatsappRegex = /^(05[0-9]{8})$/; // Regex for Israeli WhatsApp num
 export const whatsappSchema = z.string().regex(whatsappRegex, "מספר הוואטסאפ לא תקין, יש לכתוב מספר לא תווים נוספים לדוגמה: 0541234567");
 export const nameSchema = z.string().min(2, "שם חייב להיות באורך של לפחות 2 תווים");
 export const emailSchema = z.string().email("כתובת האימייל לא תקינה");
-export const contactRoleSchema = z.enum(["owner", "manager", "shift", "general", "supplier"]);
+export const contactRoleSchema = z.enum(["owner", "manager", "shift", "general", "supplier"], {
+  description: "תפקיד איש הקשר במסעדה, לדוגמה: 'owner', 'manager' וכו'"
+});
 
 
 // Product types
@@ -195,7 +197,7 @@ export const OrderSchema = z.object({
 export const MessageSchema = z.object({
     role: z.enum(["user", "assistant"]).default("user"),                     // Role of the message sender, e.g., "user", "assistant", "system"
     body: z.string().max(4000, "תוכן ההודעה לא יכול להיות ארוך מ-4000 תווים").default(""), // Content of the message
-    templateId: z.string().uuid().optional(),                              // Optional template ID for the message
+    templateId: z.string().optional(),                                     // Optional template ID for the message
     hasTemplate: z.boolean().default(false),                              // Whether the message has a whatsApp template
     mediaUrl: z.string().url().optional(),                               // Optional media URL for the message, e.g., image or video
     messageState: conversationStateSchema.default('IDLE'),                           // Current state of the state machine when the message is created

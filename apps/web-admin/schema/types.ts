@@ -164,12 +164,6 @@ export interface BotAction {
   payload: Record<string, any>;  // Additional data needed for the action
 }
 
-
-export interface StateTransition {
-  newState: ConversationState;
-  actions: BotAction[];
-}
-
 export interface BotConfig {
   inventoryReminderInterval: number;          // Set the interval in hours for inventory reminders
   orderCutoffReminderHours: number;          // Set the cutoff time in hours for order reminders (meaning the bot will remind the restaurant to place an order before this time)

@@ -1,4 +1,3 @@
-import { Timestamp } from 'firebase-admin/firestore';
 import { z } from 'zod';
 import {
   ContactSchema,
@@ -80,12 +79,7 @@ export type BotState =
 // IDLE state
   | "IDLE";
 
-// Conversation state types
-export interface ConversationState {
-  currentState: BotState;
-  context: ConversationContext;
-  lastMessageTimestamp: Timestamp;
-}
+
 
 // Extended context that can contain fields from any type
 export interface ConversationContext extends Record<string, any> {}
@@ -102,10 +96,6 @@ export interface BotAction {
   payload: Record<string, any>;
 }
 
-export interface StateTransition {
-  newState: ConversationState;
-  actions: BotAction[];
-}
 
 export interface BotConfig {
   inventoryReminderInterval: number;
@@ -118,7 +108,7 @@ export interface BotConfig {
 }
 
 
-export interface StateMessage {
+export interface StateObject {
   // If defined, use a WhatsApp template with structured responses
   whatsappTemplate?: {
     id: string;                // Template ID registered with WhatsApp Business API
@@ -147,6 +137,9 @@ export interface StateMessage {
   // Type of validation to perform (if any)
   validator?: z.ZodTypeAny;
 
+  // callback function to execute when this state is reached
+  callback?: (context: ConversationContext, data: any) => void;
+
   // Use ai for validation
   aiValidation?: {
     prompt?: string; // The prompt to send to the AI for validation
@@ -163,4 +156,3 @@ export type SupplierData = z.infer<typeof SupplierSchema>;
 export type ProductData = z.infer<typeof ProductSchema>;
 export type OrderData = z.infer<typeof OrderSchema>;
 export type ConversationData = z.infer<typeof ConversationSchema>;
-export type MessageData = z.infer<typeof MessageSchema>;

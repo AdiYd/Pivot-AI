@@ -1,19 +1,18 @@
 import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
-import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { FieldValue } from 'firebase-admin/firestore';
 
 import { conversationStateReducer, processActions } from "src/botEngine";
-import { ConversationState, IncomingMessage, MessageData } from "src/schema/types";
+import { Conversation, IncomingMessage, RestaurantData } from "src/schema/types";
 import { validateTwilioWebhook } from "./utils/twilio";
 import { getCollectionName } from "./utils/firestore";
+import { ConversationSchema } from "./schema/schemas";
 
 // Initialize Firebase Admin only if not already initialized
 if (!admin.apps?.length) {
   admin.initializeApp();
 }
 
-const simulatorDoc = 'conversations_simulator'; //'conversations_simulator'; // Collection for simulator conversations
-const restaurantDoc = 'restaurants_simulator'; // Collection for real restaurant conversations
 const firestore = admin.firestore();
 
 
@@ -82,7 +81,7 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
         body,
         role: 'user',
         createdAt: FieldValue.serverTimestamp()
-      } as MessageData);
+      });
 
     // Create the incoming message object
     const message: IncomingMessage = {
@@ -95,78 +94,74 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
      * Lookup existing conversation state by phone number
      * Phone number is now the document ID for conversations
      */
-    let conversationState: ConversationState;
+    let conversation: Conversation;
     let restaurantId = "";
 
     // Get existing conversation state by phone number
-    const conversationsCollection = isSimulator ? simulatorDoc : 'conversations';
+    const conversationsCollection = getCollectionName('conversations', isSimulator);
     const conversationRef = firestore.collection(conversationsCollection).doc(phoneNumber);
     const conversationDoc = await conversationRef.get();
 
     if (!conversationDoc.exists) {
       console.log(`[${isSimulator ? 'Simulator' : 'WhatsApp'}] No existing conversation found for phone: ${phoneNumber}`);
       // New conversation - check if restaurant already exists for this phone
-      const restaurantsCollection = isSimulator ? restaurantDoc : 'restaurants';
+      const restaurantsCollection = getCollectionName('restaurants', isSimulator);
       const restaurantRef = await firestore
         .collection(restaurantsCollection)
-        .where("primaryContact.whatsapp", "==", phoneNumber)
+        .where("contacts", "array-contains", { whatsapp: phoneNumber })
         .limit(1)
         .get();
 
       if (restaurantRef.empty) {
         // Completely new user - start onboarding
-        conversationState = {
+        conversation = ConversationSchema.parse({
           currentState: "INIT",
+          role: "owner",
           context: {
             contactNumber: phoneNumber,
             ...(isSimulator && { isSimulator })
           },
-          lastMessageTimestamp: Timestamp.now(),
-        };
+        });
         console.log(`[${isSimulator ? 'Simulator' : 'WhatsApp'}] New user starting onboarding - phone: ${phoneNumber}, restaurantId: ${restaurantId}`);
       } else {
         // Existing restaurant, new conversation
         const restaurantDoc = restaurantRef.docs[0];
-        restaurantId = restaurantDoc.id;
-        const restaurantData = restaurantDoc.data();
-        
-        conversationState = {
+        const restaurantData = restaurantDoc.data() as RestaurantData;
+        const contactName = restaurantData.contacts.find(c => c.whatsapp === phoneNumber)?.name || "";
+        const contactRole = restaurantData.contacts.find(c => c.whatsapp === phoneNumber)?.role || "";
+
+        conversation = ConversationSchema.parse({
           currentState: "IDLE",
+          role: contactRole || "general",
           context: {
-            legalId: restaurantId,
+            restaurantId: restaurantData.legalId,
             restaurantName: restaurantData.name,
-            contactName: restaurantData.primaryContact.name,
+            contactNumber: phoneNumber,
+            contactName,
             ...(isSimulator && { isSimulator })
           },
-          lastMessageTimestamp: Timestamp.now(),
-        };
+        });
         console.log(`[${isSimulator ? 'Simulator' : 'WhatsApp'}] Existing restaurant, new conversation - phone: ${phoneNumber}, restaurantId: ${restaurantId}`);
       }
     } else {
-      // Existing conversation - load state
-      const data = conversationDoc.data();
-      conversationState = {
-        currentState: data?.currentState || "IDLE",
-        context: {
-          ...data?.context || {},
-          ...(isSimulator && { isSimulator })
-        },
-        lastMessageTimestamp: Timestamp.now(),
-      };
+      // Existing conversation - load
+      const data = conversationDoc.data() as Conversation;
+      conversation = ConversationSchema.parse(data);
+      conversation.messages = conversation.messages.filter(m => m.messageState === data.currentState)
     }
 
     /**
      * Process the message through our state machine
      * This determines the next state and actions to take
      */
-    const { newState, actions } = conversationStateReducer(
-      conversationState,
+    const { newState, actions } = await conversationStateReducer(
+      conversation,
       message
     );
 
     console.log(`[${isSimulator ? 'Simulator' : 'WhatsApp'}] State machine result:`, {
       phone: phoneNumber,
-      oldState: conversationState.currentState,
+      oldState: conversation.currentState,
       newState: newState.currentState,
       actionsCount: actions.length,
       newContextKeys: Object.keys(newState.context)
@@ -179,18 +174,17 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
     const firestoreState = {
       currentState: newState.currentState,
       context: newState.context,
-      lastMessageTimestamp: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp()
     };
 
-    await conversationRef.set(firestoreState);
+    await conversationRef.set(firestoreState, { merge: true });
     console.log(`[${isSimulator ? 'Simulator' : 'WhatsApp'}] ✅ Conversation state saved for phone: ${phoneNumber}`);
 
     /**
      * Execute all actions generated by the state machine
      * For simulator mode, collect responses instead of sending via Twilio
      */
-    const responses = await processActions(actions, message.from, isSimulator);
+    const responses = await processActions(message.from,actions, isSimulator);
 
     // If this is a simulator request, return the bot responses directly
     if (isSimulator) {

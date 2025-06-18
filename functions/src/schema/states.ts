@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { emailSchema, nameSchema, ProductSchema, restaurantLegalIdSchema, restaurantLegalNameSchema, restaurantNameSchema, supplierCategorySchema, SupplierSchema } from './schemas';
-import { BotConfig, BotState, ProductData, StateMessage } from './types';
+import { BotConfig, BotState, ProductData, StateObject, SupplierCategory } from './types';
 
 
 
@@ -121,17 +121,18 @@ export const getAvailableCategories = (excludeCategories: string[] = []): Array<
 };
 
 // Helper function to get products for multiple categories
-export const getProductsForCategories = (categories: string[]): Array<{ name: string; emoji: string; unit: string; category: string }> => {
+export const getProductsForCategories = (categories: SupplierCategory[]): Array<Partial<ProductData>> => {
   return categories.flatMap(category => 
     (CATEGORY_PRODUCTS[category] || []).map(product => ({
-      ...product,
-      category
+      name: product.name,
+      emoji: product.emoji,
+      unit: product.unit,
     }))
   );
 };
 
 // Helper function to format products as WhatsApp options, excluding already selected ones
-export const formatProductOptions = (categories: string[], excludeProducts: string[] = []): Array<{name: string, id: string}> => {
+export const formatProductOptions = (categories: SupplierCategory[], excludeProducts: string[] = []): Array<{name: string, id: string}> => {
   const products = getProductsForCategories(categories);
   const filteredProducts = products.filter(product => 
     !excludeProducts.some(excluded => excluded === product.name)
@@ -139,30 +140,16 @@ export const formatProductOptions = (categories: string[], excludeProducts: stri
   
   return filteredProducts.map((product, index) => ({
     name: `${product.emoji} ${product.name} (${product.unit})`,
-    id: `product_${index}_${product.category}_${product.name}_${product.unit}`
+    id: `${product.name}, ${product.unit}`
   }));
 };
 
-// Helper function to format days of the week
-export const formatDaysList = (): string => {
-  const days = [
-    { id: '0', name: 'ראשון' },
-    { id: '1', name: 'שני' },
-    { id: '2', name: 'שלישי' },
-    { id: '3', name: 'רביעי' },
-    { id: '4', name: 'חמישי' },
-    { id: '5', name: 'שישי' },
-    { id: '6', name: 'שבת' },
-  ];
-  
-  return days.map(day => `${day.id} - ${day.name}`).join('\n');
-};
 
 /**
  * Main state machine messages mapping
  * Each key corresponds to a value from BotState enum
  */
-export const STATE_MESSAGES: Record<BotState, StateMessage> = {
+export const STATE_MESSAGES: Record<BotState, StateObject> = {
   // Initial state
   "INIT": {
     whatsappTemplate: {
@@ -191,6 +178,9 @@ export const STATE_MESSAGES: Record<BotState, StateMessage> = {
     מהו השם החוקי של העסק או החברה שלך?`,
     description: "Ask for the legal company name as the first step of onboarding.",
     validator: restaurantLegalNameSchema,
+    callback: (context, data) => {
+      context.companyName = data;
+    },
     nextState: {
       ok: "ONBOARDING_LEGAL_ID"
     }
@@ -200,6 +190,9 @@ export const STATE_MESSAGES: Record<BotState, StateMessage> = {
     message: `📝 מצוין! כעת הזן את מספר ח.פ/עוסק מורשה של העסק.`,
     description: "Ask for the business registration number (9 digits).",
     validator: restaurantLegalIdSchema,
+    callback: (context, data) => {
+      context.legalId = data;
+    },
     nextState: {
       ok: "ONBOARDING_RESTAURANT_NAME"
     }
@@ -209,6 +202,9 @@ export const STATE_MESSAGES: Record<BotState, StateMessage> = {
     message: "🍽️ מהו השם המסחרי של המסעדה? (השם שהלקוחות מכירים)",
     description: "Ask for the restaurant's commercial name (may differ from legal name).",
     validator: restaurantNameSchema,
+    callback: (context, data) => {
+      context.restaurantName = data;
+    },
     nextState: {
       ok: "ONBOARDING_CONTACT_NAME"
     }
@@ -218,6 +214,9 @@ export const STATE_MESSAGES: Record<BotState, StateMessage> = {
     message: "👤 מה השם המלא שלך? (איש קשר ראשי)",
     description: "Ask for the primary contact person's full name.",
     validator: nameSchema,
+    callback: (context, data) => {
+      context.contactName = data;
+    },
     nextState: {
       ok: "ONBOARDING_CONTACT_EMAIL"
     }
@@ -234,6 +233,9 @@ export const STATE_MESSAGES: Record<BotState, StateMessage> = {
     },
     description: "Ask for contact email (optional, can be skipped with 'דלג').",
     validator: emailSchema,
+    callback: (context, data) => {
+      context.contactEmail = data;
+    },
     nextState: {
       ok: "ONBOARDING_PAYMENT_METHOD",
       skip: "ONBOARDING_PAYMENT_METHOD"
@@ -261,7 +263,13 @@ export const STATE_MESSAGES: Record<BotState, StateMessage> = {
   },
   
   "WAITING_FOR_PAYMENT": {
-    message: "⏳ *בהמתנה לאישור תשלום*\n\nניתן לשלם בקישור הבא:\n\n {paymentLink} \n\nלאחר השלמת התשלום, נמשיך בהגדרת המערכת.",
+    message: `⏳ *בהמתנה לאישור תשלום*
+    \n\n
+    ניתן לשלם בקישור הבא:
+    \n\n
+    {paymentLink} 
+    \n\n
+    לאחר השלמת התשלום, נמשיך בהגדרת המערכת.`,
     description: "Wait for payment confirmation before proceeding with setup."
   },
   
@@ -331,6 +339,9 @@ export const STATE_MESSAGES: Record<BotState, StateMessage> = {
     },
     description: "list to select one or more supplier categories from available list.",
     validator: supplierCategorySchema,
+    callback: (context, data) => {
+      context.supplierCategories = context.supplierCategories ? [...context.supplierCategories, data] : [data];
+    },
     nextState: {
       finished: "SUPPLIER_CONTACT"
     }
@@ -346,6 +357,10 @@ export const STATE_MESSAGES: Record<BotState, StateMessage> = {
       schema: SupplierSchema.pick({ name: true, whatsapp: true })
     },
     validator: SupplierSchema.pick({ name: true, whatsapp: true }),
+    callback: (context, data) => {
+      context.supplierName = data.name;
+      context.supplierWhatsapp = data.whatsapp;
+    },
     nextState: {
       ok: "SUPPLIER_REMINDERS"
     }
@@ -376,6 +391,9 @@ export const STATE_MESSAGES: Record<BotState, StateMessage> = {
     aiValidation: {
       prompt: "עליך לבקש מהמשתמש לבחור את הימים והשעות בהם הוא מעוניין לקבל תזכורות לבצע הזמנה מהספק הנוכחי.",
       schema: SupplierSchema.pick({ reminders: true })
+    },
+    callback: (context, data) => {
+      context.supplierReminders = data.reminders;
     },
     nextState: {
       finished: "PRODUCTS_LIST",
@@ -408,6 +426,9 @@ export const STATE_MESSAGES: Record<BotState, StateMessage> = {
       schema: ProductSchema.pick({ name: true, unit: true, emoji: true })
     },
     validator: ProductSchema.pick({ name: true, unit: true, emoji: true }),
+    callback: (context, data) => {
+      context.supplierProducts = context.supplierProducts ? [...context.supplierProducts, data] : [data];
+    },
     nextState: {
       ok: "PRODUCTS_BASE_QTY"
     }
@@ -438,7 +459,14 @@ export const STATE_MESSAGES: Record<BotState, StateMessage> = {
       prompt: "עליך לבקש מהמשתמש להזין את הכמות הבסיסית הנדרשת ליחידה אחת של כל מוצר ברשימה, עבור כל מוצר יש להזין כמות בסיס לשימוש באמצע השבוע ובסוף השבוע.",
       schema: z.array(ProductSchema)
     },
-    validator: z.array(ProductSchema)
+    validator: z.array(ProductSchema),
+    callback: (context, data) => {
+      context.supplierProducts = data;
+    },
+    action: 'CREATE_SUPPLIER',
+    nextState: {
+      ok: "SETUP_SUPPLIERS_ADDITIONAL"
+    }
   },
   
   
@@ -596,39 +624,6 @@ export const STATE_MESSAGES: Record<BotState, StateMessage> = {
   }
 };
 
-/**
- * System messages that aren't tied to a specific state
- */
-export const SYSTEM_MESSAGES = {
-  welcome: "👋 *ברוכים הבאים למערכת ניהול המלאי וההזמנות!*\n\nאני הבוט שיעזור לכם לנהל ספקים, מלאי והזמנות בקלות ויעילות.",
-  
-  error: "⚠️ *קרתה שגיאה*\n\nמצטערים, משהו השתבש. נסה שוב או פנה לתמיכה.",
-  
-  sessionTimeout: "⏰ *זמן השיחה הסתיים*\n\nהשיחה לא היתה פעילה זמן רב. אנא התחל מחדש עם פקודה כלשהי.",
-  
-  help: "❓ *מדריך למשתמש*\n\n" +
-        "• עדכן מלאי לפני כל קאט-אוף הזמנות\n" +
-        "• המערכת תחשב אוטומטית את הצרכים שלך\n" +
-        "• בדוק משלוחים בזמן קבלתם לתיעוד מדויק\n" +
-        "• צלם חשבוניות לתיעוד אוטומטי\n\n" +
-        "לתמיכה נוספת: 050-1234567",
-  
-  orderSent: "✅ *ההזמנה נשלחה בהצלחה לספק {supplierName}*\n\nמזהה הזמנה: #{orderId}\n\nתישלח התראה כאשר המשלוח יגיע.",
-  
-  deliveryComplete: "✅ *תיעוד המשלוח הושלם*\n\n" +
-                   "סיכום:\n{deliverySummary}\n\n" +
-                   "החשבונית נשמרה במערכת.",
-
-  snapshotComplete: "✅ *עדכון המלאי הושלם*\n\n" +
-                    "המערכת חישבה את ההזמנה המומלצת עבורך\n\n" +
-                    "האם ברצונך ליצור הזמנה לפי המלצה זו?",
-  
-  reminderInventory: "⏰ *תזכורת: עדכון מלאי*\n\n" +
-                     "היום יש לעדכן את המלאי עבור הספקים הבאים:\n" +
-                     "{supplierList}\n\n" +
-                     "הקלד 'מלאי' כדי להתחיל."
-};
-
 /*
  * Configuration constants for bot behavior
  * These can be uploaded to Firestore for dynamic configuration
@@ -640,8 +635,8 @@ export const BOT_CONFIG: BotConfig = {
   
   // Default supplier categories in order
   supplierCategories:  [
-    "vegetables", "fish", "alcohol", "meat", "fruits", 
-    "oliveOil", "disposables", "dessert", "juices", "eggs"
+    "vegetables", "fish", "alcohol", "meats", "fruits", 
+    "oliveOil", "disposables", "desserts", "juices", "eggs"
   ],
 
   showPaymentLink: true, // Show payment link after registration

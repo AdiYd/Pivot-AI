@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import * as admin from 'firebase-admin';
-import {SupplierSchema, ConversationSchema} from 'src/schema/schemas';
-import { ConversationData, SupplierData, RestaurantData, Contact } from 'src/schema/types';
+import {SupplierSchema, ConversationSchema, MessageSchema} from 'src/schema/schemas';
+import { ConversationData, SupplierData, RestaurantData, Contact, Message } from 'src/schema/types';
 import { FieldValue, DocumentReference, Query, CollectionReference } from 'firebase-admin/firestore';
 import {
   Restaurant,
@@ -472,28 +472,21 @@ export async function saveConversationState(
  * @param isSimulator Whether to use simulator collections
  */
 export async function logMessage(
-  phone: string, 
-  message: string, 
-  direction: 'incoming' | 'outgoing',
-  currentState?: string,
+  phone: Contact['whatsapp'],
+  message: Message,
   isSimulator: boolean = false
 ): Promise<void> {
   try {
-    console.log(`[Firestore] Logging ${direction} message for phone: ${phone}`);
-    
+    console.log(`[Firestore] Logging ${message.role} message for phone: ${phone}`);
+
     const conversationsCollection = getCollectionName('conversations', isSimulator);
-    
+    const finalMessage = MessageSchema.parse(message)
     await firestore
       .collection(conversationsCollection)
       .doc(phone)
       .collection('messages')
-      .add({
-        body: message,
-        direction,
-        currentState: currentState || 'unknown',
-        createdAt: FieldValue.serverTimestamp()
-      });
-      
+      .add(finalMessage);
+
     console.log(`[Firestore] ✅ Message logged for phone: ${phone}`);
   } catch (error) {
     console.error(`[Firestore] ❌ Error logging message:`, error);
