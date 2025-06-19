@@ -557,7 +557,7 @@ export default function OrdersPage() {
           <h1 className="text-3xl font-bold">הזמנות</h1>
           <p className="text-muted-foreground">ניהול הזמנות ומעקב אחר סטטוס</p>
         </div>
-        <div className="flex items-center gap-2 max-sm:hidden">
+        <div className="flex items-center gap-2">
           <span className="text-sm opacity-80">תצוגה:</span>
           <div className="flex flex-row-reverse gap-2 items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
             <Button
@@ -586,30 +586,7 @@ export default function OrdersPage() {
       {statsSection}
       
       {/* Search and Filters */}
-      <div className="flex items-center gap-4 mb-6">
-        <div className="flex items-center gap-2 sm:hidden">
-          <span className="text-sm opacity-80">תצוגה:</span>
-          <div className="flex flex-row-reverse gap-2 items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-            <Button
-              title='הצג בכרטיסיות'
-              variant={viewMode === 'cards' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('cards')}
-              className="h-8 w-8 p-0"
-            >
-              <Icon icon="mdi:id-card" width="1.5em" height="1.5em" />
-            </Button>
-            <Button
-              title='הצג בטבלה'
-              variant={viewMode === 'table' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('table')}
-              className="h-8 w-8 p-0"
-            >
-              <Icon icon="mdi:table" width="1.5em" height="1.5em" />
-            </Button>
-          </div>
-        </div>
+      <div className="flex flex-wrap items-center gap-4 mb-6">
         <div className="relative max-w-md flex-1">
           <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
           <Input
@@ -620,7 +597,7 @@ export default function OrdersPage() {
           />
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap  items-center gap-2">
           <div className="flex items-center gap-2">
             <Filter className="w-4 h-4 text-muted-foreground" />
             <Select value={selectedStatus} onValueChange={setSelectedStatus}>

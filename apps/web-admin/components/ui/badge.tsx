@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils"
 import { getCategoryName } from "@/schema/states"
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  "inline-flex items-center text-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
   {
     variants: {
       variant: {
@@ -71,7 +71,7 @@ const getCategoryBadge = (category: string) => {
     };
     
     return (
-      <Badge className={(colors[category] || 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200') + " text-xs text-nowrap w-fit mx-[2px] cursor-default flex items-center gap-1"}>
+      <Badge className={(colors[category] || 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200') + " text-xs text-nowrap w-fit mx-[2px] cursor-default text-center flex items-center gap-1"}>
         {getCategoryName(category)}
       </Badge>
     );

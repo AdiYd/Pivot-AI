@@ -284,7 +284,7 @@ export default function SuppliersPage() {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <div className="text-sm">
+                  <div className="text-sm grid min-w-[200px]">
                     {supplier.reminders.length > 0
                       ? supplier.reminders.map(reminder => `${WEEKDAYS_DICT[reminder.day]} ${reminder.time}`).slice(0, 3).join(', ')
                       : 'לא מוגדר'}
@@ -380,7 +380,7 @@ export default function SuppliersPage() {
           </p>
         </div>
         <div className='flex gap-4'>
-          <div className="flex items-center gap-2 max-sm:hidden">
+          <div className="flex items-center gap-2">
             <span className="text-sm opacity-80">תצוגה:</span>
             <div className="flex flex-row-reverse gap-2 items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
               <Button
@@ -528,7 +528,7 @@ export default function SuppliersPage() {
       </div>
 
       {/* Search and Filters */}
-      <div className="flex items-center gap-4 mb-6">
+      <div className="flex flex-wrap items-center gap-4 mb-6">
         <div className="relative max-w-md flex-1">
           <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
           <Input
@@ -586,33 +586,6 @@ export default function SuppliersPage() {
           </div>
         </CardContent>
       </Card>
-
-      {/* View Mode Toggle */}
-      <div className="items-center justify-between md:hidden">
-        <div className="flex items-center gap-2">
-          <span className="text-sm opacity-80">תצוגה:</span>
-          <div className="flex flex-row-reverse gap-2 items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-            <Button
-              title='הצג בכרטיסיות'
-              variant={viewMode === 'cards' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('cards')}
-              className="h-8 w-8 p-0"
-            >
-              <Icon icon="mdi:id-card" width="1.5em" height="1.5em" />
-            </Button>
-            <Button
-              title='הצג בטבלה'
-              variant={viewMode === 'table' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('table')}
-              className="h-8 w-8 p-0"
-            >
-              <TableIcon className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-      </div>
 
       {/* Suppliers Display */}
       {viewMode === 'cards' ? (

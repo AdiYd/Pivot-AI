@@ -117,7 +117,7 @@ export function SideNav() {
         variant="ghost" 
         size="icon"
         onClick={toggleMobileSidebar}
-        className="fixed top-4 left-4 bg-zinc-200 dark:bg-zinc-800 z-50 lg:hidden"
+        className="fixed top-4 left-4 bg-gray-200 dark:bg-gray-900 z-50 lg:hidden"
       >
         {isMobileOpen ? <X size={15} /> : <Menu size={15} />}
       </Button>

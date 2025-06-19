@@ -424,7 +424,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6 pt-6">
+    <div className="space-y-6 p-2 pt-6">
       <DebugButton debugFunction={debugFunction} />
       {/* Header */}
       <div>

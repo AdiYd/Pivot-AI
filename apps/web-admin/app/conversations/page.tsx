@@ -532,7 +532,7 @@ const filteredConversations = useMemo(() => {
           </p>
         </div>
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 max-sm:hidden">
+          <div className="flex items-center gap-2">
             <span className="text-sm opacity-80">תצוגה:</span>
             <div className="flex flex-row-reverse gap-2 items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
               <Button
@@ -555,7 +555,7 @@ const filteredConversations = useMemo(() => {
               </Button>
             </div>
           </div>
-          <Button onClick={() => window.location.reload()}>
+          <Button className='max-sm:hidden' onClick={() => window.location.reload()}>
             <RefreshCw className="w-4 h-4 ml-2" />
             רענן
           </Button>
@@ -568,31 +568,6 @@ const filteredConversations = useMemo(() => {
 
       {/* Search and Filters */}
       <div className="flex gap-4 mb-6 flex-wrap">
-        {/* View Mode Toggle (mobile) */}
-        <div className="flex items-center gap-2 sm:hidden">
-          <span className="text-sm opacity-80">תצוגה:</span>
-          <div className="flex flex-row-reverse gap-2 items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-            <Button
-              title='הצג בכרטיסיות'
-              variant={viewMode === 'cards' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('cards')}
-              className="h-8 w-8 p-0"
-            >
-              <Icon icon="mdi:id-card" width="1.5em" height="1.5em" />
-            </Button>
-            <Button
-              title='הצג בטבלה'
-              variant={viewMode === 'table' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('table')}
-              className="h-8 w-8 p-0"
-            >
-              <TableIcon className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-        
         <div className="relative flex-1 min-w-64 max-w-md">
           <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
           <Input

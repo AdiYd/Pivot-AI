@@ -375,7 +375,7 @@ useEffect(() => {
   };
 
   return (
-    <div suppressHydrationWarning className="p-6 max-sm:p-2 pt-0 max-h-full space-y-6">
+    <div suppressHydrationWarning className="p-6 max-sm:p-0 pt-0 max-h-full space-y-6">
       <DebugButton debugFunction={debugFunctionLocal} />
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -505,7 +505,7 @@ useEffect(() => {
             chat-whatsApp
             ${isDark ? 'dark-chat': 'light-chat'}
               overflow-y-auto flex flex-col p-0`}>
-              <ScrollArea className="flex-1 p-4 pt-0">
+              <ScrollArea className="flex-1 p-4 max-sm:p-2 pt-0">
                 <div dir='rtl' className="space-y-4 my-20">
                   <AnimatePresence>
                     {session.messages?.map((message, index) => (
@@ -558,7 +558,7 @@ useEffect(() => {
                           </div>
                         </div>
                        ) : (
-                        <div className='border rounded-lg p-2 overflow-hidden bg-muted'>
+                        <div className='border rounded-lg p-1 w-full overflow-hidden max-w-lg bg-muted'>
                           <WhatsAppTemplateRenderer 
                             onSelect={handleTemplateSelect} 
                             message={message} 
@@ -851,7 +851,7 @@ const WhatsAppTemplateRenderer = ({ message, context, onSelect }: WhatsAppTempla
   
   // WhatsApp UI style constants
   const styles = {
-    container: "rounded-[10px] px-4 min-h-full bg-muted rounded-bl-none overflow-hidden max-w-lg w-full",
+    container: "rounded-[10px] px-4 min-h-full bg-muted rounded-bl-none overflow-hidden max-w-lg min-w-[300px] max-sm:!min-w-[260px] w-full",
     header: "p-3 bg-green-500 text-white",
     mediaHeader: "w-full h-40 bg-gray-100 dark:bg-gray-700 overflow-hidden",
     body: "p-2 text-sm",
@@ -1035,11 +1035,13 @@ const WhatsAppTemplateRenderer = ({ message, context, onSelect }: WhatsAppTempla
 
   export const PivotAvatar = ({float=false, rotate=false}) => {
     return (
-      <div style={{
+      <div 
+      className='max-sm:hidden'
+      style={{
       // background: 'radial-gradient(circle at 30% 40%, rgba(255, 255, 255, 0.4) 0%, transparent 60%)',
       animation: float ? 'float 8s ease-in-out infinite': ''}}>
       <div 
-      className="relative w-8 h-8 max-sm:hidden rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center"
+      className="relative w-8 h-8 rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center"
       style={{
         background: 'conic-gradient(from 225deg at 50% 50%, #FF5E5E, #4DA6FF, #A44DFF)',
         animation: rotate ? 'rotate 20s linear infinite' : '',
