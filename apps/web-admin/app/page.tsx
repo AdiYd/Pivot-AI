@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, PivotAvatar } from "@/components/ui";
 import { Skeleton } from "@/components/ui/skeleton";
 import { 
   Users, 
@@ -21,9 +21,8 @@ import {
 
 // Import the actual database
 import exampleDatabase from "@/schema/example";
-import { BotState, Order, Restaurant, Conversation } from "@/schema/types";
+import { BotState } from "@/schema/types";
 import { DebugButton, debugFunction } from "@/components/debug";
-import { PivotAvatar } from "./simulator/page";
 
 // Helper function to get category name (previously imported from /schema/messages)
 function getCategoryName(category: string): string {

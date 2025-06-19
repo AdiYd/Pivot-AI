@@ -122,3 +122,6 @@ export {
   TooltipContent,
   TooltipProvider,
 } from './tooltip';
+
+
+export { PivotAvatar } from './pivot-logo';

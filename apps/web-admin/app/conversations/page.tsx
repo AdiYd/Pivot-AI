@@ -27,14 +27,14 @@ import {
   Eye
 } from 'lucide-react';
 import { useToast } from '@/components/ui';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, PivotAvatar } from '@/components/ui';
 
 // Import the example database
 import exampleDatabase from '@/schema/example';
 import { useTheme } from 'next-themes';
 import { BotState, Contact, Conversation, Message } from '@/schema/types';
 import { DebugButton, debugFunction } from '@/components/debug';
-import { PivotAvatar } from '../simulator/page';
+
 
 // Enhanced conversation type with display-specific properties
 interface EnhancedConversation extends Conversation {
