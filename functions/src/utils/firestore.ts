@@ -434,14 +434,14 @@ export async function saveConversationState(
     });
     
     // Use correct collections based on simulator mode
-    const restaurantsCollection = getCollectionName('restaurants', isSimulator);
+    // const restaurantsCollection = getCollectionName('restaurants', isSimulator);
     const conversationsCollection = getCollectionName('conversations', isSimulator);
     
     // Get restaurant reference if it doesn't exist in the update
-    let restaurantRef;
-    if (state.restaurantId) {
-      restaurantRef = firestore.collection(restaurantsCollection).doc(state.restaurantId);
-    }
+    // let restaurantRef;
+    // if (state.restaurantId) {
+    //   restaurantRef = firestore.collection(restaurantsCollection).doc(state.restaurantId);
+    // }
     
     await firestore
       .collection(conversationsCollection)
