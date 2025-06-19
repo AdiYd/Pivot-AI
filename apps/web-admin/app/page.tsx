@@ -23,6 +23,7 @@ import {
 import exampleDatabase from "@/schema/example";
 import { BotState, Order, Restaurant, Conversation } from "@/schema/types";
 import { DebugButton, debugFunction } from "@/components/debug";
+import { PivotAvatar } from "./simulator/page";
 
 // Helper function to get category name (previously imported from /schema/messages)
 function getCategoryName(category: string): string {
@@ -428,6 +429,9 @@ export default function DashboardPage() {
       <DebugButton debugFunction={debugFunction} />
       {/* Header */}
       <div>
+        <div className="w-full flex justify-center">
+          <PivotAvatar rotate float className="h-[50px] w-[50px]" />
+        </div>
         <h1 className="text-3xl font-bold tracking-tight">דף הבית</h1>
         <p className="text-muted-foreground">
           ברוך הבא למערכת ניהול המסעדות שלך. כאן תוכל לעקוב אחרי סטטיסטיקות, פעילות אחרונה, התראות וסטטוס המערכת.

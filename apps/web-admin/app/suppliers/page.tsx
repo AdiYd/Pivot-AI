@@ -250,12 +250,16 @@ export default function SuppliersPage() {
               <TableHead className="text-right">מוצרים</TableHead>
               <TableHead className="text-right hidden">דירוג</TableHead>
               <TableHead className="text-right">הזמנות</TableHead>
-              <TableHead className="text-right">פעולות</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {suppliers.map((supplier) => (
-              <TableRow key={supplier.whatsapp} className="hover:bg-gray-50 dark:hover:bg-gray-900/50">
+              <TableRow 
+                onClick={() => {
+                  setSelectedSupplier(supplier);
+                  setIsDialogOpen(true);
+                }}
+               key={supplier.whatsapp} className="hover:bg-gray-50 dark:hover:bg-gray-900/50 cursor-pointer">
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{supplier.name}</span>
@@ -305,27 +309,6 @@ export default function SuppliersPage() {
                 <TableCell>
                   <div className='mr-3'>
                     {supplier.recentOrdersCount}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex gap-2">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedSupplier(supplier);
-                            setIsDialogOpen(true);
-                          }}
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>צפייה בפרטים</p>
-                      </TooltipContent>
-                    </Tooltip>
                   </div>
                 </TableCell>
               </TableRow>
