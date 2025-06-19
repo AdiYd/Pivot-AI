@@ -467,7 +467,7 @@ useEffect(() => {
                     <PivotAvatar />
                   </div>
                   <div className="flex gap-2">
-                    <CardTitle className="text-base max-sm:hidden">P-vot</CardTitle>
+                    {/* <CardTitle className="text-sm max-sm:hidden">P-vot</CardTitle> */}
                     <div className="text-sm text-muted-foreground">
                       {session.isConnected && `${session.phoneNumber} • `}
                       {session.currentState && session.isConnected && 
@@ -527,10 +527,10 @@ useEffect(() => {
                         
                        {!message.hasTemplate ? (
                         <div className={cn(
-                          "rounded-[10px] min-w-[30%]* px-4 py-2 max-w-full break-words",
+                          "rounded-[10px] min-w-[30%]* shadow-md px-4 py-2 max-w-full break-words",
                           message.role === 'assistant' 
-                            ? "bg-muted rounded-bl-none" 
-                            : "text-start bg-[#DCF8C6] rounded-br-none backdrop-blur-md text-black dark:bg-[#005C4B]  dark:text-[#E9EDEF]"
+                            ? "bg-white dark:bg-zinc-800 rounded-bl-none" 
+                            : "text-start bg-[#DCF8C6] rounded-br-none backdrop-blur-md text-black dark:bg-[#005C4B] dark:text-[#E9EDEF]"
                         )}>
                           <p className="text-sm whitespace-pre-wrap">
                            {
@@ -544,7 +544,7 @@ useEffect(() => {
                           </p>
                           <div className={cn(
                             "flex items-center gap-2 mt-1",
-                            message.role === 'assistant' ? "justify-start" : "justify-end"
+                            message.role === 'assistant' ? "justify-end" : "justify-start"
                           )}>
                             <span className={cn(
                               "text-xs",
@@ -559,7 +559,7 @@ useEffect(() => {
                           </div>
                         </div>
                        ) : (
-                        <div className='border rounded-lg p-1 w-full overflow-hidden max-w-lg bg-muted'>
+                        <div className='border shadow-md rounded-lg p-1 w-full overflow-hidden max-w-lg bg-white dark:bg-zinc-800'>
                           <WhatsAppTemplateRenderer 
                             onSelect={handleTemplateSelect} 
                             message={message} 
@@ -585,7 +585,7 @@ useEffect(() => {
                       exit={{ opacity: 0, y: -20 }}
                       className="flex flex-row-reverse justify-start gap-3"
                     >
-                      <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                      <div className=" rounded-full flex items-center justify-center">
                         <PivotAvatar />
                       </div>
                       <div className="bg-muted rounded-2xl px-4 py-2">
@@ -627,7 +627,7 @@ useEffect(() => {
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
                       disabled={session.isLoading}
-                      className="flex-1 h-10 rounded-lg bg-muted focus-visible:ring-zinc-500/40 "
+                      className="flex-1 h-10 rounded-full shadow-md bg-white dark:bg-zinc-800 ring-1 ring-zinc-300/40 focus-visible:ring-zinc-500/40 "
                     />
                     <Button 
                       type="submit" 
@@ -852,7 +852,7 @@ const WhatsAppTemplateRenderer = ({ message, context, onSelect }: WhatsAppTempla
   
   // WhatsApp UI style constants
   const styles = {
-    container: "rounded-[10px] px-4 min-h-full bg-muted rounded-bl-none overflow-hidden max-w-lg min-w-[300px] max-sm:!min-w-[260px] w-full",
+    container: "rounded-[10px] px-4 min-h-full rounded-bl-none overflow-hidden max-w-lg min-w-[300px] max-sm:!min-w-[260px] w-full",
     header: "p-3 bg-green-500 text-white",
     mediaHeader: "w-full h-40 bg-gray-100 dark:bg-gray-700 overflow-hidden",
     body: "p-2 text-sm",

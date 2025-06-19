@@ -34,6 +34,7 @@ import exampleDatabase from '@/schema/example';
 import { useTheme } from 'next-themes';
 import { BotState, Contact, Conversation, Message } from '@/schema/types';
 import { DebugButton, debugFunction } from '@/components/debug';
+import { cn } from '@/lib/utils';
 
 
 // Enhanced conversation type with display-specific properties
@@ -470,14 +471,15 @@ const filteredConversations = useMemo(() => {
             <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
           )}
         </div>
-        <div className={`rounded-lg p-3 ${
-          isBot 
-            ? 'bg-gray-100 rounded-bl-none dark:bg-gray-800 incoming text-gray-900 dark:text-gray-100' 
-            : 'bg-teal-500 rounded-br-none text-white'
-        }`}>
+          <div className={cn(
+            "rounded-[10px] min-w-[30%]* shadow-md px-4 py-2 max-w-full break-words",
+            isBot
+              ? "bg-white dark:bg-zinc-800 rounded-bl-none" 
+              : "text-start bg-[#DCF8C6] rounded-br-none backdrop-blur-md text-black dark:bg-[#005C4B] dark:text-[#E9EDEF]"
+          )}>
           <div dir='auto' className="text-sm whitespace-pre-wrap">{message.body}</div>
           <div className={`text-xs mt-1 ${
-            isBot ? 'text-gray-500 dark:text-gray-400' : 'text-blue-100'
+            isBot ? "text-muted-foreground text-start" : "text-gray-800/80 dark:text-gray-400 text-end"
           }`}>
             {messageDate.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
           </div>
@@ -685,9 +687,9 @@ const filteredConversations = useMemo(() => {
                   </div>
 
                   <TabsContent value="messages" className={`flex-1 whatsapp-chat-container h-[stretch]* chat-whatsApp h-fit max-h-[100vh] py-6 m-0`}>
-                    <div className={`h-full min-h-[90vh] chat-chat-whatsApp ${isDark ? 'dark-chat' : 'light-chat'} overflow-y-auto flex flex-col pb-16`}>
+                    <div className={`h-full min-h-[90vh] overflow-y-auto flex flex-col pb-16`}>
                       {/* Chat Messages */}
-                      <div className="flex-1 overflow-y-auto mb-8 p-6 space-y-1">
+                      <div className={`flex-1 overflow-y-auto mb-8 p-6 space-y-1 chat-whatsApp ${isDark ? 'dark-chat' : 'light-chat'} min-h-[83vh]`}>
                         {selectedConversation.messages.length > 0 ? (
                           selectedConversation.messages.map((message, index) => (
                             <ChatBubble 

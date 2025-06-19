@@ -194,7 +194,7 @@ export default function SuppliersPage() {
             <span>
               {supplier.reminders.length > 0
                 ? supplier.reminders.map(reminder => WEEKDAYS_DICT[reminder.day]).join(', ')
-                : 'אין ימי משלוח מוגדרים'}
+                : 'אין ימי תזכורת מוגדרים'}
             </span>
           </div>
          
@@ -245,7 +245,7 @@ export default function SuppliersPage() {
               <TableHead className="text-right">מסעדה</TableHead>
               <TableHead className="text-right hidden">WhatsApp</TableHead>
               <TableHead className="text-right">קטגוריות</TableHead>
-              <TableHead className="text-right">ימי משלוח</TableHead>
+              <TableHead className="text-right">ימי תזכורת</TableHead>
               <TableHead className="text-right hidden">שעת סגירה</TableHead>
               <TableHead className="text-right">מוצרים</TableHead>
               <TableHead className="text-right hidden">דירוג</TableHead>
