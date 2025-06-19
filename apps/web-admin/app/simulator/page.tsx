@@ -463,7 +463,7 @@ useEffect(() => {
             <CardHeader className="py-2 flex justify-between absolute bg-card/50 backdrop-blur-lg w-full z-10">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 max-sm:hidden bg-green-500 rounded-full flex items-center justify-center">
+                  <div className="max-sm:hidden rounded-full flex items-center justify-center">
                     <PivotAvatar />
                   </div>
                   <div className="flex gap-2">

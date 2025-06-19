@@ -668,7 +668,7 @@ export default function OrdersPage() {
       
       {/* Order Details Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto p-0">
+        <DialogContent className="max-w-6xl dark:bg-stone-950 flex flex-col max-h-[85vh] min-h-[80vh] overflow-y-auto p-0">
           {selectedOrder && (
             <>
               <DialogHeader className="p-6 pb-4 pr-16 sticky top-0 bg-background z-10 border-b">

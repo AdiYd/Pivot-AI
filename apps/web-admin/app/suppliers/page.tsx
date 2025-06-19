@@ -601,10 +601,10 @@ export default function SuppliersPage() {
 
       {/* Enhanced Supplier Details Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-6xl max-h-[85vh] overflow-y-auto p-0">
+        <DialogContent className="max-w-6xl dark:bg-stone-950 flex flex-col max-h-[85vh] min-h-[80vh] overflow-y-auto p-0">
           {selectedSupplier && (
             <>
-              <DialogHeader className="p-6 pb-4 pr-16 sticky top-0 bg-background z-10 border-b">
+              <DialogHeader className="p-6 pb-4 pr-16 h-fit sticky top-0 bg-background z-10 border-b">
                 <div className="flex items-center justify-between">
                   <div>
                     <DialogTitle className="flex items-center gap-2">
@@ -631,7 +631,7 @@ export default function SuppliersPage() {
                 <Tabs defaultValue="general" className="w-full">
                   <TabsList className="grid w-full grid-cols-4">
                     <TabsTrigger value="general">כללי</TabsTrigger>
-                    <TabsTrigger value="schedule">לוח זמנים</TabsTrigger>
+                    <TabsTrigger value="reminders">תזכורות</TabsTrigger>
                     <TabsTrigger value="products">מוצרים</TabsTrigger>
                     <TabsTrigger value="analytics">נתונים</TabsTrigger>
                   </TabsList>
@@ -682,7 +682,7 @@ export default function SuppliersPage() {
                     </div>
                   </TabsContent>
                   
-                  <TabsContent dir='rtl' value="schedule" className="space-y-6 mt-6">
+                  <TabsContent dir='rtl' value="reminders" className="space-y-6 mt-6">
                     <div className="space-y-6">
                       <div>
                         <h3 className="text-lg font-medium mb-4">לוח זמני תזכורות שבועי</h3>
@@ -718,7 +718,7 @@ export default function SuppliersPage() {
 
                                     </>
                                   ) : (
-                                    <span className="text-muted-foreground text-sm">אין משלוח</span>
+                                    <span className="text-muted-foreground text-sm">אין תזכורות</span>
                                   )}
                                 </div>
                               );

@@ -1039,7 +1039,7 @@ export default function RestaurantsPage() {
           }
         }}
       >
-        <DialogContent className="max-w-6xl max-h-[85vh] overflow-y-auto p-0"
+        <DialogContent className="max-w-6xl dark:bg-stone-950 flex flex-col max-h-[85vh] min-h-[80vh] overflow-y-auto p-0"
           // Prevent dialog from stealing focus
           onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
@@ -1401,7 +1401,7 @@ export default function RestaurantsPage() {
                                   </div>
                                   {order.shortages.length > 0 && (
                                     <div className="mt-3">
-                                      <Label className="text-sm text-red-600">מחסורים</Label>
+                                      <Label className="text-sm text-red-600">חוסרים</Label>
                                       <div className="space-y-1">
                                         {order.shortages.map((shortage: any, index: number) => {
                                           return (

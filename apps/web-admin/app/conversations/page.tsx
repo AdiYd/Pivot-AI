@@ -648,7 +648,7 @@ const filteredConversations = useMemo(() => {
 
       {/* Enhanced Conversation Details Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-6xl max-h-[85vh] gap-0 overflow-hidden p-0">
+        <DialogContent className="max-w-6xl dark:bg-stone-950 flex flex-col max-h-[85vh] min-h-[80vh] overflow-y-auto p-0">
           {selectedConversation && (
             <>
               <DialogHeader className="p-4 pb-4 sticky* absolute w-full top-0 bg-background/60 backdrop-blur-md z-10 border-b">
@@ -684,8 +684,8 @@ const filteredConversations = useMemo(() => {
                     </TabsList>
                   </div>
 
-                  <TabsContent value="messages" className={`flex-1 whatsapp-chat-container chat-whatsApp ${isDark ? 'dark-chat' : 'light-chat'} h-fit max-h-[100vh] py-6 m-0`}>
-                    <div className="h-full overflow-y-auto flex flex-col pb-16">
+                  <TabsContent value="messages" className={`flex-1 whatsapp-chat-container h-[stretch]* chat-whatsApp h-fit max-h-[100vh] py-6 m-0`}>
+                    <div className={`h-full min-h-[90vh] chat-chat-whatsApp ${isDark ? 'dark-chat' : 'light-chat'} overflow-y-auto flex flex-col pb-16`}>
                       {/* Chat Messages */}
                       <div className="flex-1 overflow-y-auto mb-8 p-6 space-y-1">
                         {selectedConversation.messages.length > 0 ? (

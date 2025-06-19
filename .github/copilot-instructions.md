@@ -36,7 +36,7 @@ Copilot: keep this context in memory when suggesting code.
 | Messaging        | **Twilio WhatsApp Business API**                             | Reliable 2‑way WhatsApp                             |
 | Serverless logic | **Cloud Functions for Firebase** (Node 20, TS)               | Webhooks, schedulers, AI tasks                      |
 | AI utilities     | **OpenAI GPT‑4o via scheduled CF**                           | Text understanding / summarisation                  |
-| Payments         | External Stripe/Paylink URL saved per restaurant             | Out of scope for MVP logic                          |
+| Payments         | External Credit card/Paylink URL saved per restaurant        | Out of scope for MVP logic                          |
 
 > **Convention**: mono‑repo with `/apps/web-admin` (Next.js) and `/functions` (CF). Shared types live in `/packages/schema`.
 
@@ -200,28 +200,20 @@ Copilot: keep this context in memory when suggesting code.
 | ------------------------------------------------------------ | ------------------------- | ------------------------------------------- |
 | `https` `onRequest`                                          | `/whatsappWebhook`        | Parse WA webhook, route to state machine    |
 | `pubsub.schedule('every 1 hours')`                           | `/cron/generateReminders` | Find pending reminders, enqueue WA messages |
-| `firestore.document('/restaurants/{r}/orders/{o}') onUpdate` | `/sync/orderStatus`       | Detect delivery completion, send summary    |
-| `https` `onRequest`                                          | `/admin/exportCsv` (auth) | Export reports                              |
+| `firestore.document('/orders/{o}/') onUpdate`                | `/sync/orderStatus`       | Detect delivery completion, send summary    |
 
-State machine draft is in `/packages/botEngine` (see `conversationState.ts`).
+State machine draft is in `functions/src/schema/states` (see `.ts`).
 
 ---
 
 ## 7. Front‑End Admin (Next.js)
-
-Folder sketch:
-
-
-* Use **TanStack Query** + **firestore.onSnapshot** for live data.
-* Role‑based access via `claim.admin === true`.
+path: `apps/web-admin`
 
 ---
 
-## 8. Environment Variables
-
 ```
 
-## 9. Coding Guidelines
+## 8. Coding Guidelines
 
 1. **TypeScript strict** – no `any`.
 2. Validate all external input with **Zod** before writing to Firestore.

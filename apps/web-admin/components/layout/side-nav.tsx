@@ -25,6 +25,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Icon } from "@iconify/react/dist/iconify.js";
+import { PivotAvatar } from "../ui";
 
 interface NavItemProps {
   href: string;
@@ -135,9 +136,13 @@ export function SideNav() {
           {/* Logo area */}
           <div className={cn(
             "h-16 flex items-center border-b px-2",
-            isCollapsed ? "justify-center" : "justify-between px-6"
+            isCollapsed ? "justify-center" : "justify-between px-4"
             )}>
-            {!isCollapsed && <h1 className="text-lg font-semibold truncate">P-vot</h1>}
+            {!isCollapsed && 
+            <div className="flex items-center gap-1 ml-2">
+              <PivotAvatar />
+              <h3 className="mr-2 font-semibold text-sm truncate">P-vot</h3>
+            </div>}
             <div className="flex items-center gap-2">
               {!isCollapsed && <ThemeToggle />}
               <Button variant="ghost" size="icon" onClick={toggleCollapse} className="flex-shrink-0">
