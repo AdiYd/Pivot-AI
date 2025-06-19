@@ -1,4 +1,3 @@
-import { FieldValue } from "firebase-admin/firestore";
 import { z } from "zod";
 import { BotState } from "./types";
 
@@ -6,7 +5,7 @@ import { BotState } from "./types";
 
 // General schemas
 export const textSchema = z.string().min(1, "שדה זה אינו יכול להיות ריק וצריך להכיל לפחות תו אחד");  // Generic text schema for non-empty strings
-export const timestampSchema = z.any().optional().default(FieldValue.serverTimestamp()); // Placeholder for server timestamp, will be replaced with serverTimestamp in Firestore
+export const timestampSchema = z.any().optional(); // Placeholder for server timestamp, will be replaced with serverTimestamp in Firestore
 export const daysSchema = z.enum(["sun", "mon", "tue", "wed", "thu", "fri", "sat"]); // Enum for days of the week, used for reminders and delivery days
 export const timeSchema = z.string().regex(/^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/, "שעה חייבת להיות בפורמט HH:MM, לדוגמה: 20:00"); // Regex for time in HH:MM format
 
@@ -122,7 +121,7 @@ export const ProductSchema = z.object({
 // Supplier schema
 export const SupplierSchema = ContactSchema.extend({
     role: contactRoleSchema.default('supplier').transform(()=> "supplier"), // All suppliers have the role of "supplier"
-    category: z.array(supplierCategorySchema).default([]).transform((categories) => new Set(categories)), // Array of supplier categories, transformed to a Set for uniqueness
+    category: z.array(supplierCategorySchema).default([]), // Array of supplier categories, transformed to a Set for uniqueness
     reminders: supplierRemindersSchema.default([]), // Array of reminders for the supplier
     products: z.array(ProductSchema).default([]), // Array of products of the supplier
     rating: supplierRatingSchema.default(0), // Rating from 0 to 5
@@ -151,7 +150,7 @@ export const RestaurantSchema = z.object({
 // Order schema (with all related entities) for validation
 export const OrderSchema = z.object({
   id: orderIdSchema,
-  category: SupplierSchema.pick({ category: true }), // Only include necessary fields of the supplier
+  category: z.array(supplierCategorySchema), // Only include necessary fields of the supplier
   supplier: SupplierSchema.pick({ whatsapp: true, name: true, email: true }), // Only include necessary fields of the supplier
   restaurant: RestaurantSchema.pick({
     legalId: true,
@@ -180,7 +179,7 @@ export const OrderSchema = z.object({
   .max(500, "הערות מהמסעדה לספק, עד 500 תווים").optional(),    // Optional notes from the restaurant to the supplier
   supplierNotes: z.string()
   .max(500, "הערות מהספק למסעדה, עד 500 תווים").optional(),     // Optional notes for the supplier to the restaurant
-  createdAt: timestampSchema,
+  createdAt: timestampSchema, // Timestamp of when the order was created
   updatedAt: timestampSchema,
   deliveredAt: timestampSchema,
   invoiceUrl: z.string().url().optional()
@@ -198,7 +197,7 @@ export const MessageSchema = z.object({
     role: z.enum(["user", "assistant"]).default("user"),                     // Role of the message sender, e.g., "user", "assistant", "system"
     body: z.string().max(4000, "תוכן ההודעה לא יכול להיות ארוך מ-4000 תווים").default(""), // Content of the message
     templateId: z.string().optional(),                                     // Optional template ID for the message
-    hasTemplate: z.boolean().default(false),                              // Whether the message has a whatsApp template
+    hasTemplate: z.boolean().optional(),                              // Whether the message has a whatsApp template
     mediaUrl: z.string().url().optional(),                               // Optional media URL for the message, e.g., image or video
     messageState: conversationStateSchema.default('IDLE'),                           // Current state of the state machine when the message is created
     createdAt: timestampSchema,                                        // Timestamp of when the message was created

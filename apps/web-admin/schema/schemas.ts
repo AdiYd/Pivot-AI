@@ -197,7 +197,7 @@ export const MessageSchema = z.object({
     role: z.enum(["user", "assistant"]).default("user"),                     // Role of the message sender, e.g., "user", "assistant", "system"
     body: z.string().max(4000, "תוכן ההודעה לא יכול להיות ארוך מ-4000 תווים").default(""), // Content of the message
     templateId: z.string().optional(),                                     // Optional template ID for the message
-    hasTemplate: z.boolean().default(false),                              // Whether the message has a whatsApp template
+    hasTemplate: z.boolean().optional(),                              // Whether the message has a whatsApp template
     mediaUrl: z.string().url().optional(),                               // Optional media URL for the message, e.g., image or video
     messageState: conversationStateSchema.default('IDLE'),                           // Current state of the state machine when the message is created
     createdAt: timestampSchema,                                        // Timestamp of when the message was created

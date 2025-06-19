@@ -13,9 +13,7 @@
     "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
     "paths": {
-      "@/types": ["src/schema"],
-      "@/botEngine": ["./src/botEngine"],
-      "@/utils": ["./src/utils"]
+      "@/*": ["./src/*"]
     }
   },
   "compileOnSave": true,

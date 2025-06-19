@@ -1,4 +1,4 @@
-import { Conversation, IncomingMessage, BotAction, BotState } from 'src/schema/types';
+import { Conversation, IncomingMessage, BotAction, BotState } from '../schema/types';
 import { conversationStateReducer } from './conversationStateReducer';
 
 export * from './actions';

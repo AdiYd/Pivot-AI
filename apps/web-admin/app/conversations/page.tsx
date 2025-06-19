@@ -34,6 +34,7 @@ import exampleDatabase from '@/schema/example';
 import { useTheme } from 'next-themes';
 import { BotState, Contact, Conversation, Message } from '@/schema/types';
 import { DebugButton, debugFunction } from '@/components/debug';
+import { PivotAvatar } from '../simulator/page';
 
 // Enhanced conversation type with display-specific properties
 interface EnhancedConversation extends Conversation {
@@ -354,7 +355,7 @@ const filteredConversations = useMemo(() => {
                   {lastMessage.role === 'user' ? (
                     <User className="w-3 h-3 text-blue-500 flex-shrink-0" />
                   ) : (
-                    <Icon icon="mingcute:ai-fill" width="24" height="24" className='text-green-600 dark:text-green-400' />
+                    <PivotAvatar />
                   )}
                   <span className="truncate">{lastMessage.body}</span>
                 </div>
@@ -462,9 +463,9 @@ const filteredConversations = useMemo(() => {
   return (
     <div className={`flex ${isBot ? 'justify-start' : 'justify-end'} mb-4 ${index === 0 ? 'mt-16' : ''}`}>
       <div className={`flex my-2 items-end gap-2 max-w-[70%] ${isBot ? 'flex-row' : 'flex-row-reverse'}`}>
-        <div className={`p-2 max-sm:hidden rounded-full ${isBot ? 'bg-green-100 dark:bg-green-900' : 'bg-blue-100 dark:bg-blue-900'}`}>
+        <div className={`p-2 max-sm:hidden rounded-full ${isBot ? '' : 'bg-blue-100 dark:bg-blue-900'}`}>
           {isBot ? (
-            <Icon icon="mingcute:ai-fill" width="24" height="24" className='text-green-600 dark:text-green-400' />
+            <PivotAvatar rotate float />
           ) : (
             <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
           )}
@@ -484,7 +485,7 @@ const filteredConversations = useMemo(() => {
       </div>
     </div>
   );
-};
+  };
 
   if (isLoading) {
     return (

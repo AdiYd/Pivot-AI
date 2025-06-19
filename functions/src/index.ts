@@ -2,8 +2,8 @@ import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
 import { FieldValue } from 'firebase-admin/firestore';
 
-import { conversationStateReducer, processActions } from "src/botEngine";
-import { Conversation, IncomingMessage, Restaurant } from "src/schema/types";
+import { conversationStateReducer, processActions } from "./botEngine";
+import { Conversation, IncomingMessage, Restaurant } from "./schema/types";
 import { validateTwilioWebhook } from "./utils/twilio";
 import { getCollectionName } from "./utils/firestore";
 import { ConversationSchema } from "./schema/schemas";
@@ -29,11 +29,16 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
   try {
     // Set CORS headers for all requests
     res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'GET, POST');
+    res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.set('Access-Control-Allow-Headers', 'Content-Type, x-simulator-api-key');
-
     // Only process POST requests for actual webhook handling
     
+    // Handle CORS preflight request
+    if (req.method === 'OPTIONS') {
+      res.status(200).send('');
+      return;
+    }
+
     if (req.method !== 'POST') {
       res.status(405).send('Method Not Allowed');
       return;
@@ -68,20 +73,49 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
       return;
     }
 
-    console.log(`[${isSimulator ? 'Simulator' : 'WhatsApp'}] Received message from ${from}: "${body}"`);
-
     // Extract phone number without whatsapp: prefix for document ID
     // For simulator, the phone number should already be in clean format
     const phoneNumber = isSimulator ? from : from.replace("whatsapp:", "");
-    // Log incoming message for audit trail
-    await firestore.collection(getCollectionName('conversations', isSimulator))
-      ?.doc(phoneNumber)
-      ?.collection('messages')
-      ?.add({
-        body,
-        role: 'user',
-        createdAt: FieldValue.serverTimestamp()
+    const conversationsCollection = getCollectionName('conversations', isSimulator);
+    const conversationRef = firestore.collection(conversationsCollection).doc(phoneNumber);
+    const conversationDoc = await conversationRef.get();
+    const now = new Date();
+    console.log(`[${isSimulator ? 'Simulator' : 'WhatsApp'}] Received message from ${from}: "${body}"`);
+
+  
+    if (!conversationDoc.exists) {
+      // If it doesn't exist, create a new document with the message
+      const initialConversation: Conversation = ConversationSchema.parse(
+        {
+        messages: [{
+          body,
+          role: 'user',
+          createdAt: now,
+          messageState: 'INIT' 
+        }],
+        currentState: 'INIT',
+        context: {
+          contactNumber: phoneNumber,
+          ...(isSimulator && { isSimulator })
+        },
+        role: 'owner', // Default role for new conversations
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp()
       });
+      console.log('Setting new conversation:', initialConversation);
+      await conversationRef.set(initialConversation);
+    } else {
+      // Document exists, update the messages array
+      await conversationRef.update({
+        messages: FieldValue.arrayUnion({
+          body,
+          role: 'user',
+          createdAt: now,
+          messageState: conversationDoc.data()?.currentState || '' // Use current state or default to INIT
+        }),
+        updatedAt: FieldValue.serverTimestamp()
+      });
+    }
 
     // Create the incoming message object
     const message: IncomingMessage = {
@@ -98,9 +132,6 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
     let restaurantId = "";
 
     // Get existing conversation state by phone number
-    const conversationsCollection = getCollectionName('conversations', isSimulator);
-    const conversationRef = firestore.collection(conversationsCollection).doc(phoneNumber);
-    const conversationDoc = await conversationRef.get();
 
     if (!conversationDoc.exists) {
       console.log(`[${isSimulator ? 'Simulator' : 'WhatsApp'}] No existing conversation found for phone: ${phoneNumber}`);
@@ -132,7 +163,7 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
 
         conversation = ConversationSchema.parse({
           currentState: "IDLE",
-          role: contactRole || "general",
+          role: contactRole || "owner",
           context: {
             restaurantId: Restaurant.legalId,
             restaurantName: Restaurant.name,

@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { BotAction, Contact } from 'src/schema/types';
-import { sendWhatsAppMessage } from 'src/utils/twilio';
-import { createRestaurant, updateSupplier, logMessage } from 'src/utils/firestore';
-import { MessageSchema, RestaurantSchema, SupplierSchema } from 'src/schema/schemas';
+import { BotAction, Contact } from '../schema/types';
+import { sendWhatsAppMessage } from '../utils/twilio';
+import { createRestaurant, updateSupplier, logMessage } from '../utils/firestore';
+import { MessageSchema, RestaurantSchema, SupplierSchema } from '../schema/schemas';
 
 // Zod schemas for payload validation
 const SendMessagePayloadSchema = z.object({
@@ -63,8 +63,11 @@ export async function processActions(
               const message = MessageSchema.parse({
                 role: "assistant",
                 body: validPayload.body || '',
-                templateId: validPayload.template?.id,
-                hasTemplate: !!validPayload.template,
+                ...(!!validPayload.template && 
+                  {
+                    templateId: validPayload.template?.id,
+                    hasTemplate: !!validPayload.template
+                  })
               });
               const phoneNumber = phone.replace("whatsapp:", "") as Contact['whatsapp'];
               await logMessage(phoneNumber, message, isSimulator);

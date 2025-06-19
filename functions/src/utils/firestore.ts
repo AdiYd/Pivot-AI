@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import * as admin from 'firebase-admin';
-import {SupplierSchema, ConversationSchema, MessageSchema} from 'src/schema/schemas';
-import { Conversation, Supplier,SupplierCategory, Restaurant, Contact, Message } from 'src/schema/types';
+import {SupplierSchema, ConversationSchema, MessageSchema} from '../schema/schemas';
+import { Conversation, Supplier,SupplierCategory, Restaurant, Contact, Message } from '../schema/types';
 import { FieldValue, DocumentReference, Query, CollectionReference } from 'firebase-admin/firestore';
 
 
@@ -448,9 +448,8 @@ export async function saveConversationState(
       .doc(phone)
       .set({
         ...state,
-        restaurantRef: restaurantRef, // Add reference to restaurant
-        lastMessageTimestamp: FieldValue.serverTimestamp()
-      }, { merge: true });
+        updatedAt: FieldValue.serverTimestamp(),
+      } as Conversation, { merge: true });
       
     console.log(`[Firestore] ✅ Conversation state saved for phone: ${phone}`);
   } catch (error) {
@@ -477,11 +476,21 @@ export async function logMessage(
 
     const conversationsCollection = getCollectionName('conversations', isSimulator);
     const finalMessage = MessageSchema.parse(message)
+    const now = new Date();
+    console.log(`[Firestore] Writing message to ${conversationsCollection}/${phone}/messages...`, {
+      message: message,
+    });
+    // Update the conversation document with the new message in the messages array
     await firestore
       .collection(conversationsCollection)
       .doc(phone)
-      .collection('messages')
-      .add(finalMessage);
+      .update({
+        messages: FieldValue.arrayUnion({
+          ...finalMessage,
+          createdAt: now,
+        } as Message),
+        updatedAt: now,
+      });
 
     console.log(`[Firestore] ✅ Message logged for phone: ${phone}`);
   } catch (error) {

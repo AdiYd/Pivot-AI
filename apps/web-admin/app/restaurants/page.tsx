@@ -655,14 +655,19 @@ export default function RestaurantsPage() {
                   <ArrowUpDown className="mr-2 h-4 w-4" />
                 </div>
               </TableHead>
-              <TableHead className="text-right">פריטים</TableHead>
               <TableHead className="text-right">פעילות אחרונה</TableHead>
               <TableHead className="text-right">פעולות</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {restaurants.map((restaurant) => (
-              <TableRow key={restaurant.legalId} className="hover:bg-gray-50 dark:hover:bg-gray-900/50">
+              <TableRow 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedRestaurant(restaurant);
+                  setIsDialogOpen(true);
+                }}
+                key={restaurant.legalId} className="hover:bg-gray-50 cursor-pointer dark:hover:bg-gray-900/50">
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{restaurant.name}</span>
@@ -691,39 +696,20 @@ export default function RestaurantsPage() {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <div className="text-sm">{restaurant.stats.productsCount}</div>
-                </TableCell>
-                <TableCell>
                   <div className="text-sm">
                     {restaurant.stats.recentOrderDate ? getRelativeTime(restaurant.stats.recentOrderDate) : 'אין פעילות'}
                   </div>
                 </TableCell>
                 <TableCell>
                   <div className="flex gap-2">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedRestaurant(restaurant);
-                            setIsDialogOpen(true);
-                          }}
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>צפייה בפרטים</p>
-                      </TooltipContent>
-                    </Tooltip>
                     
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button 
                           variant="outline" 
                           size="sm"
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             editingRestaurantRef.current = { ...restaurant };
                             setIsEditing(true);
                             setSelectedRestaurant(restaurant);

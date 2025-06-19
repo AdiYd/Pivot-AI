@@ -131,12 +131,12 @@ export function SideNav() {
           "hidden lg:block h-screen border-l z-30 relative",
         )}
       >
-        <div className="flex flex-col h-full bg-zinc-200/50 dark:bg-zinc-800/50 backdrop-blur-xl">
+        <div className="flex flex-col h-full bg-stone-100/60 dark:bg-stone-900/60 backdrop-blur-xl">
           {/* Logo area */}
           <div className={cn(
             "h-16 flex items-center border-b px-2",
             isCollapsed ? "justify-center" : "justify-between px-6"
-          )}>
+            )}>
             {!isCollapsed && <h1 className="text-lg font-semibold truncate">P-vot</h1>}
             <div className="flex items-center gap-2">
               {!isCollapsed && <ThemeToggle />}

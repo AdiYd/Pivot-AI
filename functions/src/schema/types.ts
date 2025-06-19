@@ -11,10 +11,10 @@ import {
   productUnitSchema,
   supplierCategorySchema,
   orderStatusSchema,
+  daysSchema,
 } from './schemas';
 
 // ======== Schema-based types using z.infer ========
-
 
 // Core types derived directly from schemas
 export type Contact = z.infer<typeof ContactSchema>;
@@ -27,7 +27,6 @@ export type Order = z.infer<typeof OrderSchema>;
 export type Message = z.infer<typeof MessageSchema>;
 export type Conversation = z.infer<typeof ConversationSchema>;
 
-
 // Derived types from enum schemas
 export type ProductUnit = z.infer<typeof productUnitSchema>;
 export type SupplierCategory = z.infer<typeof supplierCategorySchema>;
@@ -38,7 +37,8 @@ export type OrderStatus = z.infer<typeof orderStatusSchema>;
 // Rating type (1-5)
 export type Rating = 1 | 2 | 3 | 4 | 5;
 
-
+// Days type
+export type Days = z.infer<typeof daysSchema>;
 // Bot state types
 export type BotState =
   | "INIT"
@@ -153,4 +153,3 @@ export interface StateObject {
 
   action?: BotAction['type']; // Optional action to perform when this state is finished
 }
-

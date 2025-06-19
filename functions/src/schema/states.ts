@@ -5,7 +5,7 @@ import { BotConfig, BotState, Product, StateObject, SupplierCategory } from './t
 
 
 // Supplier categories with emoji representation
-export const CATEGORIES_DICT: Record<string, Partial<Product>> = {
+export const CATEGORIES_DICT: Record<string, Pick<Product, 'name' | 'emoji'>> = {
   vegetables: { name: "ירקות", emoji: "🥬" },
   fruits: { name: "פירות", emoji: "🍎" },
   meats: { name: "בשרים", emoji: "🥩" },
@@ -17,6 +17,18 @@ export const CATEGORIES_DICT: Record<string, Partial<Product>> = {
   disposables: { name: "חד פעמי", emoji: "🥤" },
   desserts: { name: "קינוחים", emoji: "🍰" },
   juices: { name: "מיצים טבעיים", emoji: "🧃" },
+  general: { name: "כללי", emoji: "📦" }
+};
+
+// Helper object to get days of the week in Hebrew
+export const WEEKDAYS_DICT: Record<string, string> = {
+  sun: 'ראשון',
+  mon: 'שני',
+  tue: 'שלישי',
+  wed: 'רביעי',
+  thu: 'חמישי',
+  fri: 'שישי',
+  sat: 'שבת'
 };
 
 // Product templates organized by category for faster setup
@@ -99,6 +111,12 @@ export const CATEGORY_PRODUCTS: Record<string, Array<Partial<Product>>> = {
 // Categories list for validation
 export const CATEGORY_LIST = ['vegetables', 'fruits', 'meats', 'fish', 'dairy', 'alcohol', 'eggs', 'oliveOil', 'disposables', 'desserts', 'juices'];
 
+// Bot categories with emoji representation
+export const getCategoryName = (key: string): string => {
+  return CATEGORIES_DICT[key] ? `${CATEGORIES_DICT[key].name} ${CATEGORIES_DICT[key].emoji}` : key;
+};
+
+
 // Helper function to format supplier categories as a list with emojis
 export const formatCategoryList = (excludeCategories: string[] = []): string => {
   return CATEGORY_LIST
@@ -145,6 +163,7 @@ export const formatProductOptions = (categories: SupplierCategory[], excludeProd
 };
 
 
+
 /**
  * Main state machine messages mapping
  * Each key corresponds to a value from BotState enum
@@ -174,7 +193,7 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
   
   "ONBOARDING_COMPANY_NAME": {
     message: `📄 *תהליך הרשמה למערכת*
-    \n\n
+    
     מהו השם החוקי של העסק או החברה שלך?`,
     description: "Ask for the legal company name as the first step of onboarding.",
     validator: restaurantLegalNameSchema,

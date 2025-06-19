@@ -90,7 +90,7 @@
  *     ├─ role: string (optional) // Role of the contact in conversation
  *     ├─ createdAt: Timestamp
  *     └─ updatedAt: Timestamp
- *
+ *     
  *     /messages[] (array of messages objects)
  *         ├─ role: string      // "user" or "assistant"
  *         ├─ body: string      // Message content

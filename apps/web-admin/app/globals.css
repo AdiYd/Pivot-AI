@@ -119,3 +119,42 @@
     background-position: fixed;
     position: relative
   }
+
+
+  @keyframes float {
+    0% {
+      transform: translate(0px, 0px);
+    }
+    50% {
+      transform: translate(5px, -10px);
+    }
+    100% {
+      transform: translate(0px, 0px);
+    }
+  }
+
+  @keyframes rotate {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes bg-position {
+    0% {
+      background-position: 0% 0%;
+    }
+    100% {
+      background-position: 100% 100%;
+    }
+  }
+  @keyframes bg-position-2 {
+    0% {
+      background-position: 0% 0%;
+    }
+    100% {
+      background-position: 100% 0%;
+    }
+  }

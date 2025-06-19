@@ -6,9 +6,9 @@ import {
   IncomingMessage,
   ConversationContext,
   StateObject,
-} from 'src/schema/types';
-import { STATE_MESSAGES } from 'src/schema/states';
-import { ProductSchema, RestaurantSchema, SupplierSchema } from 'src/schema/schemas';
+} from '../schema/types';
+import { STATE_MESSAGES } from '../schema/states';
+import { ProductSchema, RestaurantSchema, SupplierSchema } from '../schema/schemas';
 
 /**
  * Interface for the state machine's result
