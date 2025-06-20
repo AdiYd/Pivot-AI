@@ -468,7 +468,7 @@ const filteredConversations = useMemo(() => {
     
   return (
     <div className={`flex ${isBot ? 'justify-start' : 'justify-end'} mb-4 ${index === 0 ? 'mt-16' : ''}`}>
-      <div className={`flex my-2 items-end gap-2 max-w-[70%] ${isBot ? 'flex-row' : 'flex-row-reverse'}`}>
+      <div className={`flex my-2 items-end gap-2 max-w-[70%]* ${isBot ? 'flex-row' : 'flex-row-reverse'}`}>
         <div className={`p-2 max-sm:hidden rounded-full ${isBot ? '' : 'bg-blue-100 dark:bg-blue-900'}`}>
           {isBot ? (
             <PivotAvatar rotate float />

@@ -388,9 +388,9 @@ useEffect(() => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 h-[86vh]">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 h-[86vh] max-sm:h-fit ">
         {/* Control Panel */}
-        <div className="lg:col-span-1 flex flex-col justify-between space-y-4">
+        <div className="lg:col-span-1 flex flex-col max-sm:row-start-2 justify-between space-y-4">
           {/* Connection */}
           <Card>
             <CardHeader className='py-1'>
@@ -457,8 +457,8 @@ useEffect(() => {
         </div>
 
         {/* Chat Window */}
-        <div className="lg:col-span-3 overflow-hidden">
-          <Card className="h-full  overflow-hidden flex flex-col">
+        <div className="lg:col-span-3 max-sm:row-start-1 overflow-hidden">
+          <Card className="h-full max-sm:max-h-[95vh]  overflow-hidden flex flex-col">
             {/* Chat Header */}
             <CardHeader className="py-2 flex justify-between absolute bg-card/50 backdrop-blur-lg w-full z-10">
               <div className="flex items-center justify-between">
