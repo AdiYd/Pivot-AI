@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { doc, getDoc, collection, query, orderBy, getDocs, deleteDoc, where } from 'firebase/firestore';
@@ -31,7 +31,7 @@ import { STATE_MESSAGES } from '@/schema/states';
 import Image from 'next/image';
 import { useTheme } from 'next-themes';
 import { DebugButton, debugFunction } from '@/components/debug';
-import { PivotAvatar } from '@/components/ui';
+import { PivotAvatar, Textarea } from '@/components/ui';
 
 // Types
 interface SimulatorSession extends Omit<Conversation, 'messages'> {
@@ -65,10 +65,11 @@ export default function SimulatorPage() {
   const [loading, setLoading] = useState(false);
   const [availableConversations, setAvailableConversations] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
   const { theme } = useTheme();
   const { toast } = useToast();
   const [isDark, setIsDark] = useState(false);
+  const { textareaRef, resizeTextarea } = useAutoResizeTextarea();
+
 
 useEffect(() => {
   setIsDark(theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches));
@@ -80,10 +81,10 @@ useEffect(() => {
 
   // Focus input when connected
   useEffect(() => {
-    if (session.isConnected && inputRef.current) {
-      inputRef.current.focus();
+    if (session.isConnected && textareaRef.current) {
+      textareaRef.current.focus();
     }
-  }, [session.isConnected, session.messages]);
+  }, [session.isConnected, session.messages, textareaRef]);
 
   // Load available conversations on mount
   useEffect(() => {
@@ -621,14 +622,28 @@ useEffect(() => {
               {session.isConnected && (
                 <div className=" z-10 p-4 absolute bottom-0 left-0 right-0 ">
                   <form  onSubmit={handleSendMessage} className="flex items-center gap-2">
-                    <Input
-                      ref={inputRef}
-                      placeholder="הקלד הודעה..."
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      disabled={session.isLoading}
-                      className="flex-1 h-10 rounded-full shadow-md bg-white dark:bg-zinc-800 ring-1 ring-zinc-300/40 focus-visible:ring-zinc-500/40 "
-                    />
+                      <Textarea
+                        ref={textareaRef}
+                        placeholder="הקלד הודעה... (Ctrl+Enter לשורה חדשה)"
+                        value={newMessage}
+                        onChange={(e) => {
+                          setNewMessage(e.target.value);
+                          setTimeout(resizeTextarea, 0);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.ctrlKey && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSendMessage(e);
+                          }
+                          if (e.key === 'Enter' && e.ctrlKey) {
+                            setNewMessage(prev => prev + '\n');
+                          }
+                        }}
+                        disabled={session.isLoading}
+                        className="flex-1 min-h-[40px] h-auto* max-h-[120px] rounded-2xl shadow-md bg-white dark:bg-zinc-800 ring-1 ring-zinc-300/40 focus-visible:ring-zinc-500/40 resize-none overflow-hidden"
+                        maxLength={4000}
+                        rows={1}
+                      />
                     <Button 
                       type="submit" 
                       disabled={!newMessage.trim() || session.isLoading}
@@ -647,6 +662,27 @@ useEffect(() => {
     </div>
   );
 }
+
+
+// Add this hook at the top of your component or in a separate file
+const useAutoResizeTextarea = () => {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const resizeTextarea = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      const newHeight = Math.min(Math.max(textarea.scrollHeight, 40), 120);
+      textarea.style.height = newHeight + 'px';
+    }
+  }, []);
+
+  useEffect(() => {
+    resizeTextarea();
+  }, [resizeTextarea]);
+
+  return { textareaRef, resizeTextarea };
+};
 
 // Helper functions
 
@@ -870,12 +906,14 @@ const WhatsAppTemplateRenderer = ({ message, context, onSelect }: WhatsAppTempla
     header: "p-3 bg-green-500 text-white",
     mediaHeader: "w-full h-40 bg-gray-100 dark:bg-gray-700 overflow-hidden",
     body: "p-2 text-sm",
-    footer: "border-t border-gray-200 dark:border-gray-700",
+    footer: "border-gray-200 dark:border-gray-700",
     buttonContainer: "grid",
-    buttonSingle: "p-3 text-center text-green-600 dark:text-green-400 font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer",
-    buttonMultiple: "p-3 text-center text-green-600 dark:text-green-400 font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer border-b last:border-b-0 border-gray-200 dark:border-gray-700",
+    // buttonSingle: "p-3 text-center text-green-600 dark:text-green-400 font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer",
+    // buttonMultiple: "p-3 text-center text-green-600 dark:text-green-400 font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer border-b last:border-b-0 border-gray-200 dark:border-gray-700",
     listContainer: "border-gray-200 dark:border-gray-700 min-h-full overflow-y-auto",
-    listItem: "p-3 flex items-center text-sm justify-between hover:bg-gray-200/50 dark:hover:bg-gray-800 transition-colors cursor-pointer border rounded-lg my-1 flex justify-center border-gray-400 overflow-y-auto",
+    listItem: "p-3 flex items-center text-sm justify-between hover:bg-gray-200/50 dark:hover:bg-gray-800 transition-colors cursor-pointer border-b last:border-b-0 my-0 flex justify-center border-gray-400 overflow-y-auto",
+    buttonMultiple: "p-3 flex text-center items-center text-sm justify-center gap-2 hover:bg-gray-200/50 dark:hover:bg-gray-800 transition-colors cursor-pointer border rounded-lg my-0.5 flex justify-center border-gray-400 overflow-y-auto",
+    buttonSingle: "p-3 flex text-center font-bold items-center text-green-600 dark:text-green-400 text-sm justify-center gap-2 hover:bg-gray-200/50 dark:hover:bg-gray-800 transition-colors cursor-pointer border rounded-lg my-1 flex justify-center border-green-500 overflow-y-auto",
     cardContainer: "p-3 space-y-2",
     cardItem: "bg-gray-100 border text-center dark:bg-gray-800 rounded-md p-3 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors cursor-pointer",
   };

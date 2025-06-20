@@ -125,3 +125,4 @@ export {
 
 
 export { PivotAvatar } from './pivot-logo';
+export { Textarea } from './textarea';
