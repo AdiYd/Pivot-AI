@@ -9,6 +9,7 @@ import {
 } from '../schema/types';
 import { STATE_MESSAGES } from '../schema/states';
 import { ProductSchema, RestaurantSchema, SupplierSchema } from '../schema/schemas';
+import { callOpenAISchema } from '../utils/openAI';
 
 /**
  * Interface for the state machine's result
@@ -39,66 +40,58 @@ async function stateValidator(
     
     // Skip validation if no validator provided
     if (!validator && !aiValidation) {
-      return trimmedInput;
+      return { data: trimmedInput };
     }
     
     // If AI validation is required
     if (aiValidation) {
-      // TODO: Implement AI validation here
-      console.log(`[StateReducer] AI validation would be used for state ${currentState}`);
+      // Process with AI first
       
-      // For now, just validate with schema if available
-      if (validator) {
-        return validator.parse(trimmedInput);
+      try {
+        const aiResult = await callOpenAISchema(trimmedInput, currentState as BotState);
+        console.log(`[StateReducer] AI validation result:`, aiResult);
+        
+        // If AI returns structured data and we have a schema, validate it
+        if (aiResult) {
+          return aiResult;
+        }
+      } catch (aiError) {
+        console.error("[StateReducer] AI validation error:", aiError);
+        // Fall through to standard validation as backup
       }
-      
-      // Return trimmed input as fallback
-      return trimmedInput;
     }
-    
-    // Standard zod schema validation
+        // Standard zod schema validation
     if (validator) {
-      // Handle different schema types appropriately
-      if (validator instanceof z.ZodString) {
-        return validator.parse(trimmedInput);
-      } 
-      else if (validator instanceof z.ZodObject) {
-        // Try to parse JSON if the input might be an object
-        try {
-          const jsonData = JSON.parse(trimmedInput);
-          return validator.parse(jsonData);
-        } catch (jsonError) {
-          // If not valid JSON, try direct validation
-          return validator.parse(trimmedInput);
+      try {
+        // Handle different schema types appropriately
+        let validatedData;
+        
+        if (validator instanceof z.ZodString) {
+          validatedData = validator.parse(trimmedInput);
+        } 
+        else if (validator instanceof z.ZodObject) {
+          // Try to parse JSON if the input might be an object
+          try {
+            const jsonData = JSON.parse(trimmedInput);
+            validatedData = validator.parse(jsonData);
+          } catch (jsonError) {
+            // If not valid JSON, try direct validation
+            validatedData = validator.parse(trimmedInput);
+          }
+        }         
+        return { data: validatedData, ok: true };
+      } catch (validationError) {
+        // Capture and return the specific validation error message
+        if (validationError instanceof z.ZodError) {
+          const errorMessage = validationError.errors.map(e => e.message).join(', ');
+          return { data: null, error: errorMessage };
         }
-      } 
-      else if (validator instanceof z.ZodNumber) {
-        // Try to convert string to number
-        const num = Number(trimmedInput);
-        return validator.parse(num);
-      } 
-      else if (validator instanceof z.ZodEnum) {
-        return validator.parse(trimmedInput);
-      } 
-      else if (validator instanceof z.ZodArray) {
-        // Try to parse JSON array if input looks like an array
-        try {
-          const jsonData = JSON.parse(trimmedInput);
-          return validator.parse(jsonData);
-        } catch (jsonError) {
-          // Try splitting by commas as fallback
-          const items = trimmedInput.split(',').map(item => item.trim());
-          return validator.parse(items);
-        }
-      } 
-      else {
-        // Default case - attempt direct validation
-        return validator.parse(trimmedInput);
+        throw validationError;
       }
     }
     
     // If we get here, return the trimmed input as fallback
-    return trimmedInput;
+    return { data: trimmedInput };
   } catch (error) {
     console.error('[StateReducer] Validation error:', error);
     
@@ -343,6 +336,41 @@ export async function conversationStateReducer(
     let userInput = message.body;
     let validationResult = null;
     let nextState: BotState | null = null;
+
+    // Check if this is a template option selection
+    if (currentStateDefinition.whatsappTemplate?.options) {
+      const selectedOption = currentStateDefinition.whatsappTemplate.options.find(
+        option => option.id === userInput
+      );
+      
+      // If user selected a valid option from the template
+      if (selectedOption) {
+        console.log(`[StateReducer] Template option selected: ${selectedOption.name} (${selectedOption.id})`);
+        
+        // If the selection directly maps to a next state, use it
+        if (currentStateDefinition.nextState && currentStateDefinition.nextState[userInput]) {
+          nextState = currentStateDefinition.nextState[userInput];
+
+          // If we have a valid next state, skip further validation
+          if (nextState) {
+            // Update context if needed based on selection
+            if (currentStateDefinition.callback && typeof currentStateDefinition.callback === 'function') {
+              try {
+                currentStateDefinition.callback(result.newState.context, selectedOption.id);
+              } catch (callbackError) {
+                console.error(`[StateReducer] Callback error for template selection:`, callbackError);
+              }
+            }
+            result.newState.currentState = nextState;
+            const nextStateMessage = createMessageAction(
+              STATE_MESSAGES[nextState], message.from, result.newState.context
+            );
+            result.actions.push(nextStateMessage);
+            return result;
+          }
+        }
+      }
+    }
     
     // First, try to validate the input
     if (currentStateDefinition.validator) {
@@ -381,7 +409,7 @@ export async function conversationStateReducer(
       }
     } else {
       // If no validator, just use the trimmed input
-      validationResult = userInput.trim();
+      validationResult = { data: userInput.trim() };
     }
     
     // If validation failed
@@ -411,11 +439,24 @@ export async function conversationStateReducer(
       // Stay in current state
       return result;
     }
-    
+
+    if (validationResult.error) {
+      console.error(`[StateReducer] Validation error:`, validationResult.error);
+      result.actions.push({
+          type: 'SEND_MESSAGE',
+          payload: {
+            to: message.from,
+            body: validationResult.error
+          }
+        });
+      // Stay in current state
+      return result;
+    }
+
     // Execute callback if defined to update context
     if (currentStateDefinition.callback && typeof currentStateDefinition.callback === 'function') {
       try {
-        currentStateDefinition.callback(result.newState.context, validationResult);
+        currentStateDefinition.callback(result.newState.context, validationResult.data);
       } catch (callbackError) {
         console.error(`[StateReducer] Callback error:`, callbackError);
       }
@@ -424,27 +465,15 @@ export async function conversationStateReducer(
     // Determine next state based on validation result and state definition
     if (currentStateDefinition.nextState) {
       // Handle direct value response
-      if (validationResult === 'ok' && currentStateDefinition.nextState.ok) {
+      if (validationResult.ok && currentStateDefinition.nextState.ok) {
         nextState = currentStateDefinition.nextState.ok;
       }
-      // Handle skip value
-      else if (validationResult === 'skip' && currentStateDefinition.nextState.skip) {
-        nextState = currentStateDefinition.nextState.skip;
+      if (validationResult.aiValid && currentStateDefinition.nextState.aiValid) {
+        nextState = currentStateDefinition.nextState.aiValid;
       }
       // Handle list selection or template button response
-      else if (typeof validationResult === 'string' && currentStateDefinition.nextState[validationResult]) {
-        nextState = currentStateDefinition.nextState[validationResult];
-      }
-      // Handle default success case
-      else if (validationResult && currentStateDefinition.nextState.ok) {
-        nextState = currentStateDefinition.nextState.ok;
-      }
-      // Default to the first entry if no match
-      else {
-        const firstNextStateKey = Object.keys(currentStateDefinition.nextState)[0];
-        if (firstNextStateKey) {
-          nextState = currentStateDefinition.nextState[firstNextStateKey];
-        }
+      else if (typeof validationResult.data === 'string' && currentStateDefinition.nextState[validationResult.data]) {
+        nextState = currentStateDefinition.nextState[validationResult.data];
       }
     }
     

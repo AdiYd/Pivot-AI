@@ -43,7 +43,7 @@ export const supplierRemindersSchema = z.array(z.object({
     const [hours, minutes] = time.split(':').map(Number);
     return (hours >= 6 && hours <= 23) || (hours === 23 && minutes === 59);
   }, {
-    message: "שעת המסירה חייבת להיות בין 06:00 ל-23:59",
+    message: "שעת התזכורת חייבת להיות בין 06:00 ל-23:59",
   })
 }));
 export const supplierCutoffHourSchema = z.number().min(0, "אנא הזן שעה תקינה בין 0 ל-23").max(23, 'שעת סיום חייבת להיות בין 0 ל-23'); // Cutoff hour for placing orders, default to 20:00

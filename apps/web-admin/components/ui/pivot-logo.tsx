@@ -18,7 +18,7 @@ export const PivotAvatar = ({float=false, rotate=false, className=''}) => {
         <div className="absolute overflow-hidden inset-0 bg-[radial-gradient(circle_at_30%_40%,rgba(255,255,255,0.4)_0%,transparent_60%)]" 
           style={{animation: float ? 'float 8s ease-in-out infinite' : ''}}></div>
         <div className="absolute inset-0 backdrop-blur-[2px] rounded-full"></div>
-          <Icon icon="mingcute:ai-fill" width="1.2em" height="1.2em" className='text-gray-800 z-[100] bg-transparent' />
+          <Icon icon="mingcute:ai-fill" width="1em" height="1em" className='text-gray-800 z-[100] bg-transparent' />
       </div>
     </div>
     );

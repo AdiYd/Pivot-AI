@@ -379,7 +379,7 @@ useEffect(() => {
     <div suppressHydrationWarning className="p-6 max-sm:p-0 pt-0 max-h-full space-y-6">
       <DebugButton debugFunction={debugFunctionLocal} />
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex* hidden items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
             <Icon icon="logos:whatsapp-icon" width="1.3em" height="1.3em" />
@@ -388,7 +388,7 @@ useEffect(() => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 h-[60vh]">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 h-[86vh]">
         {/* Control Panel */}
         <div className="lg:col-span-1 flex flex-col justify-between space-y-4">
           {/* Connection */}
@@ -457,8 +457,8 @@ useEffect(() => {
         </div>
 
         {/* Chat Window */}
-        <div className="lg:col-span-3">
-          <Card className="h-[600px] overflow-hidden flex flex-col ">
+        <div className="lg:col-span-3 overflow-hidden">
+          <Card className="h-full  overflow-hidden flex flex-col">
             {/* Chat Header */}
             <CardHeader className="py-2 flex justify-between absolute bg-card/50 backdrop-blur-lg w-full z-10">
               <div className="flex items-center justify-between">
@@ -555,7 +555,7 @@ useEffect(() => {
                                 minute: '2-digit' 
                               })}
                             </span>
-                            {getMessageStatusIcon(message.status)}
+                            {message.status === 'failed' && getMessageStatusIcon(message.status)}
                           </div>
                         </div>
                        ) : (
@@ -620,7 +620,7 @@ useEffect(() => {
               {/* Input Area */}
               {session.isConnected && (
                 <div className=" z-10 p-4 absolute bottom-0 left-0 right-0 ">
-                  <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+                  <form  onSubmit={handleSendMessage} className="flex items-center gap-2">
                     <Input
                       ref={inputRef}
                       placeholder="הקלד הודעה..."

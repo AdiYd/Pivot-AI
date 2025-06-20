@@ -116,7 +116,7 @@ export interface StateObject {
   whatsappTemplate?: {
     id: string;                // Template ID registered with WhatsApp Business API
     type: "text" | "button" | "list" | "card";  // Template type
-    body: string;              // Main message body
+    body: string ;              // Main message body
     options?: Array<{         // Response options
       name: string;           // Human-readable option text
       id: string;             // Machine-readable option identifier

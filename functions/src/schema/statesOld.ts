@@ -173,9 +173,8 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
   "INIT": {
     whatsappTemplate: {
       id: "init_template",
-      type: "button",
-      body: `🍽️ *ברוכים הבאים ל ✨ P-vot ✨, מערכת ניהול המלאי וההזמנות!*
-      בכמה צעדים פשוטים נרשום את המסעדה שלך ונגדיר את הספקים והזמנות המומלצות עבורך.
+      type: "list",
+      body: `🍽️ *ברוכים הבאים ל P-VOT, מערכת ניהול המלאי וההזמנות!*\n
       בחר מה ברצונך לעשות:`,
       options: [
         { name: "רישום מסעדה חדשה", id: "new_restaurant" },
@@ -193,7 +192,7 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
   
   "ONBOARDING_COMPANY_NAME": {
     message: `📄 *תהליך הרשמה למערכת*
-
+    
     מהו השם החוקי של העסק או החברה שלך?`,
     description: "Ask for the legal company name as the first step of onboarding.",
     validator: restaurantLegalNameSchema,
@@ -244,7 +243,7 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
   "ONBOARDING_CONTACT_EMAIL": {
      whatsappTemplate: {
       id: "contact_email_template",
-      type: "button",
+      type: "card",
       body: "📧 מה כתובת האימייל שלך? (אופציונלי - לחץ 'דלג' להמשך)",
       options: [
         { name: "דלג", id: "skip" } // Option to skip email input
@@ -253,9 +252,6 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
     description: "Ask for contact email (optional, can be skipped with 'דלג').",
     validator: emailSchema,
     callback: (context, data) => {
-      if (!data || data === "skip") {
-        return; // Skip email input
-      }
       context.contactEmail = data;
     },
     nextState: {
@@ -285,8 +281,11 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
   
   "WAITING_FOR_PAYMENT": {
     message: `⏳ *בהמתנה לאישור תשלום*
+
     ניתן לשלם בקישור הבא:
+
     {paymentLink} 
+
     לאחר השלמת התשלום, נמשיך בהגדרת המערכת.`,
     description: "Wait for payment confirmation before proceeding with setup."
   },
@@ -298,7 +297,7 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
       id: "supplier_setup_start_template",
       type: "button",
       body: `🚚 *הגדרת ספקים ומוצרים*
-      כעת נגדיר את הספקים שעובדים עם המסעדה שלך. זה יעזור למערכת לנהל את המלאי, לתזכר אותך ולשלוח הזמנות לספק באופן אוטומטי.
+      כעת נגדיר את הספקים שעובדים עם המסעדה שלך. זה יעזור למערכת לנהל את המלאי, לתזכר אותך ולשלוח הזמנות לספק באופן אוטומטי.\n
       מוכנים להתחיל?`,
       options: [
         { name: "כן, בואו נתחיל ✨", id: "start_supplier" },
@@ -343,8 +342,7 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
       id: "supplier_category_template",
       type: "list",
       body: `🚚 *הגדרת ספק חדש למסעדה*
-      בחרו את הקטגוריות המתאימות לספק זה, לסיום הגדרת הקטגוריות, לחצו על "סיום הגדרת קטגוריות".
-
+      בחרו את הקטגוריות המתאימות לספק זה, לסיום הגדרת הקטגוריות, לחצו על "סיום הגדרת קטגוריות".\n
       💡 במידה והספק אחראי על יותר מקטגוריה אחת, ניתן לבחור מספר קטגוריות`,
       options: [
         // Will be dynamically populated with categories options, deducting already selected categories
@@ -354,9 +352,6 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
     description: "list to select one or more supplier categories from available list.",
     validator: supplierCategorySchema,
     callback: (context, data) => {
-      if (!data || data === "finished") {
-        return; // No categories selected, skip
-      }
       context.supplierCategories = context.supplierCategories ? [...context.supplierCategories, data] : [data];
     },
     nextState: {
@@ -366,8 +361,7 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
 
   "SUPPLIER_CONTACT": {
     message: `👤 *מה שם ומספר הוואטסאפ של הספק?*
-    
-    לדוגמה: ירקות השדה, 
+    \n\nלדוגמה: ירקות השדה, 
     0501234567`,
     description: "Ask for the supplier's name and phone number.",
     aiValidation: {
@@ -380,7 +374,7 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
       context.supplierWhatsapp = data.whatsapp;
     },
     nextState: {
-      aiValid: "SUPPLIER_REMINDERS"
+      ok: "SUPPLIER_REMINDERS"
     }
   },
   
@@ -388,17 +382,15 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
     whatsappTemplate: {
       id: "supplier_reminders_template",
       type: "list",
-      body: `📅 *כעת נגדיר את הזמנים בהם תרצה לקבל תזכורות לבצע הזמנה מהספק*
-      יש לבחור בזמנים מהרשימה *או* לכתוב יום ושעה עגולה שבה אתה נוהג לחדש הזמנה מהספק
-
-      לדוגמה: יום שני וחמישי ב14
-      לסיום יש ללחוץ על "סיום בחירה"`,
+      body: `📅 *כעת נגדיר את הזמנים בהם תרצה לקבל תזכורות לבצע הזמנה מהספק*\n
+      יש לבחור בזמנים מהרשימה *או* לכתוב יום ושעה עגולה שבה אתה נוהג לחדש הזמנה מהספק\n
+      לדוגמה: יום שני וחמישי ב14`,
       options: [
-        { name: "ראשון, 11:00", id: "sun, 12:00" },
-        { name: "שני, 11:00", id: "mon, 12:00" },
-        { name: "שלישי, 11:00", id: "tue, 12:00" },
-        { name: "רביעי, 11:00", id: "wed, 12:00" },
-        { name: "חמישי, 11:00", id: "thu, 12:00" },
+        { name: "ראשון, 12:00", id: "sun, 12:00" },
+        { name: "שני, 12:00", id: "mon, 12:00" },
+        { name: "שלישי, 12:00", id: "tue, 12:00" },
+        { name: "רביעי, 12:00", id: "wed, 12:00" },
+        { name: "חמישי, 12:00", id: "thu, 12:00" },
         { name: "שישי, 10:00", id: "fri, 10:00" },
         { name: "שבת, 10:00", id: "sat, 10:00" },
         { name: "סיום בחירה", id: "finished" }
@@ -415,6 +407,7 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
     },
     nextState: {
       finished: "PRODUCTS_LIST",
+      ok: "PRODUCTS_LIST"
     }
   },
 
@@ -422,9 +415,8 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
     whatsappTemplate: {
       id: "supplier_products_template",
       type: "list",
-      body: `🏷️ נגדיר עכשיו את רשימת המוצרים שאתה מזמין מהספק ואת pcs המידה שלהם
+      body: `🏷️ נגדיר עכשיו את רשימת המוצרים שאתה מזמין מהספק ואת pcs המידה שלהם\n
       בחרו מתוך הרשימה המוצעת או כיתבו בצורה ברורה את רשימת המוצרים המלאה שאתם מזמינים מהספק ואת pcs המידה שלהם
-
       לדוגמה:
       ק"ג: 🍅 עגבניות שרי, 🥒 מלפפון, 🧅 בצל, 🥕 גזר
       יח': 🥬 חסה, 🌿 פטרוזיליה`,
@@ -437,14 +429,14 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
     description: "Select products from the list or enter a custom product name and units in order to create full products list from the supplier.",
     aiValidation: {
       prompt: "עליך לבקש מהמשתמש לבחור, לרשום בכל דרך שיבחר רשימה של מוצרים וpcs המידה שלהם שאותם ניתן להזמין מהספק, אם נתונים על מוצר מסויים חסרים, השלם אותם לפי הסבירות הגבוהה ביותר.",
-      schema: z.array(ProductSchema.pick({ name: true, unit: true, emoji: true }))
+      schema: ProductSchema.pick({ name: true, unit: true, emoji: true })
     },
-    validator: z.array(ProductSchema.pick({ name: true, unit: true, emoji: true })),
+    validator: ProductSchema.pick({ name: true, unit: true, emoji: true }),
     callback: (context, data) => {
-      context.supplierProducts = context.supplierProducts ? [...context.supplierProducts, ...data] : [...data];
+      context.supplierProducts = context.supplierProducts ? [...context.supplierProducts, data] : [data];
     },
     nextState: {
-      aiValid: "PRODUCTS_BASE_QTY"
+      ok: "PRODUCTS_BASE_QTY"
     }
   },
 
@@ -454,17 +446,14 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
       id: "supplieder_products_base_qty_template",
       type: "list",
       body: `📦 *הגדרת מצבת בסיס למוצרים*
-      \n\n
+
       כדי שנוכל ליעל את תהליך ההזמנה, נגדיר כמות בסיס לכל מוצר. כמות זו תעזור לנו לחשב את ההזמנה המומלצת שלך אוטומטית.
-      \n\n
+
       עבור כל מוצר, הזן את הכמות הבסיסית הנדרשת למסעדה לאמצע שבוע, ואת הכמות הנדרשת לסוף שבוע בפורמט: [שם מוצר] - [כמות אמצע שבוע], [כמות סוף שבוע].
-      \n\n
+
       לדוגמה:
-      \n
       עגבניות- 15, 20
-      \n
       מלפפון- 10, 15
-      \n
       חסה- 5, 10`,
       options: [] // Will be dynamically populated with the pre-defined products
     },
@@ -479,7 +468,7 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
     },
     action: 'CREATE_SUPPLIER',
     nextState: {
-      aiValid: "SETUP_SUPPLIERS_ADDITIONAL"
+      ok: "SETUP_SUPPLIERS_ADDITIONAL"
     }
   },
   
@@ -549,7 +538,9 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
     whatsappTemplate: {
       id: "TEMPLATE_ORDER_SETUP",
       type: "list",
-      body: "🛒 *יצירת הזמנה חדשה*\n\nבחר את הספק להזמנה:",
+      body: `🛒 *יצירת הזמנה חדשה*
+      
+      בחר את הספק להזמנה:`,
       options: [
         // These will be dynamically populated with suppliers from the restaurant
         { name: "רשימת ספקים תיווצר דינמית", id: "dynamic" }

@@ -1,339 +1,146 @@
-import axios from 'axios';
-import { z } from 'zod';
+import { STATE_MESSAGES } from "../schema/states";
+import { BotState } from "../schema/types";
+import OpenAI from "openai";
+import { z } from "zod";
+import { zodToJsonSchema } from "zod-to-json-schema";
 
-/**
- * OpenAI API Message Schema
- */
-export interface ChatMessage {
-  role: 'system' | 'user' | 'assistant';
-  content: string;
-}
+// import * as functions from "firebase-functions/v1";
 
-/**
- * OpenAI API Response Schema
- */
-interface OpenAIResponse {
-  id: string;
-  object: string;
-  created: number;
-  model: string;
-  choices: Array<{
-    index: number;
-    message: ChatMessage;
-    finish_reason: string;
-  }>;
-  usage: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
-  };
-}
-
-/**
- * Zod schema for validating OpenAI response
- */
-const OpenAIResponseSchema = z.object({
-  id: z.string(),
-  object: z.string(),
-  created: z.number(),
-  model: z.string(),
-  choices: z.array(
-    z.object({
-      index: z.number(),
-      message: z.object({
-        role: z.enum(['system', 'user', 'assistant']),
-        content: z.string(),
-      }),
-      finish_reason: z.string(),
-    })
-  ),
-  usage: z.object({
-    prompt_tokens: z.number(),
-    completion_tokens: z.number(),
-    total_tokens: z.number(),
-  }),
+// Initialize OpenAI with API key from environment
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 /**
- * Options for OpenAI API call
+ * Call OpenAI to process and structure user input
+ * 
+ * @param prompt System prompt for AI context
+ * @param userInput User's message to process
+ * @returns Structured data or enhanced interpretation
  */
-export interface OpenAIOptions {
-  temperature?: number;
-  max_tokens?: number;
-  model?: string;
-  stream?: boolean;
-  notify?: boolean;  // Whether to log API call
-}
-
-/**
- * Default options for OpenAI API
- */
-const DEFAULT_OPTIONS: OpenAIOptions = {
-  temperature: 0.7,
-  max_tokens: 500,
-  model: 'gpt-4o',
-  stream: false,
-  notify: true,
-};
-
-/**
- * Call OpenAI API with messages
- * @param messages Array of messages to send to OpenAI
- * @param options Options for the API call
- * @returns Generated message from OpenAI
- */
-export async function callOpenAI(
-  messages: ChatMessage[],
-  options: OpenAIOptions = {}
-): Promise<ChatMessage> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  
-  if (!apiKey) {
-    const errorMessage = 'OpenAI API key not configured. Please set OPENAI_API_KEY environment variable.';
-    console.error(`[OpenAI] ❌ ${errorMessage}`);
-    throw new Error(errorMessage);
-  }
-
-  // Merge options with defaults
-  const mergedOptions = { ...DEFAULT_OPTIONS, ...options };
-  const { temperature, max_tokens, model, notify } = mergedOptions;
-
+export async function callOpenAISchema(userInput: string, currentState: BotState): Promise<any> {
   try {
-    if (notify) {
-      console.log(`[OpenAI] 🧠 Sending request to model: ${model}`, {
-        messagesCount: messages.length,
-        temperature,
-        max_tokens
-      });
-    }
-    
-    const response = await axios.post<OpenAIResponse>(
-      'https://api.openai.com/v1/chat/completions',
-      {
-        model,
-        messages,
-        temperature,
-        max_tokens,
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
+    // Convert to JSON schema
+    const currentStateDefinition = STATE_MESSAGES[currentState];
+    const schema = currentStateDefinition.aiValidation?.schema || currentStateDefinition.validator || z.object({});
+    const jsonSchema = zodToJsonSchema(schema, currentState);
+    const functionStyle = {
+      name: currentState,
+      description: `
+      **
+      ${currentStateDefinition.aiValidation?.prompt}
+      **
+      .יש להחזיר תשובה למשתמש בשפה העברית בלבד (למעט שמות משתנים ונתונים הצריכים להיות באנגלית), אלא אם ביקש אחרת
+      `,
+      parameters: {
+        type: "object",
+        properties: {
+          data: jsonSchema.definitions?.[currentState] || jsonSchema,
+          meta: {
+            type: "object",
+            description: "AI's evaluation of the data's quality and completeness",
+            properties: {
+              is_user_data_valid: {
+                type: "boolean",
+                description: "True if all required fields were filled with realistic data sourced from the user's message."
+              },
+              is_data_completed_by_ai: {
+                type: "boolean",
+                description: "True if some fields were guessed or completed by the assistant due to missing user input."
+              },
+              is_data_final_and_confirmed: {
+                type: "boolean",
+                description: "True only if the assistant is confident that the structured data represents exactly what the user intended."
+              },
+              follow_up_message: {
+                type: "string",
+                description: "Instruction, question or message (In Hebrew) from the assistant to help the user improve or clarify the input towards the desired outcome."
+              }
+            },
+            required: ["is_user_data_valid", "is_data_completed_by_ai", "is_data_final_and_confirmed", "follow_up_message"]
+          },
         },
+        required: ["data", "meta"]
       }
-    );
-
-    const validatedResponse = OpenAIResponseSchema.parse(response.data);
-    
-    if (
-      !validatedResponse.choices ||
-      validatedResponse.choices.length === 0 ||
-      !validatedResponse.choices[0].message
-    ) {
-      throw new Error('Invalid response from OpenAI API');
     }
 
-    const generatedMessage = validatedResponse.choices[0].message;
-    
-    if (notify) {
-      console.log(`[OpenAI] ✅ Received response`, {
-        tokens: validatedResponse.usage.total_tokens,
-        contentLength: generatedMessage.content.length
-      });
-    }
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: `
+        אתה סוכן חכם ויעיל בעל אפליקציה לבעלי מסעדות, תפקידך לנהל מערכת ניהול הזמנות ומלאי.
+        תפקידך הוא לעזור לבעל המסעדה לנהל את ההזמנות והמלאי בצורה היעילה ביותר.
+        עליך להבין את ההקשר של השיחה ולספק תשובות מדויקות ומועילות.
+        עליך לעבד את ההודעה של המשתמש ולספק תשובות מובנות אך ורק על המערכת.
+        
+        שם האפליקציה: P-vot
+        תיאור האפליקציה: מערכת ניהול הזמנות ומלאי מתקדמת לבעלי מסעדות מבוססת בינה מלאכותית המחברת בין ספקים למסעדות
 
-    return generatedMessage;
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error(`[OpenAI] ❌ API call failed:`, {
-      error: errorMessage,
-      stack: error instanceof Error ? error.stack : undefined
+
+        ****   חשוב    ****
+        כל שאלה שאינה במסגרת המערכת, רישום פרטי המסעדה, הספקים, המוצרים וכו'... או שאינה נוגעת להזמנות או למלאי או לנתוני המסעדה, יש להחזיר תשובה קצרה וסגורה בסגנון
+        'תפקידי לעזור בכל מה שקשור ל P-vot, האם יש לך שאלות לגבי המערכת?'
+
+        אין לענות על שאלות שאינן קשורות למערכת או לשלבי ההרשמה ואינן במסגרת תפקידך
+        
+        תמיד השב בשפה העברית, אלא אם המשתמש ביקש אחרת.
+        *******************
+
+        תכונות עיקריות:
+        1. ניהול הזמנות: אפשרות ליצור, לעדכן ולנהל הזמנות מספקים.
+        2. חיבור בין מסעדן לרשת הספקים בצורה אחידה, אוטומטית וחכמה דרך הווצאפ
+        
+        ### הוראות למערכת ###
+        בכל שלב שבו תתבקש, תקבל את הודעות המשתמש יחד עם תיאור השלב ומה נדרש ממך לעשות.
+        לרוב, תצטרך לוודא את ההודעה של המשתמש, לעבד אותה ולספק תשובה מובנית או לבצע פעולה במערכת.
+        כאשר מצורף \`schema\`, עליך לוודא שהתשובה שלך תואמת למבנה הנתונים שניתן לך.
+        תצטרך לבנות אובייקט JSON או טקסט מובנה אחר בהתאם לדרישות השלב ולהשלים את הנתונים ביחס ביחד עם הודעת המשתמש.
+        עליך תמיד לספק את התשובה הסבירה והקרובה ביותר, השתמש בידע מתחום המסעדות כדי להעריך בצורה חכמה את הצרכים והרצונות של המשתמש.
+        המטרה שלך היא תמיד לייצר בהירות, סדר וקישורים בין הנתונים השונים במערכת ודרישות הלקוח.
+        יש לענות בטון חברי ומכבד, מקצועי וחביב, עם מעט הומור כאשר זה מתאים ותמיד רצון לעזור ולטפל. בנוסף יש לשמור על שפה פשוטה וברורה, משפטים קצרים ושפה מקצועית בתחום המסעדות והספקים.
+          ` },
+        { role: "system", content: `השלב הנוכחי הוא: ${currentState}` },
+        { role: "system", content: `תיאור השלב: ${currentStateDefinition.description}` },
+        { role: "system", content: `הוראות למשתמש: ${currentStateDefinition.message || currentStateDefinition.whatsappTemplate?.body}` },
+        { role: "system", content: `מה עליך לעשות: ${currentStateDefinition.aiValidation?.prompt || ""}` },
+        { role: "user", content: userInput }
+      ],
+      temperature: 0.3, // Lower temperature for more predictable, structured output
+      max_tokens: 500,
+      tools: [
+        {type: "function", function: functionStyle}
+      ],
+      tool_choice: { type: "function", function: { name: functionStyle.name } }
     });
     
-    // Return a fallback message
-    return {
-      role: 'assistant',
-      content: 'אני מתנצל, ישנה בעיה בתקשורת עם המערכת. אנא נסה שוב מאוחר יותר.'
+    const toolCall = response.choices[0]?.message?.tool_calls?.[0];
+
+    if (!toolCall || !toolCall.function || !toolCall.function.arguments) {
+      throw new Error("No function result found in tool_calls");
+    }
+
+    // The arguments field is a JSON string
+    const result = JSON.parse(toolCall.function.arguments);
+
+    console.log("\n🤖 %c==================== OPENAI RESPONSE ====================\n", 
+      "font-size: 14px; font-weight: bold; color: #00a67d;", 
+      result, 
+      "\n🤖 %c======================================================\n", 
+      "font-size: 14px; font-weight: bold; color: #00a67d;");
+
+    if (!result) {
+      throw new Error("Empty response from OpenAI");
+    }
+    if (!result.meta.is_data_final_and_confirmed){
+      return {
+        data: result.data,
+        error: result.meta.follow_up_message
     };
+    }
+    return {data: result.data, meta: result.meta, aiValid: true};
+
+  } catch (error) {
+    console.error("OpenAI API call failed:", error);
+    throw error;
   }
 }
-
-/**
- * Create a system prompt for understanding restaurant inventory context
- * @returns System prompt message
- */
-export function createInventorySystemPrompt(): ChatMessage {
-  return {
-    role: 'system',
-    content: `אתה עוזר חכם למערכת ניהול מלאי והזמנות למסעדות.
-תפקידך לעזור להבין ולחלץ מידע מהודעות המשתמשים, במיוחד כאשר המשתמש עונה בצורה לא מובנית.
-
-כאשר המשתמש שולח הודעה שאינה תואמת את הפורמט הצפוי, עליך:
-1. להבין את הכוונה העיקרית
-2. לחלץ נתונים רלוונטיים (כמויות, מזהי מוצרים, תאריכים)
-3. להחזיר תשובה מובנית שהמערכת תוכל לעבד
-
-התשובה שלך צריכה להיות תמציתית ומדוייקת בפורמט שהמערכת יכולה לעבד, עם נקודות מפתח בלבד.
-אל תוסיף ברכות או טקסט מיותר. התמקד בחילוץ המידע הרלוונטי.
-
-התשובה שלך תשמש לעיבוד אוטומטי ולא תוצג למשתמש כפי שהיא.`
-  };
-}
-
-/**
- * Process user message with OpenAI to extract structured data
- * @param userMessage Original user message
- * @param expectedFormat What format we expect (e.g. 'quantity', 'confirmation')
- * @returns Processed and structured response
- */
-export async function processUserMessage(
-  userMessage: string,
-  expectedFormat: string
-): Promise<string> {
-  const systemPrompt = createInventorySystemPrompt();
-  
-  const formattingPrompt: ChatMessage = {
-    role: 'user',
-    content: `משתמש שלח את ההודעה הבאה:
-"${userMessage}"
-
-אני מצפה לתשובה בפורמט: ${expectedFormat}
-
-חלץ את המידע הרלוונטי בלבד.`
-  };
-
-  const response = await callOpenAI(
-    [systemPrompt, formattingPrompt],
-    { temperature: 0.3, max_tokens: 150 }
-  );
-
-  return response.content;
-}
-
-/**
- * Simulate a mock conversation for testing purposes
- * @param conversationType Type of conversation to mock
- * @returns Array of mock messages
- */
-export function getMockConversation(
-  conversationType: 'inventory' | 'order' | 'supplier' | 'delivery' = 'inventory'
-): ChatMessage[] {
-  return MOCK_CONVERSATIONS[conversationType] || [];
-}
-
-/**
- * Mock data for simulating conversations
- */
-export const MOCK_CONVERSATIONS: Record<string, ChatMessage[]> = {
-  // Inventory check conversation
-  inventory: [
-    {
-      role: 'system',
-      content: createInventorySystemPrompt().content
-    },
-    {
-      role: 'user',
-      content: 'כמה עגבניות יש במלאי כרגע?'
-    },
-    {
-      role: 'assistant',
-      content: '3 ק"ג'
-    },
-    {
-      role: 'user',
-      content: 'יש לי בערך 5 ארגזים של מלפפונים, כל ארגז בערך 2 ק"ג'
-    },
-    {
-      role: 'assistant',
-      content: '10 ק"ג'
-    },
-    {
-      role: 'user',
-      content: 'אה וגם נשאר חצי קרטון של חסה'
-    },
-    {
-      role: 'assistant',
-      content: '6 יחידות'
-    }
-  ],
-  
-  // Order placement conversation
-  order: [
-    {
-      role: 'system',
-      content: createInventorySystemPrompt().content
-    },
-    {
-      role: 'user',
-      content: 'תזמין לי 10 ק"ג עגבניות, 8 ק"ג מלפפונים, ו-5 חבילות חסה'
-    },
-    {
-      role: 'assistant',
-      content: 'מוצרים להזמנה:\n- עגבניות: 10 ק"ג\n- מלפפונים: 8 ק"ג\n- חסה: 5 יחידות'
-    },
-    {
-      role: 'user',
-      content: 'רגע, תעשה 15 ק"ג עגבניות במקום 10'
-    },
-    {
-      role: 'assistant',
-      content: 'עדכון עגבניות: 15 ק"ג'
-    },
-    {
-      role: 'user',
-      content: 'אישור הזמנה בבקשה'
-    },
-    {
-      role: 'assistant',
-      content: 'אישור=כן'
-    }
-  ],
-  
-  // Supplier setup conversation
-  supplier: [
-    {
-      role: 'system',
-      content: createInventorySystemPrompt().content
-    },
-    {
-      role: 'user',
-      content: 'ספק חדש: ירקות טריים בע"מ, 050-1234567, אספקה בימים א,ג,ה בשעה 10:00'
-    },
-    {
-      role: 'assistant',
-      content: 'ספק:\n- שם: ירקות טריים בע"מ\n- טלפון: 0501234567\n- ימי אספקה: 0,2,4\n- שעת אספקה: 10'
-    },
-    {
-      role: 'user',
-      content: 'תוסיף גם את יום שישי להספקה'
-    },
-    {
-      role: 'assistant',
-      content: 'ימי אספקה מעודכנים: 0,2,4,5'
-    }
-  ],
-  
-  // Delivery check conversation
-  delivery: [
-    {
-      role: 'system',
-      content: createInventorySystemPrompt().content
-    },
-    {
-      role: 'user',
-      content: 'קיבלתי את המשלוח של הירקות. הגיעו כל העגבניות (10 ק"ג) אבל רק 6 ק"ג מלפפונים במקום 8, והחסה לא הגיעה בכלל.'
-    },
-    {
-      role: 'assistant',
-      content: 'קבלה:\n- עגבניות: מלא (10/10 ק"ג)\n- מלפפונים: חלקי (6/8 ק"ג)\n- חסה: חסר (0/5 יחידות)'
-    },
-    {
-      role: 'user',
-      content: 'החשבונית אומרת 315 שקלים. הסחורה נראית טרייה היום.'
-    },
-    {
-      role: 'assistant',
-      content: 'סכום חשבונית: 315 ש"ח\nהערה: סחורה טרייה'
-    }
-  ]
-};

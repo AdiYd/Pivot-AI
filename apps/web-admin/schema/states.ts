@@ -173,9 +173,9 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
   "INIT": {
     whatsappTemplate: {
       id: "init_template",
-      type: "list",
-      body: `🍽️ *ברוכים הבאים ל P-VOT, מערכת ניהול המלאי וההזמנות!*
-      \n\n
+      type: "button",
+      body: `🍽️ *ברוכים הבאים ל ✨ P-vot ✨, מערכת ניהול המלאי וההזמנות!*
+      בכמה צעדים פשוטים נרשום את המסעדה שלך ונגדיר את הספקים והזמנות המומלצות עבורך.
       בחר מה ברצונך לעשות:`,
       options: [
         { name: "רישום מסעדה חדשה", id: "new_restaurant" },
@@ -193,7 +193,6 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
   
   "ONBOARDING_COMPANY_NAME": {
     message: `📄 *תהליך הרשמה למערכת*
-    \n\n
     מהו השם החוקי של העסק או החברה שלך?`,
     description: "Ask for the legal company name as the first step of onboarding.",
     validator: restaurantLegalNameSchema,
@@ -244,7 +243,7 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
   "ONBOARDING_CONTACT_EMAIL": {
      whatsappTemplate: {
       id: "contact_email_template",
-      type: "card",
+      type: "button",
       body: "📧 מה כתובת האימייל שלך? (אופציונלי - לחץ 'דלג' להמשך)",
       options: [
         { name: "דלג", id: "skip" } // Option to skip email input
@@ -266,7 +265,6 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
       id: "payment_options_template",
       type: "button",
       body: `💳 *בחר שיטת תשלום:*
-      \n\n
       המערכת זמינה בתשלום חודשי. בחר את האופציה המועדפת עליך:`,
       options: [
         { name: "כרטיס אשראי", id: "credit_card" },
@@ -283,11 +281,8 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
   
   "WAITING_FOR_PAYMENT": {
     message: `⏳ *בהמתנה לאישור תשלום*
-    \n\n
     ניתן לשלם בקישור הבא:
-    \n\n
     {paymentLink} 
-    \n\n
     לאחר השלמת התשלום, נמשיך בהגדרת המערכת.`,
     description: "Wait for payment confirmation before proceeding with setup."
   },
@@ -299,9 +294,7 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
       id: "supplier_setup_start_template",
       type: "button",
       body: `🚚 *הגדרת ספקים ומוצרים*
-      \n\n
       כעת נגדיר את הספקים שעובדים עם המסעדה שלך. זה יעזור למערכת לנהל את המלאי, לתזכר אותך ולשלוח הזמנות לספק באופן אוטומטי.
-      \n\n
       מוכנים להתחיל?`,
       options: [
         { name: "כן, בואו נתחיל ✨", id: "start_supplier" },
@@ -336,7 +329,6 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
       id: "restaurant_finished_template",
       type: "text",
       body: `🎉 *הגדרת המסעדה {restaurantName} הושלמה!*
-      \n\n
       תודה על שהקדשתם זמן להגדיר את המסעדה שלכם. כעת תוכלו להתחיל להשתמש במערכת לניהול המלאי וההזמנות שלכם.`,
     },
     description: "Final message indicating the restaurant setup is complete."
@@ -347,9 +339,8 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
       id: "supplier_category_template",
       type: "list",
       body: `🚚 *הגדרת ספק חדש למסעדה*
-      \n\n
       בחרו את הקטגוריות המתאימות לספק זה, לסיום הגדרת הקטגוריות, לחצו על "סיום הגדרת קטגוריות".
-      \n\n
+
       💡 במידה והספק אחראי על יותר מקטגוריה אחת, ניתן לבחור מספר קטגוריות`,
       options: [
         // Will be dynamically populated with categories options, deducting already selected categories
@@ -390,9 +381,8 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
       id: "supplier_reminders_template",
       type: "list",
       body: `📅 *כעת נגדיר את הזמנים בהם תרצה לקבל תזכורות לבצע הזמנה מהספק*
-      \n\n
       יש לבחור בזמנים מהרשימה *או* לכתוב יום ושעה עגולה שבה אתה נוהג לחדש הזמנה מהספק
-      \n\n
+
       לדוגמה: יום שני וחמישי ב14`,
       options: [
         { name: "ראשון, 12:00", id: "sun, 12:00" },
