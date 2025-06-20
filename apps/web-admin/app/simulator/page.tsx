@@ -26,7 +26,6 @@ import { cn } from '@/lib/utils';
 import axios from 'axios';
 import { Icon } from '@iconify/react/dist/iconify.js';
 import { BotState, Conversation, Message, StateObject } from '@/schema/types';
-import { MessageSchema, ConversationSchema } from '@/schema/schemas';
 import { STATE_MESSAGES } from '@/schema/states';
 import Image from 'next/image';
 import { useTheme } from 'next-themes';

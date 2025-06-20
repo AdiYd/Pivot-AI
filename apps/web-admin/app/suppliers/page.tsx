@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { 
   Card, CardContent, CardDescription, CardHeader, CardTitle,
   Button, Input, Badge, Dialog, DialogContent, DialogDescription, 
@@ -18,11 +18,12 @@ import { useToast } from '@/components/ui/use-toast';
 
 // Import the actual database
 import exampleDatabase from '@/schema/example';
-import { Days, Supplier, SupplierCategory } from '@/schema/types';
+import { DataBase, Days, Supplier, SupplierCategory } from '@/schema/types';
 import { getCategoryBadge } from '@/components/ui/badge';
 import { Icon } from '@iconify/react/dist/iconify.js';
 import { CATEGORIES_DICT, WEEKDAYS_DICT } from '@/schema/states';
 import { DebugButton, debugFunction } from '@/components/debug';
+import { useFirebase } from '@/lib/firebaseClient';
 
 // Types for enhanced supplier data
 interface EnhancedSupplier extends Supplier {
@@ -43,7 +44,8 @@ const weekDaysDict: Record<number, Days> = {
 }
 
 export default function SuppliersPage() {
-  const [data, setData] = useState(exampleDatabase);
+  const {database} = useFirebase();
+  const [data, setData] = useState(database || exampleDatabase);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedSupplier, setSelectedSupplier] = useState<EnhancedSupplier | null>(null);
@@ -51,6 +53,7 @@ export default function SuppliersPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
   const { toast } = useToast();
+  
 
   // Extract and enhance supplier data from the actual database
   const enhancedSuppliers = useMemo((): EnhancedSupplier[] => {

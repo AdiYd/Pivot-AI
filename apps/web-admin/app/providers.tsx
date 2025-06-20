@@ -5,6 +5,7 @@ import { ReactNode } from "react";
 // import { FirebaseAppProvider } from "@/lib/firebaseClient";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { FirebaseAppProvider } from "@/lib/firebaseClient";
 
 // Create a client
 // const queryClient = new QueryClient({
@@ -26,9 +27,9 @@ export function Providers({ children }: { children: ReactNode }) {
     >
       {/* <QueryClientProvider client={queryClient}> */}
         <TooltipProvider>
-          {/* <FirebaseAppProvider> */}
+          <FirebaseAppProvider>
             {children}
-          {/* </FirebaseAppProvider> */}
+          </FirebaseAppProvider>
         </TooltipProvider>
       {/* </QueryClientProvider> */}
     </ThemeProvider>

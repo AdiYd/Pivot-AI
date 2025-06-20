@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui';
 import { Button } from '@/components/ui';
 import { Input } from '@/components/ui';
@@ -32,9 +32,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, PivotAva
 // Import the example database
 import exampleDatabase from '@/schema/example';
 import { useTheme } from 'next-themes';
-import { BotState, Contact, Conversation, Message } from '@/schema/types';
+import { BotState, Contact, Conversation, DataBase, Message, StateObject } from '@/schema/types';
 import { DebugButton, debugFunction } from '@/components/debug';
 import { cn } from '@/lib/utils';
+import { useFirebase } from '@/lib/firebaseClient';
+import Image from 'next/image';
+import { STATE_MESSAGES } from '@/schema/states';
 
 
 // Enhanced conversation type with display-specific properties
@@ -100,7 +103,8 @@ const categoryNames: Record<string, string> = {
 };
 
 export default function ConversationsPage() {
-  const [data, setData] = useState(exampleDatabase);
+  const {database} = useFirebase();
+  const [data, setData] = useState(database || exampleDatabase);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedRestaurant, setSelectedRestaurant] = useState<string>('all');
@@ -168,6 +172,7 @@ const enhancedConversations = useMemo((): EnhancedConversation[] => {
     return [];
   }
 }, [data]);
+
 
   // Filter conversations based on search and filters
 const filteredConversations = useMemo(() => {
@@ -471,13 +476,13 @@ const filteredConversations = useMemo(() => {
             <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
           )}
         </div>
-          <div className={cn(
-            "rounded-[10px] min-w-[30%]* shadow-md px-4 py-2 max-w-full break-words",
+          <div dir='rtl' className={cn(
+            "rounded-[10px] min-w-[30%]* shadow-md px-2 py-2 max-w-full break-words",
             isBot
               ? "bg-white dark:bg-zinc-800 rounded-bl-none" 
               : "text-start bg-[#DCF8C6] rounded-br-none backdrop-blur-md text-black dark:bg-[#005C4B] dark:text-[#E9EDEF]"
           )}>
-          <div dir='auto' className="text-sm whitespace-pre-wrap">{message.body}</div>
+            {message.hasTemplate ? <WhatsAppTemplateRenderer message={message} context={{}} onSelect={()=>{}} /> : <div dir='auto' className="text-sm whitespace-pre-wrap">{message.body}</div>}
           <div className={`text-xs mt-1 ${
             isBot ? "text-muted-foreground text-start" : "text-gray-800/80 dark:text-gray-400 text-end"
           }`}>
@@ -761,4 +766,262 @@ const filteredConversations = useMemo(() => {
     </div>
   );
 }
+
+interface WhatsAppTemplateProps {
+  message: Message;
+  context: Record<string, any>;
+  onSelect: (template: string) => void;
+}
+
+const WhatsAppTemplateRenderer = ({ message, context={}, onSelect }: WhatsAppTemplateProps): JSX.Element | null => {
+  const [hasClientRendered, setHasClientRendered] = useState(false);
+  
+  useEffect(() => {
+    setHasClientRendered(true);
+  }, []);
+  
+  if (!hasClientRendered) {
+    // Return a simple placeholder during server rendering
+    return <div className="p-3 bg-muted rounded-md">Loading template...</div>;
+  }
+  if (!message.templateId || !message.hasTemplate) return null;
+  
+  // Try to get the template from STATE_MESSAGES
+  let template : StateObject['whatsappTemplate'];
+  const currentState = message.messageState;
+  
+  if (message.templateId === 'approval_template') {
+      const approvalMessageWrapper = `
+          ${message.body}
+          ` 
+          // Send the approval Template message for whatsapp card with button to approve
+      template = {
+        id: 'approval_template',
+        type: 'button',
+        body: approvalMessageWrapper,
+        options: [
+          { name: 'אישור', id: 'aiValid' },
+        ]
+      }   
+  }
+  else if (currentState && STATE_MESSAGES[currentState as BotState]) {
+    template = STATE_MESSAGES[currentState as BotState].whatsappTemplate;
+  }
+  
+  // If no template found or no state info, try to use the message body directly
+  if (!template) {
+    try {
+      // Try to parse the template from the message body if it's in JSON format
+      if (typeof message.body === 'string' && message.body.trim().startsWith('{')) {
+        template = JSON.parse(message.body);
+      } else {
+        return (
+          <div className="p-3 rounded-md">
+            <p className="text-sm whitespace-pre-line">{message.body}</p>
+            <div className="text-xs text-muted-foreground mt-2">
+              Template ID: {message.templateId || 'Unknown'}
+            </div>
+          </div>
+        );
+      }
+    } catch (e) {
+      return (
+        <div suppressHydrationWarning className="p-3 bg-muted rounded-md">
+          <p className="text-sm">{message.body}</p>
+          <div className="text-xs text-muted-foreground mt-2">
+            Template ID: {message.templateId || 'Unknown'}
+          </div>
+        </div>
+      );
+    }
+  }
+  
+  // If still no template, return a basic rendering of the message
+  if (!template) {
+    return (
+      <div className="p-3 bg-muted rounded-md">
+        <p className="text-sm">{message.body}</p>
+      </div>
+    );
+  }
+  
+  // WhatsApp UI style constants
+  const styles = {
+    container: "rounded-[10px] px-4 mb-2 min-h-full rounded-bl-none overflow-hidden max-w-lg min-w-[300px] max-sm:!min-w-[260px] w-full",
+    header: "p-3 bg-green-500 text-white",
+    mediaHeader: "w-full h-40 bg-gray-100 dark:bg-gray-700 overflow-hidden",
+    body: "p-2 text-sm",
+    footer: "border-gray-200 dark:border-gray-700",
+    buttonContainer: "grid",
+    // buttonSingle: "p-3 text-center text-green-600 dark:text-green-400 font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer",
+    // buttonMultiple: "p-3 text-center text-green-600 dark:text-green-400 font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer border-b last:border-b-0 border-gray-200 dark:border-gray-700",
+    listContainer: "border-gray-200 dark:border-gray-700 min-h-full overflow-y-auto",
+    listItem: "p-3 flex items-center text-sm justify-between hover:bg-gray-200/50 dark:hover:bg-gray-800 transition-colors cursor-pointer border-b last:border-b-0 my-0 flex justify-center border-gray-400 overflow-y-auto",
+    buttonMultiple: "p-3 flex text-center items-center text-sm justify-center gap-2 hover:bg-gray-200/50 dark:hover:bg-gray-800 transition-colors cursor-pointer border rounded-lg my-0.5 flex justify-center border-gray-400 overflow-y-auto",
+    buttonSingle: "p-3 flex text-center font-bold items-center text-white justify-center gap-2 bg-gradient-to-r from-green-700 to-green-500  hover:bg-gradient-to-l dark:from-green-400 dark:to-green-600 border-purple-500 border-2 shadow-md hover:shadow-purple-400 transform transition-all ease-in-out duration-200 cursor-pointer border-none rounded-lg my-1 flex justify-center gap-2 overflow-y-auto",
+    cardContainer: "p-3 space-y-2",
+    cardItem: "bg-gray-100 border text-center dark:bg-gray-800 rounded-md p-3 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors cursor-pointer",
+  };
+
+  // Process body text with context variables
+  let bodyText = template.body;
+  if (context && typeof bodyText === 'string') {
+    Object.entries(context).forEach(([key, value]) => {
+      const placeholder = new RegExp(`{${key}}`, 'g');
+      bodyText = bodyText.replace(placeholder, String(value || ''));
+    });
+  }
+  
+  // Header component
+  const renderHeader = () => {
+    if (!template?.header) return null;
+    
+    if (template.header.type === "media" && template.header.mediaUrl) {
+      return (
+        <div className={styles.mediaHeader}>
+          
+        </div>
+      );
+    } else if (template.header.type === "text" && template.header.text) {
+      return (
+        <div className={styles.header}>
+          <h3 className="font-medium">{template.header.text}</h3>
+        </div>
+      );
+    }
+    
+    return null;
+  };
+
+  // Text template
+  const renderTextTemplate = () => {
+    return (
+      <div className={styles.container}>
+        {renderHeader()}
+        <div className={styles.body}>
+          {bodyText.split('\n').map((line: any, i: number) => (
+            <p key={i} className={i > 0 ? 'mt-2' : ''}>
+              {line.split(/(\*[^*]+\*)/g).map((part: any, j: number) => {
+                if (part.startsWith('*') && part.endsWith('*')) {
+                  return <strong key={j}>{part.slice(1, -1)}</strong>;
+                }
+                return part;
+              })}
+            </p>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  // Button template
+  const renderButtonTemplate = () => {
+    return (
+      <div className={styles.container}>
+        {renderHeader()}
+        <div className={styles.body}>
+          {bodyText.split('\n').map((line: any, i: number) => (
+            <p key={i} className={i > 0 ? 'mt-2' : ''}>
+              {line.split(/(\*[^*]+\*)/g).map((part: any, j: number) => {
+                if (part.startsWith('*') && part.endsWith('*')) {
+                  return <strong key={j}>{part.slice(1, -1)}</strong>;
+                }
+                return part;
+              })}
+            </p>
+          ))}
+        </div>
+        {template.options && template.options.length > 0 && (
+          <div className={styles.footer}>
+            <div className={styles.buttonContainer}>
+              {template.options.map((option: any, index: number) => (
+                <button
+                  key={option.id}
+                  onClick={() => onSelect(option.id)}
+                  className={template.options?.length === 1 ? styles.buttonSingle : styles.buttonMultiple}
+                >
+                  {option.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // List template
+  const renderListTemplate = () => {
+    return (
+      <div className={styles.container}>
+        {renderHeader()}
+        <div className={styles.body}>
+          {bodyText.split('\n').map((line : any, i: number) => (
+            <p key={i} className={i > 0 ? 'mt-2' : ''}>
+              {line.split(/(\*[^*]+\*)/g).map((part : any, j: number) => {
+                if (part.startsWith('*') && part.endsWith('*')) {
+                  return <strong key={j}>{part.slice(1, -1)}</strong>;
+                }
+                return part;
+              })}
+            </p>
+          ))}
+        </div>
+        {template.options && template.options.length > 0 && (
+          <div className={styles.listContainer}>
+            {template.options.map((option : any) => (
+              <div key={option.id} className={styles.listItem} onClick={() => onSelect(option.id)}>
+                <span className='mx-auto'>{option.name}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Card template
+  const renderCardTemplate = () => {
+    return (
+      <div className={styles.container}>
+        {renderHeader()}
+        <div className={styles.body}>
+          {bodyText.split('\n').map((line: any, i: number) => (
+            <p key={i} className={i > 0 ? 'mt-2' : ''}>
+              {line.split(/(\*[^*]+\*)/g).map((part: any, j: number) => {
+                if (part.startsWith('*') && part.endsWith('*')) {
+                  return <strong key={j}>{part.slice(1, -1)}</strong>;
+                }
+                return part;
+              })}
+            </p>
+          ))}
+        </div>
+        {template.options && template.options.length > 0 && (
+          <div className={styles.cardContainer}>
+            {template.options.map((option) => (
+              <div key={option.id} className={styles.cardItem} onClick={() => onSelect(option.id)}>
+                <div className="font-medium">{option.name}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Render the appropriate template based on type
+  switch (template.type) {
+    case "text":
+      return renderTextTemplate();
+    case "button":
+      return renderButtonTemplate();
+    case "list":
+      return renderListTemplate();
+    case "card":
+      return renderCardTemplate();
+    default:
+      return renderTextTemplate();
+  }
+};
 

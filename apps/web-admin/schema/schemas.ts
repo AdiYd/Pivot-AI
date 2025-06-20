@@ -216,7 +216,7 @@ export const ConversationSchema = z.object({
 
 
 export const DatabaseSchema = z.object({
-  restaurants: z.array(RestaurantSchema).default([]), // Array of restaurants
-  orders: z.array(OrderSchema).default([]),           // Array of orders
-  conversations: z.array(ConversationSchema).default([]) // Array of conversations
+  restaurants: z.record(RestaurantSchema), // Collection of restaurant documents keyed by legalId
+  orders: z.record(OrderSchema),           // Collection of order documents keyed by orderId
+  conversations: z.record(ConversationSchema) // Collection of conversation documents keyed by phoneNumber
 });

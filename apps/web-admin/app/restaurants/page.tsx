@@ -48,9 +48,10 @@ import { Icon } from '@iconify/react/dist/iconify.js';
 
 // Import the actual database
 import exampleDatabase from '@/schema/example';
-import { Contact, Order, paymentProvider, Restaurant, Supplier, SupplierCategory } from '@/schema/types';
+import { Contact, DataBase, Order, paymentProvider, Restaurant, Supplier, SupplierCategory } from '@/schema/types';
 import { getCategoryBadge } from '@/components/ui/badge';
 import { DebugButton, debugFunction } from '@/components/debug';
+import { useFirebase } from '@/lib/firebaseClient';
 
 
 declare type Stats = {
@@ -63,7 +64,8 @@ declare type Stats = {
 };
 
 export default function RestaurantsPage() {
-  const [data, setData] = useState(exampleDatabase);
+  const {database} = useFirebase();
+  const [data, setData] = useState(database || exampleDatabase);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant & { stats: Stats } | null>(null);
   const [isLoading, setIsLoading] = useState(false);

@@ -12,9 +12,12 @@ import {
   supplierCategorySchema,
   orderStatusSchema,
   daysSchema,
+  DatabaseSchema,
 } from './schemas';
 
 // ======== Schema-based types using z.infer ========
+export type DataBase = z.infer<typeof DatabaseSchema>;
+
 
 // Core types derived directly from schemas
 export type Contact = z.infer<typeof ContactSchema>;
