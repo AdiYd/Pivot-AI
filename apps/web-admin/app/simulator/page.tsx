@@ -902,7 +902,7 @@ const WhatsAppTemplateRenderer = ({ message, context, onSelect }: WhatsAppTempla
   
   // WhatsApp UI style constants
   const styles = {
-    container: "rounded-[10px] px-4 min-h-full rounded-bl-none overflow-hidden max-w-lg min-w-[300px] max-sm:!min-w-[260px] w-full",
+    container: "rounded-[10px] px-4 mb-2 min-h-full rounded-bl-none overflow-hidden max-w-lg min-w-[300px] max-sm:!min-w-[260px] w-full",
     header: "p-3 bg-green-500 text-white",
     mediaHeader: "w-full h-40 bg-gray-100 dark:bg-gray-700 overflow-hidden",
     body: "p-2 text-sm",
@@ -913,7 +913,7 @@ const WhatsAppTemplateRenderer = ({ message, context, onSelect }: WhatsAppTempla
     listContainer: "border-gray-200 dark:border-gray-700 min-h-full overflow-y-auto",
     listItem: "p-3 flex items-center text-sm justify-between hover:bg-gray-200/50 dark:hover:bg-gray-800 transition-colors cursor-pointer border-b last:border-b-0 my-0 flex justify-center border-gray-400 overflow-y-auto",
     buttonMultiple: "p-3 flex text-center items-center text-sm justify-center gap-2 hover:bg-gray-200/50 dark:hover:bg-gray-800 transition-colors cursor-pointer border rounded-lg my-0.5 flex justify-center border-gray-400 overflow-y-auto",
-    buttonSingle: "p-3 flex text-center font-bold items-center text-green-600 dark:text-green-400 text-sm justify-center gap-2 hover:bg-gray-200/50 dark:hover:bg-gray-800 transition-colors cursor-pointer border rounded-lg my-1 flex justify-center border-green-500 overflow-y-auto",
+    buttonSingle: "p-3 flex text-center font-bold items-center text-white justify-center gap-2 bg-gradient-to-r from-green-700 to-green-500  hover:bg-gradient-to-l dark:from-green-400 dark:to-green-600 border-purple-500 border-2 shadow-md hover:shadow-purple-400 transform transition-all ease-in-out duration-200 cursor-pointer border-none rounded-lg my-1 flex justify-center gap-2 overflow-y-auto",
     cardContainer: "p-3 space-y-2",
     cardItem: "bg-gray-100 border text-center dark:bg-gray-800 rounded-md p-3 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors cursor-pointer",
   };

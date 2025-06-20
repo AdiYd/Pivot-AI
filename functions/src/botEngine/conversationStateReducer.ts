@@ -8,7 +8,7 @@ import {
   StateObject,
 } from '../schema/types';
 import { STATE_MESSAGES } from '../schema/states';
-import { ProductSchema, RestaurantSchema, SupplierSchema } from '../schema/schemas';
+import { ProductSchema, restaurantLegalIdSchema, RestaurantSchema, SupplierSchema } from '../schema/schemas';
 import { callOpenAISchema } from '../utils/openAI';
 
 /**
@@ -142,7 +142,9 @@ function createActionFromState(
         payload: restaurantData
       };
     case 'CREATE_SUPPLIER':
-        const supplierData = SupplierSchema.parse({
+        const supplierData = SupplierSchema.extend({
+              restaurantId: restaurantLegalIdSchema,
+            }).parse({
           restaurantId: context.legalId || '',
           whatsapp: context.supplierWhatsapp || '',
           name: context.supplierName || '',
@@ -158,7 +160,9 @@ function createActionFromState(
       };
       
     case 'UPDATE_SUPPLIER':
-      const supplierUpdateData =SupplierSchema.parse(
+      const supplierUpdateData =SupplierSchema.extend({
+              restaurantId: restaurantLegalIdSchema,
+            }).parse(
         {
           restaurantId: context.legalId || '',
           whatsapp: context.supplierWhatsapp || '',

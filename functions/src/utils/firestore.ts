@@ -256,6 +256,8 @@ export async function updateSupplier(
     );
 
     let updatedSuppliers: Supplier[];
+    const now = new Date(); // Use regular Date instead of FieldValue.serverTimestamp()
+
     
     if (existingSupplierIndex >= 0) {
       // Update existing supplier by merging data
@@ -265,9 +267,9 @@ export async function updateSupplier(
       updatedSuppliers[existingSupplierIndex] = {
         ...currentSuppliers[existingSupplierIndex],
         ...validData,
-        updatedAt: FieldValue.serverTimestamp(),
+        updatedAt: now,
         // Keep original createdAt if it exists
-        createdAt: currentSuppliers[existingSupplierIndex].createdAt || FieldValue.serverTimestamp()
+        createdAt: currentSuppliers[existingSupplierIndex].createdAt || now
       };
     } else {
       // Add new supplier to the array
@@ -275,8 +277,8 @@ export async function updateSupplier(
       
       const newSupplier: Supplier = {
         ...validData,
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp()
+        createdAt: now,
+        updatedAt: now
       };
       
       updatedSuppliers = [...currentSuppliers, newSupplier];
@@ -285,7 +287,7 @@ export async function updateSupplier(
     // Update the restaurant document with the new suppliers array
     await restaurantRef.update({
       suppliers: updatedSuppliers,
-      updatedAt: FieldValue.serverTimestamp()
+      updatedAt: now
     });
     
     console.log(`[Firestore] ✅ Supplier "${validData.name}" ${existingSupplierIndex >= 0 ? 'updated' : 'created'} successfully`);
