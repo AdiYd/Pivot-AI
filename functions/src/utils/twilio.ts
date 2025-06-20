@@ -2,6 +2,11 @@ import { Twilio } from 'twilio';
 import * as crypto from 'crypto';
 import { Request } from 'firebase-functions/v1';
 
+// Load environment variables for local development
+if (process.env.NODE_ENV !== 'production' && process.env.FUNCTIONS_EMULATOR === 'true') {
+  require('dotenv').config();
+}
+
 let client: Twilio | null = null;
 
 /**

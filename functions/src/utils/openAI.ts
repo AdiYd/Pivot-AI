@@ -3,13 +3,31 @@ import { BotState } from "../schema/types";
 import OpenAI from "openai";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
+import { getConfig } from "./config";
+// Load environment variables for local development
+if (process.env.NODE_ENV !== 'production' && process.env.FUNCTIONS_EMULATOR === 'true') {
+  require('dotenv').config();
+}
 
-// import * as functions from "firebase-functions/v1";
+// Initialize OpenAI client lazily to avoid initialization errors during build
+let openaiClient: OpenAI | null = null;
 
-// Initialize OpenAI with API key from environment
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+function getOpenAIClient(): OpenAI {
+  if (!openaiClient) {
+    const config = getConfig();
+    const apiKey = config.openai.apiKey;
+
+    if (!apiKey) {
+      throw new Error('OPENAI_API_KEY environment variable is missing or empty');
+    }
+    
+    openaiClient = new OpenAI({
+      apiKey: apiKey,
+    });
+  }
+  
+  return openaiClient;
+}
 
 /**
  * Call OpenAI to process and structure user input
@@ -20,6 +38,7 @@ const openai = new OpenAI({
  */
 export async function callOpenAISchema(userInput: string, currentState: BotState): Promise<any> {
   try {
+    const openai = getOpenAIClient();
     // Convert to JSON schema
     const currentStateDefinition = STATE_MESSAGES[currentState];
     const schema = currentStateDefinition.aiValidation?.schema || currentStateDefinition.validator || z.object({});
