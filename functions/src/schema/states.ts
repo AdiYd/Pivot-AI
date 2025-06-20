@@ -193,7 +193,6 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
   
   "ONBOARDING_COMPANY_NAME": {
     message: `📄 *תהליך הרשמה למערכת*
-
     מהו השם החוקי של העסק או החברה שלך?`,
     description: "Ask for the legal company name as the first step of onboarding.",
     validator: restaurantLegalNameSchema,
@@ -268,7 +267,7 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
     whatsappTemplate: {
       id: "payment_options_template",
       type: "button",
-      body: `💳 *בחר שיטת תשלום:*
+      body: `💳 *בחר שיטת תשלום*
       המערכת זמינה בתשלום חודשי. בחר את האופציה המועדפת עליך:`,
       options: [
         { name: "כרטיס אשראי", id: "credit_card" },
@@ -366,7 +365,6 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
 
   "SUPPLIER_CONTACT": {
     message: `👤 *מה שם ומספר הוואטסאפ של הספק?*
-    
     לדוגמה: ירקות השדה, 
     0501234567`,
     description: "Ask for the supplier's name and phone number.",
@@ -389,19 +387,14 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
       id: "supplier_reminders_template",
       type: "list",
       body: `📅 *כעת נגדיר את הזמנים בהם תרצה לקבל תזכורות לבצע הזמנה מהספק*
-      יש לבחור בזמנים מהרשימה *או* לכתוב יום ושעה עגולה שבה אתה נוהג לחדש הזמנה מהספק
+      אפשר לבחור מהזמנים המוצעים כדוגמה
+      *או* לכתוב ימים ושעה עגולה שבה אתה נוהג לחדש הזמנה מהספק
 
-      לדוגמה: יום שני וחמישי ב14
-      לסיום יש ללחוץ על "סיום בחירה"`,
+      לדוגמה: יום שני וחמישי ב14`,
       options: [
-        { name: "ראשון, 11:00", id: "sun, 12:00" },
-        { name: "שני, 11:00", id: "mon, 12:00" },
-        { name: "שלישי, 11:00", id: "tue, 12:00" },
-        { name: "רביעי, 11:00", id: "wed, 12:00" },
-        { name: "חמישי, 11:00", id: "thu, 12:00" },
-        { name: "שישי, 10:00", id: "fri, 10:00" },
-        { name: "שבת, 10:00", id: "sat, 10:00" },
-        { name: "סיום בחירה", id: "finished" }
+        { name: "ראשון וחמישי ב-11:00", id: "ראשון וחמישי ב-11:00" },
+        { name: "שני ושישי ב-10:00", id: "שני ושישי ב-10:00" },
+        { name: "כל יום ב-12:00", id: "כל יום ב-12:00" },
       ]
     },
     description: "Select which days of the week this supplier delivers goods.",
@@ -414,27 +407,18 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
       context.supplierReminders = data.reminders;
     },
     nextState: {
-      finished: "PRODUCTS_LIST",
+      aiValid: "PRODUCTS_LIST",
     }
   },
 
   "PRODUCTS_LIST": {
-    whatsappTemplate: {
-      id: "supplier_products_template",
-      type: "list",
-      body: `🏷️ נגדיר עכשיו את רשימת המוצרים שאתה מזמין מהספק ואת pcs המידה שלהם
-      בחרו מתוך הרשימה המוצעת או כיתבו בצורה ברורה את רשימת המוצרים המלאה שאתם מזמינים מהספק ואת pcs המידה שלהם
-
-      לדוגמה:
-      ק"ג: 🍅 עגבניות שרי, 🥒 מלפפון, 🧅 בצל, 🥕 גזר
-      יח': 🥬 חסה, 🌿 פטרוזיליה`,
-      options: [
-        // Will be dynamically populated with products references from the supplier's categories, deducting already selected products
-        {name: "סיום בחירת מוצרים", id: "finished" }
-      ]
-        
-    },
     description: "Select products from the list or enter a custom product name and units in order to create full products list from the supplier.",
+    message: `🏷️ נגדיר עכשיו את רשימת המוצרים שאתה מזמין מהספק ואת יחידות המידה שלהם
+      כיתבו בצורה ברורה את רשימת המוצרים המלאה שאתם מזמינים מהספק ואת יחידות המידה שלהם, לדוגמה:
+
+      ק"ג: 🍅 עגבניות שרי, 🥒 מלפפון, 🧅 בצל, 🥕 גזר
+      יח': 🥬 חסה, 🌿 פטרוזיליה
+      `,
     aiValidation: {
       prompt: "עליך לבקש מהמשתמש לבחור, לרשום בכל דרך שיבחר רשימה של מוצרים וpcs המידה שלהם שאותם ניתן להזמין מהספק, אם נתונים על מוצר מסויים חסרים, השלם אותם לפי הסבירות הגבוהה ביותר.",
       schema: z.array(ProductSchema.pick({ name: true, unit: true, emoji: true }))
@@ -450,24 +434,15 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
 
 
   "PRODUCTS_BASE_QTY": {
-    whatsappTemplate: {
-      id: "supplieder_products_base_qty_template",
-      type: "list",
-      body: `📦 *הגדרת מצבת בסיס למוצרים*
-      \n\n
+    message:  `📦 *הגדרת מצבת בסיס למוצרים*
       כדי שנוכל ליעל את תהליך ההזמנה, נגדיר כמות בסיס לכל מוצר. כמות זו תעזור לנו לחשב את ההזמנה המומלצת שלך אוטומטית.
-      \n\n
-      עבור כל מוצר, הזן את הכמות הבסיסית הנדרשת למסעדה לאמצע שבוע, ואת הכמות הנדרשת לסוף שבוע בפורמט: [שם מוצר] - [כמות אמצע שבוע], [כמות סוף שבוע].
-      \n\n
+      עבור כל מוצר, הזן את הכמות הבסיסית הנדרשת למסעדה לאמצע שבוע, ואת הכמות הנדרשת לסוף שבוע בפורמט:
+      *[שם מוצר] - [כמות אמצע שבוע], [כמות סוף שבוע]*
+      
       לדוגמה:
-      \n
-      עגבניות- 15, 20
-      \n
-      מלפפון- 10, 15
-      \n
-      חסה- 5, 10`,
-      options: [] // Will be dynamically populated with the pre-defined products
-    },
+      עגבניות - 15, 20
+      מלפפון - 10, 15
+      חסה - 5, 10`,
     description: "Iterate over the defined products and ask for their base quantity in the specified unit, for midweek and for weekend.",
     aiValidation: {
       prompt: "עליך לבקש מהמשתמש להזין את הכמות הבסיסית הנדרשת ליחידה אחת של כל מוצר ברשימה, עבור כל מוצר יש להזין כמות בסיס לשימוש באמצע השבוע ובסוף השבוע.",

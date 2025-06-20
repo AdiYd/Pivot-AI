@@ -1,5 +1,5 @@
 import { STATE_MESSAGES } from "../schema/states";
-import { BotState } from "../schema/types";
+import { BotState, ConversationContext } from "../schema/types";
 import OpenAI from "openai";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
@@ -36,7 +36,7 @@ function getOpenAIClient(): OpenAI {
  * @param userInput User's message to process
  * @returns Structured data or enhanced interpretation
  */
-export async function callOpenAISchema(userInput: string, currentState: BotState): Promise<any> {
+export async function callOpenAISchema(userInput: string, currentState: BotState, currentContext: ConversationContext, messagesHistory: string): Promise<any> {
   try {
     const openai = getOpenAIClient();
     // Convert to JSON schema
@@ -71,9 +71,13 @@ export async function callOpenAISchema(userInput: string, currentState: BotState
                 type: "boolean",
                 description: "True only if the assistant is confident that the structured data represents exactly what the user intended."
               },
+              approval_message: {
+                type: "string",
+                description: "If 'is_data_final_and_confirmed' is true, Provide a message (In Hebrew) that summarizes in a visually appealing way. Style the message in a simple and intuitive manner, focusing on the data you structured and completed from the user's message. don't include any unnecessary details or questions. use new lines to separate different sections of the message, and use emojis to enhance readability and engagement. Use *bold* text to highlight important information, and use bullet points or numbered lists to organize the data clearly. The message should be concise, clear, and visually appealing, making it easy for the user to understand the structured data at a glance.",
+              },
               follow_up_message: {
                 type: "string",
-                description: "Instruction, question or message (In Hebrew) from the assistant to help the user improve or clarify the input towards the desired outcome."
+                description: "If 'is_data_final_and_confirmed' is false, Provide Instruction, question or message (In Hebrew) from the assistant to help the user improve or clarify the input towards the desired outcome. (otherwise, leave empty). This message should be clear and actionable, guiding the user to provide the necessary information or corrections."
               }
             },
             required: ["is_user_data_valid", "is_data_completed_by_ai", "is_data_final_and_confirmed", "follow_up_message"]
@@ -113,16 +117,18 @@ export async function callOpenAISchema(userInput: string, currentState: BotState
         בכל שלב שבו תתבקש, תקבל את הודעות המשתמש יחד עם תיאור השלב ומה נדרש ממך לעשות.
         לרוב, תצטרך לוודא את ההודעה של המשתמש, לעבד אותה ולספק תשובה מובנית או לבצע פעולה במערכת.
         כאשר מצורף \`schema\`, עליך לוודא שהתשובה שלך תואמת למבנה הנתונים שניתן לך.
-        תצטרך לבנות אובייקט JSON או טקסט מובנה אחר בהתאם לדרישות השלב ולהשלים את הנתונים ביחס ביחד עם הודעת המשתמש.
-        עליך תמיד לספק את התשובה הסבירה והקרובה ביותר, השתמש בידע מתחום המסעדות כדי להעריך בצורה חכמה את הצרכים והרצונות של המשתמש.
+        תצטרך לבנות אובייקט JSON או טקסט מובנה אחר בהתאם לדרישות השלב ולהשלים את הנתונים ביחד עם הודעת המשתמש.
+        עליך תמיד לספק את התשובה הסבירה והקרובה ביותר בהתאם למידע שניתן לך, השתמש בידע מתחום המסעדות כדי להעריך בצורה חכמה את הצרכים והרצונות של המשתמש.
         המטרה שלך היא תמיד לייצר בהירות, סדר וקישורים בין הנתונים השונים במערכת ודרישות הלקוח.
         יש לענות בטון חברי ומכבד, מקצועי וחביב, עם מעט הומור כאשר זה מתאים ותמיד רצון לעזור ולטפל. בנוסף יש לשמור על שפה פשוטה וברורה, משפטים קצרים ושפה מקצועית בתחום המסעדות והספקים.
           ` },
-        { role: "system", content: `השלב הנוכחי הוא: ${currentState}` },
-        { role: "system", content: `תיאור השלב: ${currentStateDefinition.description}` },
-        { role: "system", content: `הוראות למשתמש: ${currentStateDefinition.message || currentStateDefinition.whatsappTemplate?.body}` },
-        { role: "system", content: `מה עליך לעשות: ${currentStateDefinition.aiValidation?.prompt || ""}` },
-        { role: "user", content: userInput }
+          { role: "system", content: `השלב הנוכחי הוא: ${currentState}` },
+          { role: "system", content: `תיאור השלב: ${currentStateDefinition.description}` },
+          { role: "system", content: `הוראות למשתמש: ${currentStateDefinition.message || currentStateDefinition.whatsappTemplate?.body}` },
+          { role: "system", content: `מה עליך לעשות: ${currentStateDefinition.aiValidation?.prompt || ""}` },
+          { role: "system", content: `היסטוריית השיחות הקודמות: ${messagesHistory || "אין היסטוריה"}` },
+          { role: "user",   content: `נתונים גולמיים משיחות קודמות: ${JSON.stringify(currentContext, null, 2) || ""}` },
+          { role: "user",   content: userInput }
       ],
       temperature: 0.3, // Lower temperature for more predictable, structured output
       max_tokens: 500,
@@ -156,7 +162,7 @@ export async function callOpenAISchema(userInput: string, currentState: BotState
         error: result.meta.follow_up_message
     };
     }
-    return {data: result.data, meta: result.meta, aiValid: true};
+    return {data: result.data, meta: result.meta, ai: true};
 
   } catch (error) {
     console.error("OpenAI API call failed:", error);

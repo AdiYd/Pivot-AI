@@ -809,7 +809,21 @@ const WhatsAppTemplateRenderer = ({ message, context, onSelect }: WhatsAppTempla
   let template : StateObject['whatsappTemplate'];
   const currentState = message.messageState;
   
-  if (currentState && STATE_MESSAGES[currentState as BotState]) {
+  if (message.templateId === 'approval_template') {
+      const approvalMessageWrapper = `
+          ${message.body}
+          ` 
+          // Send the approval Template message for whatsapp card with button to approve
+      template = {
+        id: 'approval_template',
+        type: 'button',
+        body: approvalMessageWrapper,
+        options: [
+          { name: 'אישור', id: 'aiValid' },
+        ]
+      }   
+  }
+  else if (currentState && STATE_MESSAGES[currentState as BotState]) {
     template = STATE_MESSAGES[currentState as BotState].whatsappTemplate;
   }
   
@@ -821,8 +835,8 @@ const WhatsAppTemplateRenderer = ({ message, context, onSelect }: WhatsAppTempla
         template = JSON.parse(message.body);
       } else {
         return (
-          <div className="p-3 bg-muted rounded-md">
-            <p className="text-sm">{message.body}</p>
+          <div className="p-3 rounded-md">
+            <p className="text-sm whitespace-pre-line">{message.body}</p>
             <div className="text-xs text-muted-foreground mt-2">
               Template ID: {message.templateId || 'Unknown'}
             </div>

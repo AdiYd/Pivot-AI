@@ -32,7 +32,9 @@ async function stateValidator(
   input: string,
   validator?: z.ZodTypeAny,
   aiValidation?: StateObject['aiValidation'],
-  currentState?: BotState
+  currentState?: BotState,
+  currentContext?: ConversationContext,
+  messagesHistory?: string
 ): Promise<any | null> {
   try {
     // Trim input to remove leading/trailing whitespace
@@ -48,7 +50,8 @@ async function stateValidator(
       // Process with AI first
       
       try {
-        const aiResult = await callOpenAISchema(trimmedInput, currentState as BotState);
+        //Collect history of messages only from the current state and map them to body only
+        const aiResult = await callOpenAISchema(trimmedInput, currentState as BotState, currentContext as ConversationContext, messagesHistory as string);
         console.log(`[StateReducer] AI validation result:`, aiResult);
         
         // If AI returns structured data and we have a schema, validate it
@@ -338,7 +341,7 @@ export async function conversationStateReducer(
     let nextState: BotState | null = null;
 
     // Check if this is a template option selection
-    if (currentStateDefinition.whatsappTemplate?.options) {
+    if (currentStateDefinition.whatsappTemplate?.options && userInput !== 'aiValid') {
       const selectedOption = currentStateDefinition.whatsappTemplate.options.find(
         option => option.id === userInput
       );
@@ -373,14 +376,75 @@ export async function conversationStateReducer(
     }
     
     // First, try to validate the input
-    if (currentStateDefinition.validator) {
+    if (currentStateDefinition.validator && userInput !== 'aiValid') {
       try {
+        const filteredMessages = conversation.messages.filter(msg => msg.messageState === conversation.currentState)
+          .map(msg => {
+            // Handle both Date objects and Firestore Timestamps
+            let timeString = '';
+            if (msg.createdAt) {
+              if (msg.createdAt instanceof Date) {
+                timeString = msg.createdAt.toISOString();
+              } else if (msg.createdAt.toDate && typeof msg.createdAt.toDate === 'function') {
+                // Firestore Timestamp
+                timeString = msg.createdAt.toDate().toISOString();
+              } else if (msg.createdAt.seconds) {
+                // Firestore Timestamp as plain object
+                timeString = new Date(msg.createdAt.seconds * 1000).toISOString();
+              } else {
+                timeString = String(msg.createdAt);
+              }
+            }
+            return `${msg.role}: ${msg.body} [${timeString}]`;
+      }).join('\n');
+
+        console.log('******* filteredMessages *******', filteredMessages);
+        
         validationResult = await stateValidator(
           userInput, 
           currentStateDefinition.validator,
           currentStateDefinition.aiValidation,
-          conversation.currentState
+          conversation.currentState,
+          conversation.context,
+          filteredMessages
         );
+
+        if (validationResult.ai 
+          && validationResult.meta 
+          && validationResult.meta?.is_user_data_valid 
+        ) {
+          const approvalMessage = validationResult.meta?.approval_message;
+          if (approvalMessage) {          
+             const approvalMessageWrapper = `
+             ✅ אנא אשר את הפרטים הבאים לפני ההמשך:
+             
+             ${approvalMessage}
+              \n\n
+              יש לאשר על ידי לחיצה על כפתור "אישור" למטה.
+              *במידה ויש צורך בתיקונים, יש לכתוב הודעה עם ההערות המתאימות.*`  
+              // Send the approval Template message for whatsapp card with button to approve
+              const approvalAction = createMessageAction(
+                {
+                  whatsappTemplate: {
+                    id: 'approval_template',
+                    type: 'button',
+                    body: approvalMessageWrapper,
+                    options: [
+                      { name: 'אישור', id: 'aiValid' },
+                    ]
+                  },
+                  description: 'Approval message for AI validated data',
+                },
+                message.from,
+                result.newState.context
+              );
+              result.actions.push(approvalAction);
+              result.newState.context.dataToApprove = validationResult.data; // Store data to approve in context temporarily
+
+              return result; // Wait for user response to approval
+          }
+        }
+
       } catch (validationError) {
         console.error(`[StateReducer] Validation error:`, validationError);
         
@@ -399,7 +463,7 @@ export async function conversationStateReducer(
             type: 'SEND_MESSAGE',
             payload: {
               to: message.from,
-              body: '⚠️ הקלט שהזנת אינו תקין. אנא נסה שוב.'
+              body: '⚠️ מצטערים, יש שגיאה בהזנה או עיבוד הנתונים כרגע. אנא נסה שוב בזמן אחר.'
             }
           });
         }
@@ -409,7 +473,7 @@ export async function conversationStateReducer(
       }
     } else {
       // If no validator, just use the trimmed input
-      validationResult = { data: userInput.trim() };
+      validationResult = { data: result.newState?.context?.dataToApprove || userInput.trim(), aiValid: userInput === 'aiValid' };
     }
     
     // If validation failed
@@ -470,6 +534,10 @@ export async function conversationStateReducer(
       }
       if (validationResult.aiValid && currentStateDefinition.nextState.aiValid) {
         nextState = currentStateDefinition.nextState.aiValid;
+        if (result.newState.context.dataToApprove) {
+          delete result.newState.context.dataToApprove; // Clear temporary data
+        }
+
       }
       // Handle list selection or template button response
       else if (typeof validationResult.data === 'string' && currentStateDefinition.nextState[validationResult.data]) {
