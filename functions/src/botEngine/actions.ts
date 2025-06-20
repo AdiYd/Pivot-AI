@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { BotAction, Contact } from '../schema/types';
 import { sendWhatsAppMessage } from '../utils/twilio';
 import { createRestaurant, updateSupplier, logMessage } from '../utils/firestore';
-import { MessageSchema, RestaurantSchema, SupplierSchema } from '../schema/schemas';
+import { MessageSchema, restaurantLegalIdSchema, RestaurantSchema, SupplierSchema } from '../schema/schemas';
 
 // Zod schemas for payload validation
 const SendMessagePayloadSchema = z.object({
@@ -52,7 +52,7 @@ export async function processActions(
             // In simulator mode, collect the message but don't send it
             if (isSimulator) {
               responses.push(validPayload);
-              console.log(`[BotActions] 📱 Simulator message: ${validPayload.body?.substring(0, 50)}...`);
+              console.log(`[BotActions] 📱 Simulator message: ${validPayload.body?.substring(0, 50) || validPayload.template?.body?.substring(0, 50) || ''}...`);
             } else {
               // Real Twilio messages for production
               await sendWhatsAppMessage(validPayload.to, validPayload.body || '');
@@ -62,12 +62,13 @@ export async function processActions(
             if (phone) {
               const message = MessageSchema.parse({
                 role: "assistant",
-                body: validPayload.body || '',
+                body: validPayload.body || validPayload.template?.body || '',
                 ...(!!validPayload.template && 
                   {
                     templateId: validPayload.template?.id,
                     hasTemplate: !!validPayload.template
-                  })
+                  }),
+                messageState: action.payload?.messageState
               });
               const phoneNumber = phone.replace("whatsapp:", "") as Contact['whatsapp'];
               await logMessage(phoneNumber, message, isSimulator);
@@ -88,6 +89,21 @@ export async function processActions(
             if (validationError instanceof z.ZodError) {
               console.error(`[BotActions] ❌ Invalid CREATE_RESTAURANT payload:`, validationError.errors);
               throw new Error(`Invalid CREATE_RESTAURANT payload: ${validationError.errors.map(e => e.message).join(', ')}`);
+            }
+            throw validationError;
+          }
+          break;
+
+        case "CREATE_SUPPLIER":
+          try {
+            const validPayload = SupplierSchema.extend({
+              restaurantId: restaurantLegalIdSchema,
+            }).parse(action.payload);
+            await updateSupplier(validPayload, isSimulator);
+          } catch (validationError) {
+            if (validationError instanceof z.ZodError) {
+              console.error(`[BotActions] ❌ Invalid CREATE_SUPPLIER payload:`, validationError.errors);
+              throw new Error(`Invalid CREATE_SUPPLIER payload: ${validationError.errors.map(e => e.message).join(', ')}`);
             }
             throw validationError;
           }

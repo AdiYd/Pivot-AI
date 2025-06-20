@@ -73,7 +73,7 @@ export async function callOpenAISchema(userInput: string, currentState: BotState
               },
               approval_message: {
                 type: "string",
-                description: "If 'is_data_final_and_confirmed' is true, Provide a message (In Hebrew) that summarizes in a visually appealing way. Style the message in a simple and intuitive manner, focusing on the data you structured and completed from the user's message. don't include any unnecessary details or questions. use new lines to separate different sections of the message, and use emojis to enhance readability and engagement. Use *bold* text to highlight important information, and use bullet points or numbered lists to organize the data clearly. The message should be concise, clear, and visually appealing, making it easy for the user to understand the structured data at a glance.",
+                description: "If 'is_data_final_and_confirmed' is true, Provide a message (In Hebrew) that summarizes in a visually appealing way. Style the message in a simple and intuitive manner, focusing on the data you structured and completed from the user's message. don't include any unnecessary details or questions and don't make it sound as if the data is already confirmed, the message's purpose is to inform the user about the structured data and get his final approval. use new lines to separate different sections of the message, and use emojis to enhance readability and engagement. Use *bold* text to highlight important information, and use bullet points or numbered lists to organize the data clearly. The message should be concise, clear, and visually appealing, making it easy for the user to understand the structured data at a glance.",
               },
               follow_up_message: {
                 type: "string",
@@ -130,8 +130,8 @@ export async function callOpenAISchema(userInput: string, currentState: BotState
           { role: "user",   content: `נתונים גולמיים משיחות קודמות: ${JSON.stringify(currentContext, null, 2) || ""}` },
           { role: "user",   content: userInput }
       ],
-      temperature: 0.3, // Lower temperature for more predictable, structured output
-      max_tokens: 500,
+      temperature: 0.4, // Lower temperature for more predictable, structured output
+      max_tokens: 2500,
       tools: [
         {type: "function", function: functionStyle}
       ],

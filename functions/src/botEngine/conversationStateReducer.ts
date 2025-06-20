@@ -122,14 +122,14 @@ function createActionFromState(
     case 'CREATE_RESTAURANT':
         const restaurantData = RestaurantSchema.parse(
         {
-          legalId: context.legalId || '',
+          legalId: context.legalId || context.restaurantId,
           legalName: context.companyName || '',
           name: context.restaurantName || '',
           contacts: [{
             whatsapp: context.contactNumber || '',
             name: context.contactName || '',
             role: 'owner',
-            email: context.contactEmail || undefined
+           ...(context.contactEmail && { email: context.contactEmail })
           }],
           payment: {
             provider: context.paymentMethod || 'trial',
@@ -147,7 +147,7 @@ function createActionFromState(
           whatsapp: context.supplierWhatsapp || '',
           name: context.supplierName || '',
           role: 'supplier',
-          email: context.supplierEmail || undefined,
+          ...(context.supplierEmail && { email: context.supplierEmail }),
           category: Array.isArray(context.supplierCategories) ? context.supplierCategories : [],
           reminders: context.supplierReminders || [],
           products: context.supplierProducts || []
@@ -232,7 +232,8 @@ function createActionFromState(
 function createMessageAction(
   messageData: StateObject,
   to: string,
-  context: ConversationContext
+  context: ConversationContext,
+  currentState: BotState
 ): BotAction {
   // Prepare message template if defined
   if (messageData.whatsappTemplate) {
@@ -260,7 +261,8 @@ function createMessageAction(
           ...template,
           body,
           options
-        }
+        },
+        messageState: currentState
       }
     };
   }
@@ -281,7 +283,8 @@ function createMessageAction(
       type: 'SEND_MESSAGE',
       payload: {
         to,
-        body
+        body,
+        messageState: currentState
       }
     };
   }
@@ -291,7 +294,8 @@ function createMessageAction(
     type: 'SEND_MESSAGE',
     payload: {
       to,
-      body: '⚠️ כרגע אין לי מידע להציג. אנא נסה שוב מאוחר יותר.'
+      body: '⚠️ כרגע אין לי מידע להציג. אנא נסה שוב מאוחר יותר.',
+      messageState: currentState
     }
   };
 }
@@ -323,14 +327,16 @@ export async function conversationStateReducer(
       console.error(`[StateReducer] No state definition found for state: ${conversation.currentState}`);
       
       // Reset to IDLE state if definition is not found
-      result.newState.currentState = 'IDLE';
+   
       result.actions.push({
         type: 'SEND_MESSAGE',
         payload: {
           to: message.from,
-          body: '⚠️ אירעה שגיאה במערכת. מצבך אופס למצב התחלתי.'
+          body: '⚠️ אירעה שגיאה במערכת. מצבך אופס למצב התחלתי.',
+          messageState: result.newState.currentState
         }
       });
+      result.newState.currentState = 'IDLE';
       
       return result;
     }
@@ -365,10 +371,22 @@ export async function conversationStateReducer(
               }
             }
             result.newState.currentState = nextState;
+              if (currentStateDefinition.action) {
+                const action = createActionFromState(
+                  currentStateDefinition.action,
+                  result.newState.context,
+                  nextState
+                );
+                
+                if (action) {
+                  result.actions.push(action);
+                }
+              }
             const nextStateMessage = createMessageAction(
-              STATE_MESSAGES[nextState], message.from, result.newState.context
+              STATE_MESSAGES[nextState], message.from, result.newState.context, nextState
             );
             result.actions.push(nextStateMessage);
+              // Create action if defined in the state
             return result;
           }
         }
@@ -379,6 +397,7 @@ export async function conversationStateReducer(
     if (currentStateDefinition.validator && userInput !== 'aiValid') {
       try {
         const filteredMessages = conversation.messages.filter(msg => msg.messageState === conversation.currentState)
+        .slice(-5) // Limit to last 5 messages for context
           .map(msg => {
             // Handle both Date objects and Firestore Timestamps
             let timeString = '';
@@ -411,15 +430,19 @@ export async function conversationStateReducer(
 
         if (validationResult.ai 
           && validationResult.meta 
-          && validationResult.meta?.is_user_data_valid 
+          && validationResult.meta?.is_data_final_and_confirmed 
         ) {
           const approvalMessage = validationResult.meta?.approval_message;
           if (approvalMessage) {          
              const approvalMessageWrapper = `
-             ✅ אנא אשר את הפרטים הבאים לפני ההמשך:
-             
+              ✅ אנא אשר את הפרטים הבאים לפני ההמשך:
+              \n
+              -------------------------------------------------
+              \n
              ${approvalMessage}
-              \n\n
+              \n
+              -------------------------------------------------
+              \n
               יש לאשר על ידי לחיצה על כפתור "אישור" למטה.
               *במידה ויש צורך בתיקונים, יש לכתוב הודעה עם ההערות המתאימות.*`  
               // Send the approval Template message for whatsapp card with button to approve
@@ -436,7 +459,8 @@ export async function conversationStateReducer(
                   description: 'Approval message for AI validated data',
                 },
                 message.from,
-                result.newState.context
+                result.newState.context,
+                conversation.currentState
               );
               result.actions.push(approvalAction);
               result.newState.context.dataToApprove = validationResult.data; // Store data to approve in context temporarily
@@ -454,16 +478,21 @@ export async function conversationStateReducer(
             type: 'SEND_MESSAGE',
             payload: {
               to: message.from,
-              body: currentStateDefinition.validationMessage
+              body: currentStateDefinition.validationMessage,
+              messageState: result.newState.currentState
             }
           });
         } else {
           // Default validation error message
+           if (result.newState.context.dataToApprove) {
+              delete result.newState.context.dataToApprove; // Clear temporary data
+            }
           result.actions.push({
             type: 'SEND_MESSAGE',
             payload: {
               to: message.from,
-              body: '⚠️ מצטערים, יש שגיאה בהזנה או עיבוד הנתונים כרגע. אנא נסה שוב בזמן אחר.'
+              body: '⚠️ מצטערים, יש שגיאה בהזנה או עיבוד הנתונים כרגע. אנא נסה שוב בזמן אחר.',
+              messageState: result.newState.currentState
             }
           });
         }
@@ -486,16 +515,21 @@ export async function conversationStateReducer(
           type: 'SEND_MESSAGE',
           payload: {
             to: message.from,
-            body: currentStateDefinition.validationMessage
+            body: currentStateDefinition.validationMessage,
+            messageState: result.newState.currentState
           }
         });
       } else {
         // Default validation error message
+         if (result.newState.context.dataToApprove) {
+          delete result.newState.context.dataToApprove; // Clear temporary data
+        }
         result.actions.push({
           type: 'SEND_MESSAGE',
           payload: {
             to: message.from,
-            body: '⚠️ הקלט שהזנת אינו תקין. אנא נסה שוב.'
+            body: '⚠️ הקלט שהזנת אינו תקין. אנא נסה שוב.',
+            messageState: result.newState.currentState
           }
         });
       }
@@ -510,7 +544,8 @@ export async function conversationStateReducer(
           type: 'SEND_MESSAGE',
           payload: {
             to: message.from,
-            body: validationResult.error
+            body: validationResult.error,
+            messageState: result.newState.currentState
           }
         });
       // Stay in current state
@@ -550,7 +585,7 @@ export async function conversationStateReducer(
       const action = createActionFromState(
         currentStateDefinition.action,
         result.newState.context,
-        conversation.currentState
+        result.newState.currentState
       );
       
       if (action) {
@@ -573,7 +608,8 @@ export async function conversationStateReducer(
         const messageAction = createMessageAction(
           nextStateDefinition,
           message.from,
-          result.newState.context
+          result.newState.context,
+          nextState
         );
         
         result.actions.push(messageAction);
@@ -585,7 +621,8 @@ export async function conversationStateReducer(
       const repeatMessageAction = createMessageAction(
         currentStateDefinition,
         message.from,
-        result.newState.context
+        result.newState.context,
+        conversation.currentState
       );
       
       result.actions.push(repeatMessageAction);
@@ -595,11 +632,15 @@ export async function conversationStateReducer(
     
     // Handle unexpected errors by returning to IDLE state
     result.newState.currentState = 'IDLE';
+     if (result.newState.context.dataToApprove) {
+          delete result.newState.context.dataToApprove; // Clear temporary data
+      }
     result.actions.push({
       type: 'SEND_MESSAGE',
       payload: {
         to: message.from,
-        body: '⚠️ אירעה שגיאה בלתי צפויה במערכת. אנא נסה שוב או צור קשר עם התמיכה.'
+        body: '⚠️ אירעה שגיאה בלתי צפויה במערכת. אנא נסה שוב או צור קשר עם התמיכה.',
+        messageState: result.newState.currentState
       }
     });
   }

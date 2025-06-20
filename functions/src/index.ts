@@ -111,7 +111,7 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
           body,
           role: 'user',
           createdAt: now,
-          messageState: conversationDoc.data()?.currentState || '' // Use current state or default to INIT
+          messageState: conversationDoc.data()?.currentState || 'INIT', // Use current state or default to INIT
         }),
         updatedAt: FieldValue.serverTimestamp()
       });

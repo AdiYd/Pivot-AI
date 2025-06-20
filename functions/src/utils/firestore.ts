@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import * as admin from 'firebase-admin';
-import {SupplierSchema, ConversationSchema, MessageSchema} from '../schema/schemas';
+import {SupplierSchema, ConversationSchema, MessageSchema, RestaurantSchema} from '../schema/schemas';
 import { Conversation, Supplier,SupplierCategory, Restaurant, Contact, Message } from '../schema/types';
-import { FieldValue, DocumentReference, Query, CollectionReference } from 'firebase-admin/firestore';
+import { FieldValue, DocumentReference } from 'firebase-admin/firestore';
 
 
 
@@ -10,6 +10,10 @@ if (!admin.apps?.length) {
   admin.initializeApp();
 }
 const firestore = admin.firestore();
+// Enable ignoreUndefinedProperties to handle undefined fields gracefully
+firestore.settings({
+  // ignoreUndefinedProperties: true
+});
 console.log(`[Firestore] Initialized Firestore with project ID: ${firestore.databaseId}`);
 
 export type BaseName = 'restaurants' | 'orders' | 'conversations';
@@ -37,7 +41,7 @@ export async function createRestaurant(data: Restaurant, isSimulator: boolean = 
 
   try {
     // Create the restaurant document
-    const restaurantDoc: Restaurant = {
+    let restaurantDoc: Restaurant = {
       legalId: data.legalId,
       legalName: data.legalName,
       name: data.name,
@@ -46,7 +50,6 @@ export async function createRestaurant(data: Restaurant, isSimulator: boolean = 
         whatsapp: "",
         name: "",
         role: "",
-        email: ""
       }],
       payment:  {
         provider: "trial",
@@ -54,9 +57,9 @@ export async function createRestaurant(data: Restaurant, isSimulator: boolean = 
       },
       suppliers: [],
       orders: [],
-      createdAt: FieldValue.serverTimestamp()
+      createdAt: FieldValue.serverTimestamp(),
     };
-
+    restaurantDoc = RestaurantSchema.parse(restaurantDoc); // Validate with Zod schema
     // Use the correct collection based on simulator mode
     const collectionName = getCollectionName('restaurants', isSimulator);
     
@@ -229,7 +232,6 @@ export async function updateSupplier(
   });
 
   try {
-    
     // Use correct collection based on simulator mode
     const restaurantsCollection = getCollectionName('restaurants', isSimulator);
     
@@ -241,25 +243,54 @@ export async function updateSupplier(
       throw new Error(`Restaurant with ID ${data.restaurantId} not found`);
     }
 
-    // Use the whatsapp number as the supplier document ID for easy reference
-    const supplierRef = restaurantRef.collection('suppliers').doc(data.whatsapp);
-    
-    console.log(`[Firestore] Writing to ${restaurantsCollection}/${data.restaurantId}/suppliers/${data.whatsapp}...`);
+    const restaurantData = restaurantDoc.data() as Restaurant;
+    const currentSuppliers = restaurantData.suppliers || [];
 
-    // Check if supplier already exists to merge data properly
-    const existingSupplier = await supplierRef.get();  // Returns DocumentSnapshot or null if not found
-    // Validate input data
-    const validData = SupplierSchema.parse(data);
-    const supplierDoc: Supplier = {
-      ...(existingSupplier.exists ? existingSupplier.data() : {}),
-      ...validData,
-      createdAt: existingSupplier.exists ? existingSupplier.data()?.createdAt || FieldValue.serverTimestamp() : FieldValue.serverTimestamp(),
-    };
-
-    await supplierRef.set(supplierDoc, { merge: true });
+    // Validate input data (exclude restaurantId from validation)
+    const { restaurantId, ...supplierData } = data;
+    const validData = SupplierSchema.parse(supplierData);
     
-    console.log(`[Firestore] ✅ Supplier "${validData.name}" ${existingSupplier.exists ? 'updated' : 'created'} successfully`);
+    // Check if supplier already exists by whatsapp number
+    const existingSupplierIndex = currentSuppliers.findIndex(
+      supplier => supplier.whatsapp === validData.whatsapp
+    );
+
+    let updatedSuppliers: Supplier[];
+    
+    if (existingSupplierIndex >= 0) {
+      // Update existing supplier by merging data
+      console.log(`[Firestore] Updating existing supplier at index ${existingSupplierIndex}`);
+      
+      updatedSuppliers = [...currentSuppliers];
+      updatedSuppliers[existingSupplierIndex] = {
+        ...currentSuppliers[existingSupplierIndex],
+        ...validData,
+        updatedAt: FieldValue.serverTimestamp(),
+        // Keep original createdAt if it exists
+        createdAt: currentSuppliers[existingSupplierIndex].createdAt || FieldValue.serverTimestamp()
+      };
+    } else {
+      // Add new supplier to the array
+      console.log(`[Firestore] Adding new supplier to suppliers array`);
+      
+      const newSupplier: Supplier = {
+        ...validData,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp()
+      };
+      
+      updatedSuppliers = [...currentSuppliers, newSupplier];
+    }
+
+    // Update the restaurant document with the new suppliers array
+    await restaurantRef.update({
+      suppliers: updatedSuppliers,
+      updatedAt: FieldValue.serverTimestamp()
+    });
+    
+    console.log(`[Firestore] ✅ Supplier "${validData.name}" ${existingSupplierIndex >= 0 ? 'updated' : 'created'} successfully`);
     return validData.whatsapp;
+    
   } catch (error) {
     if (error instanceof z.ZodError) {
       console.error(`[Firestore] ❌ Invalid supplier data:`, error.errors);
@@ -280,19 +311,24 @@ export async function updateSupplier(
 export async function getSuppliersByCategory(restaurantId: Restaurant['legalId'], category?: SupplierCategory, isSimulator: boolean = false): Promise<Supplier[]> {
   try {
     const collectionName = getCollectionName('restaurants', isSimulator);
-    let query: Query | CollectionReference = firestore.collection(collectionName).doc(restaurantId).collection('suppliers');
-
-    if (category) {
-      query = query.where('category', 'array-contains', category)
-    }
+    const restaurantDoc = await firestore.collection(collectionName).doc(restaurantId).get();
     
-    const snapshot = await query.get();
-    
-    if (snapshot.empty) {
+    if (!restaurantDoc.exists) {
+      console.log(`[Firestore] Restaurant ${restaurantId} not found`);
       return [];
     }
     
-    return snapshot.docs.map(doc => doc.data() as Supplier);
+    const restaurantData = restaurantDoc.data() as Restaurant;
+    const suppliers = restaurantData.suppliers || [];
+    
+    // Filter by category if provided
+    if (category) {
+      return suppliers.filter(supplier => 
+        supplier.category && supplier.category.includes(category)
+      );
+    }
+    
+    return suppliers;
   } catch (error) {
     console.error(`[Firestore] ❌ Error getting suppliers:`, error);
     throw new Error(`Failed to get suppliers: ${error instanceof Error ? error.message : String(error)}`);
@@ -308,18 +344,20 @@ export async function getSuppliersByCategory(restaurantId: Restaurant['legalId']
 export async function getSupplier(restaurantId: Restaurant['legalId'], supplierId: Contact['whatsapp'], isSimulator: boolean = false): Promise<Supplier | null> {
   try {
     const collectionName = getCollectionName('restaurants', isSimulator);
-    const doc = await firestore
-      .collection(collectionName)
-      .doc(restaurantId)
-      .collection('suppliers')
-      .doc(supplierId)
-      .get();
+    const restaurantDoc = await firestore.collection(collectionName).doc(restaurantId).get();
     
-    if (!doc.exists) {
+    if (!restaurantDoc.exists) {
+      console.log(`[Firestore] Restaurant ${restaurantId} not found`);
       return null;
     }
     
-    return doc.data() as Supplier;
+    const restaurantData = restaurantDoc.data() as Restaurant;
+    const suppliers = restaurantData.suppliers || [];
+    
+    // Find supplier by whatsapp number
+    const supplier = suppliers.find(supplier => supplier.whatsapp === supplierId);
+    
+    return supplier || null;
   } catch (error) {
     console.error(`[Firestore] ❌ Error getting supplier:`, error);
     throw new Error(`Failed to get supplier: ${error instanceof Error ? error.message : String(error)}`);

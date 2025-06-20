@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { emailSchema, nameSchema, ProductSchema, restaurantLegalIdSchema, restaurantLegalNameSchema, restaurantNameSchema, supplierCategorySchema, SupplierSchema } from './schemas';
+import { emailSchema, nameSchema, ProductSchema, restaurantLegalIdSchema, restaurantLegalNameSchema, restaurantNameSchema, SupplierSchema } from './schemas';
 import { BotConfig, BotState, Product, StateObject, SupplierCategory } from './types';
 
 
@@ -266,7 +266,7 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
   "ONBOARDING_PAYMENT_METHOD": {
     whatsappTemplate: {
       id: "payment_options_template",
-      type: "button",
+      type: "list",
       body: `💳 *בחר שיטת תשלום*
       המערכת זמינה בתשלום חודשי. בחר את האופציה המועדפת עליך:`,
       options: [
@@ -275,6 +275,10 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
       ]
     },
     description: "Prompt user to select a payment method for the subscription.",
+    callback: (context, data) => {
+      console.log(`[StateReducer] Setting payment method: ${data}`);
+      context.paymentMethod = data;
+    },
     nextState: {
       credit_card: "WAITING_FOR_PAYMENT",
       trial: "SETUP_SUPPLIERS_START"
@@ -334,7 +338,12 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
       body: `🎉 *הגדרת המסעדה {restaurantName} הושלמה!*
       תודה על שהקדשתם זמן להגדיר את המסעדה שלכם. כעת תוכלו להתחיל להשתמש במערכת לניהול המלאי וההזמנות שלכם.`,
     },
-    description: "Final message indicating the restaurant setup is complete."
+    description: "Final message indicating the restaurant setup is complete.",
+    callback: (context, data) => {
+      if (context.dataToApprove) {
+        delete context.dataToApprove;
+      }
+    },
   },
 
   "SUPPLIER_CATEGORY": {
@@ -342,24 +351,25 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
       id: "supplier_category_template",
       type: "list",
       body: `🚚 *הגדרת ספק חדש למסעדה*
-      בחרו את הקטגוריות המתאימות לספק זה, לסיום הגדרת הקטגוריות, לחצו על "סיום הגדרת קטגוריות".
+      בחרו קטגוריה לספק זה מתוך האפשרויות , *או* כתבו את שם הקטגוריה.
 
-      💡 במידה והספק אחראי על יותר מקטגוריה אחת, ניתן לבחור מספר קטגוריות`,
+      💡 במידה והספק אחראי על יותר מקטגוריה אחת, ניתן לכתוב מספר קטגוריות מופרדות בפסיק`,
       options: [
         // Will be dynamically populated with categories options, deducting already selected categories
-       { name: "סיום הגדרת קטגוריות ✅", id: "finished" }
+       ...Object.entries(CATEGORIES_DICT).map(([id, name]) => ({ id, name: `${name.name}  ${name.emoji}` }))
       ]
     },
     description: "list to select one or more supplier categories from available list.",
-    validator: supplierCategorySchema,
+    aiValidation: {
+      prompt: "עליך לבקש מהמשתמש לבחור קטגוריה (או כמה קטגוריות) לספק הנוכחי מתוך רשימת הקטגוריות המוצעות.",
+      schema: SupplierSchema.pick({ category: true })
+    },
+    validator: SupplierSchema.pick({ category: true }),
     callback: (context, data) => {
-      if (!data || data === "finished") {
-        return; // No categories selected, skip
-      }
-      context.supplierCategories = context.supplierCategories ? [...context.supplierCategories, data] : [data];
+      context.supplierCategories = data.category || [];
     },
     nextState: {
-      finished: "SUPPLIER_CONTACT"
+      aiValid: "SUPPLIER_CONTACT"
     }
   },
 
@@ -451,6 +461,9 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
     validator: z.array(ProductSchema),
     callback: (context, data) => {
       context.supplierProducts = data;
+      if (context.dataToApprove) {
+        delete context.dataToApprove;
+      }
     },
     action: 'CREATE_SUPPLIER',
     nextState: {

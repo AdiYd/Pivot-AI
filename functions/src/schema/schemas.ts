@@ -205,7 +205,7 @@ export const MessageSchema = z.object({
 
 // Conversation schema for validation
 export const ConversationSchema = z.object({
-    currentState: conversationStateSchema.default('IDLE'),                           // Current state of the state machine of the conversation, e.g., "IDLE", "WAITING_FOR_PAYMENT" etc.
+    currentState: conversationStateSchema.default('INIT'),                           // Current state of the state machine of the conversation, e.g., "IDLE", "WAITING_FOR_PAYMENT" etc.
     context: z.record(z.any()).default({}),                            // Context of the conversation, can be any key-value pairs
     messages: z.array(MessageSchema).default([]),                     // Array of messages in the conversation
     restaurantId: restaurantLegalIdSchema.optional(),                // Optional restaurant ID to link between a conversation and a restaurant
