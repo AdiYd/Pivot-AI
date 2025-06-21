@@ -23,7 +23,8 @@ ui-debug.log
 # Production
 dist
 build
-lib
+/lib
+functions/lib
 
 # Environment variables
 .env
