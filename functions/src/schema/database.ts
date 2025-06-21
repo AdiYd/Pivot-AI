@@ -16,7 +16,8 @@
  *     ├─ createdAt: Timestamp
  *     └─ updatedAt: Timestamp
  *
- *     /suppliers[] (array of suppliers objects)
+ *     /suppliers (collection of suppliers objects)
+ *       {supplierId} (doc)
  *         ├─ whatsapp: string                // WhatsApp number (matches document ID)
  *         ├─ name: string
  *         ├─ role: "supplier"              // Always "supplier"
@@ -27,7 +28,8 @@
  *         ├─ createdAt: Timestamp
  *         └─ updatedAt: Timestamp
  *
- *         /products[] (array of products objects)
+ *         /products (collection of products objects)
+ *           {productId} (doc)
  *             ├─ name: string
  *             ├─ unit: string                // "kg", "pcs", etc.
  *             ├─ emoji: string              // Emoji representation
@@ -90,8 +92,9 @@
  *     ├─ role: string (optional) // Role of the contact in conversation
  *     ├─ createdAt: Timestamp
  *     └─ updatedAt: Timestamp
- *     
- *     /messages[] (array of messages objects)
+ *
+ *     /messages (collection of messages objects)
+ *       {messageId} (doc)
  *         ├─ role: string      // "user" or "assistant"
  *         ├─ body: string      // Message content
  *         ├─ templateId: string (optional) // WhatsApp template ID

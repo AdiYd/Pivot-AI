@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { doc, getDoc, collection, query, orderBy, getDocs, deleteDoc, where } from 'firebase/firestore';
-import { db } from '@/lib/firebaseClient';
+import { db, useFirebase } from '@/lib/firebaseClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -48,6 +48,7 @@ const FUNCTION_URL = process.env.NODE_ENV === 'development'
 const SIMULATOR_API_KEY = process.env.NEXT_PUBLIC_SIMULATOR_API_KEY;
 
 export default function SimulatorPage() {
+  const {database, databaseLoading} = useFirebase();
   const [session, setSession] = useState<SimulatorSession>({
     phoneNumber: '0523456789',
     messages: [],
@@ -87,24 +88,10 @@ useEffect(() => {
 
   // Load available conversations on mount
   useEffect(() => {
-    const fetchAvailableConversations = async () => {
-      try {
-        const conversationsRef = collection(db, 'conversations_simulator');
-        const conversationsSnapshot = await getDocs(conversationsRef);
-        const conversations: string[] = [];
-        
-        conversationsSnapshot.forEach(doc => {
-          conversations.push(doc.id);
-        });
-        
-        setAvailableConversations(conversations);
-      } catch (error) {
-        console.error('Error loading available conversations:', error);
-      }
-    };
-
-    fetchAvailableConversations();
-  }, []);
+    if (!databaseLoading) {
+      setAvailableConversations(Object.keys(database.conversations || {}));
+    }
+  }, [databaseLoading, database.conversations]);
 
   // Validate phone number
   const validatePhoneNumber = (phone: string): boolean => {
@@ -376,10 +363,10 @@ useEffect(() => {
   };
 
   return (
-    <div suppressHydrationWarning className="p-6 max-sm:p-0 pt-0 max-h-full space-y-6">
+    <div suppressHydrationWarning className="p-2 max-sm:p-0 pt-0 max-h-full space-y-4">
       <DebugButton debugFunction={debugFunctionLocal} />
       {/* Header */}
-      <div className="flex* hidden items-center justify-between">
+      <div style={{marginTop: '0px'}} className="flex* hidden items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
             <Icon icon="logos:whatsapp-icon" width="1.3em" height="1.3em" />
@@ -388,7 +375,7 @@ useEffect(() => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 h-[86vh] max-sm:h-fit ">
+      <div  className="grid grid-cols-1 lg:grid-cols-4 gap-4 h-[90vh] max-sm:h-fit ">
         {/* Control Panel */}
         <div className="lg:col-span-1 flex flex-col max-sm:row-start-2 justify-between space-y-4">
           {/* Connection */}
@@ -435,7 +422,7 @@ useEffect(() => {
           </Card>
           {/* Conversation State */}
           {session.currentState && (
-            <Card className='max-h-[62vh] h-[fill-available] justify-start gap-2  overflow-y-hidden'>
+            <Card className='max-h-[62vh] h-[stretch] justify-start gap-2  overflow-y-hidden'>
               <CardHeader className='py-1'>
                 <CardTitle className="text-lg">נתוני השיחה</CardTitle>
               </CardHeader>
@@ -901,18 +888,16 @@ const WhatsAppTemplateRenderer = ({ message, context, onSelect }: WhatsAppTempla
   
   // WhatsApp UI style constants
   const styles = {
-    container: "rounded-[10px] px-4 mb-2 min-h-full rounded-bl-none overflow-hidden max-w-lg min-w-[300px] max-sm:!min-w-[260px] w-full",
+    container: "rounded-[10px] px-4 mb-2 min-h-full rounded-bl-none max-w-lg min-w-[300px] max-sm:!min-w-[260px] w-full",
     header: "p-3 bg-green-500 text-white",
     mediaHeader: "w-full h-40 bg-gray-100 dark:bg-gray-700 overflow-hidden",
     body: "p-2 text-sm",
     footer: "border-gray-200 dark:border-gray-700",
     buttonContainer: "grid",
-    // buttonSingle: "p-3 text-center text-green-600 dark:text-green-400 font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer",
-    // buttonMultiple: "p-3 text-center text-green-600 dark:text-green-400 font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer border-b last:border-b-0 border-gray-200 dark:border-gray-700",
     listContainer: "border-gray-200 dark:border-gray-700 min-h-full overflow-y-auto",
     listItem: "p-3 flex items-center text-sm justify-between hover:bg-gray-200/50 dark:hover:bg-gray-800 transition-colors cursor-pointer border-b last:border-b-0 my-0 flex justify-center border-gray-400 overflow-y-auto",
     buttonMultiple: "p-3 flex text-center items-center text-sm justify-center gap-2 hover:bg-gray-200/50 dark:hover:bg-gray-800 transition-colors cursor-pointer border rounded-lg my-0.5 flex justify-center border-gray-400 overflow-y-auto",
-    buttonSingle: "p-3 flex text-center font-bold items-center text-white justify-center gap-2 bg-gradient-to-r from-green-700 to-green-500  hover:bg-gradient-to-l dark:from-green-400 dark:to-green-600 border-purple-500 border-2 shadow-md hover:shadow-purple-400 transform transition-all ease-in-out duration-200 cursor-pointer border-none rounded-lg my-1 flex justify-center gap-2 overflow-y-auto",
+    buttonSingle: "btn-primary",
     cardContainer: "p-3 space-y-2",
     cardItem: "bg-gray-100 border text-center dark:bg-gray-800 rounded-md p-3 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors cursor-pointer",
   };

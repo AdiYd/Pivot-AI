@@ -45,7 +45,6 @@ const weekDaysDict: Record<number, Days> = {
 
 export default function SuppliersPage() {
   const {database} = useFirebase();
-  const [data, setData] = useState(database || exampleDatabase);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedSupplier, setSelectedSupplier] = useState<EnhancedSupplier | null>(null);
@@ -60,7 +59,7 @@ export default function SuppliersPage() {
     try {
       const suppliers: EnhancedSupplier[] = [];
 
-      Object.entries(data.restaurants).forEach(([restaurantId, restaurant]) => {
+      Object.entries(database.restaurants).forEach(([restaurantId, restaurant]) => {
         // Each restaurant has an array of suppliers
         restaurant.suppliers.forEach(supplier => {
 
@@ -82,7 +81,7 @@ export default function SuppliersPage() {
       console.error('Error processing suppliers:', error);
       return [];
     }
-  }, [data]);
+  }, [database]);
 
   // Filter suppliers based on search and category
   const filteredSuppliers = useMemo(() => {
@@ -186,7 +185,7 @@ export default function SuppliersPage() {
           </div>
         </div>
       </CardHeader>
-      <CardContent className='h-[fill-available]* overflow-y-auto'>
+      <CardContent className='h-[stretch]* overflow-y-auto'>
         <div className="space-y-3">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Phone className="w-4 h-4" />
@@ -355,10 +354,10 @@ export default function SuppliersPage() {
   }
 
   return (
-    <div className="p-6 max-sm:p-2 space-y-6">
+    <div className="p-4 max-sm:p-2 space-y-6">
       <DebugButton debugFunction={debugFunction} />
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div style={{marginTop:'0px'}} className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">ספקים</h1>
           <p className="text-muted-foreground">

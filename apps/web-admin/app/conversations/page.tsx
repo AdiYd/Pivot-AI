@@ -32,7 +32,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, PivotAva
 // Import the example database
 import exampleDatabase from '@/schema/example';
 import { useTheme } from 'next-themes';
-import { BotState, Contact, Conversation, DataBase, Message, StateObject } from '@/schema/types';
+import { BotState, Contact, Conversation, DataBase, Message, Restaurant, StateObject } from '@/schema/types';
 import { DebugButton, debugFunction } from '@/components/debug';
 import { cn } from '@/lib/utils';
 import { useFirebase } from '@/lib/firebaseClient';
@@ -103,36 +103,45 @@ const categoryNames: Record<string, string> = {
 };
 
 export default function ConversationsPage() {
-  const {database} = useFirebase();
-  const [data, setData] = useState(database || exampleDatabase);
+  const {database, databaseLoading} = useFirebase();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedRestaurant, setSelectedRestaurant] = useState<string>('all');
   const [selectedConversation, setSelectedConversation] = useState<EnhancedConversation | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [sortBy, setSortBy] = useState<'activity' | 'created' | 'messages'>('activity');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
-   const {toast} = useToast();
   const {theme} = useTheme();
   const isDark = theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const {toast} = useToast();
 
-  // Extract and enhance conversation data from the example database
+  // Change loading state when database is ready
+  useEffect(() => {
+    if (databaseLoading) {
+      setIsLoading(true);
+    } else {
+      setIsLoading(false);
+    }
+  }, [databaseLoading]);
+  
+// Extract and enhance conversation data from the example database
 const enhancedConversations = useMemo((): EnhancedConversation[] => {
+
   try {
     const conversations: EnhancedConversation[] = [];
 
-    Object.entries(data.conversations).forEach(([phone, conversation]) => {
+    Object.entries(database.conversations).forEach(([phone, conversation]) => {
       // Find restaurant info if associated
-      const restaurant = conversation.restaurantId ? data.restaurants[conversation.restaurantId] : undefined;
+      const restaurant: Restaurant | undefined = conversation.restaurantId ? (database.restaurants as Record<string, Restaurant>)[conversation.restaurantId] : undefined;
       let contactName = undefined;
       
       // Add this section to include restaurant name
       const restaurantName = restaurant?.name || conversation.context?.restaurantName || 'מסעדה לא רשומה';
       
       if (!!restaurant) {
-        contactName = restaurant.contacts?.find(c => c.whatsapp === phone)?.name || 'אורח';
+        contactName = restaurant.contacts?.find((c: any) => c.whatsapp === phone)?.name || 'אורח';
       } else {
         // Try to get name from context
         contactName = conversation.context?.contactName || conversation.context?.name || 'אורח';
@@ -172,7 +181,7 @@ const enhancedConversations = useMemo((): EnhancedConversation[] => {
     console.error('Error processing conversations:', error);
     return [];
   }
-}, [data]);
+}, [database]);
 
 
   // Filter conversations based on search and filters
@@ -479,7 +488,7 @@ const filteredConversations = useMemo(() => {
           )}
         </div>
           <div dir='rtl' className={cn(
-            "rounded-[10px] min-w-[30%]* shadow-md px-2 py-2 max-w-full break-words",
+            "rounded-[10px] min-w-[30%]* shadow-md px-2 py-2 overflow-visible max-w-full break-words",
             isBot
               ? "bg-white dark:bg-zinc-800 rounded-bl-none" 
               : "text-start bg-[#DCF8C6] rounded-br-none backdrop-blur-md text-black dark:bg-[#005C4B] dark:text-[#E9EDEF]"
@@ -498,7 +507,7 @@ const filteredConversations = useMemo(() => {
 
   if (isLoading) {
     return (
-      <div className="p-6 space-y-6">
+      <div className="p-4 space-y-6">
         <div className="flex items-center justify-between">
           <Skeleton className="h-8 w-32" />
         </div>
@@ -530,10 +539,10 @@ const filteredConversations = useMemo(() => {
 
 
   return (
-    <div className="p-6 max-sm:p-2 space-y-6">
+    <div className="p-4 max-sm:p-2 space-y-6">
       <DebugButton debugFunction={debugFunction} />
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div style={{marginTop:'0px'}} className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">שיחות</h1>
           <p className="text-muted-foreground">
@@ -608,7 +617,7 @@ const filteredConversations = useMemo(() => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">כל המסעדות</SelectItem>
-            {Object.entries(data.restaurants).map(([id, restaurant]) => (
+            {Object.entries(database.restaurants).map(([id, restaurant]) => (
               <SelectItem key={id} value={id}>{restaurant.name}</SelectItem>
             ))}
           </SelectContent>
@@ -849,18 +858,16 @@ const WhatsAppTemplateRenderer = ({ message, context={}, onSelect }: WhatsAppTem
   
   // WhatsApp UI style constants
   const styles = {
-    container: "rounded-[10px] px-4 mb-2 min-h-full rounded-bl-none overflow-hidden max-w-lg min-w-[300px] max-sm:!min-w-[260px] w-full",
+    container: "rounded-[10px] px-4 mb-2 min-h-full rounded-bl-none overflow-visible max-w-lg min-w-[300px] max-sm:!min-w-[260px] w-full",
     header: "p-3 bg-green-500 text-white",
     mediaHeader: "w-full h-40 bg-gray-100 dark:bg-gray-700 overflow-hidden",
     body: "p-2 text-sm",
     footer: "border-gray-200 dark:border-gray-700",
-    buttonContainer: "grid",
-    // buttonSingle: "p-3 text-center text-green-600 dark:text-green-400 font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer",
-    // buttonMultiple: "p-3 text-center text-green-600 dark:text-green-400 font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer border-b last:border-b-0 border-gray-200 dark:border-gray-700",
-    listContainer: "border-gray-200 dark:border-gray-700 min-h-full overflow-y-auto",
+    buttonContainer: "grid overflow-y-visible",
+    listContainer: "border-gray-200 dark:border-gray-700 min-h-full overflow-y-visible",
     listItem: "p-3 flex items-center text-sm justify-between hover:bg-gray-200/50 dark:hover:bg-gray-800 transition-colors cursor-pointer border-b last:border-b-0 my-0 flex justify-center border-gray-400 overflow-y-auto",
     buttonMultiple: "p-3 flex text-center items-center text-sm justify-center gap-2 hover:bg-gray-200/50 dark:hover:bg-gray-800 transition-colors cursor-pointer border rounded-lg my-0.5 flex justify-center border-gray-400 overflow-y-auto",
-    buttonSingle: "p-3 flex text-center font-bold items-center text-white bg-gradient-to-r from-green-700 to-green-500  hover:bg-gradient-to-l dark:from-green-400 dark:to-green-600 border-purple-500 border-2 shadow-md hover:shadow-purple-400 transform transition-all ease-in-out duration-200 cursor-pointer border-none rounded-lg my-1 flex justify-center gap-2 overflow-y-auto*",
+    buttonSingle: "btn-primary",
     cardContainer: "p-3 space-y-2",
     cardItem: "bg-gray-100 border text-center dark:bg-gray-800 rounded-md p-3 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors cursor-pointer",
   };

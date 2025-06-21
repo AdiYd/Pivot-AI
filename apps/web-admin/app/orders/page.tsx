@@ -549,10 +549,10 @@ export default function OrdersPage() {
 
 
   return (
-    <div className="p-6 max-sm:p-2 space-y-6">
+    <div className="p-4 max-sm:p-2 space-y-6">
       <DebugButton debugFunction={debugFunction} />
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div style={{marginTop:'0px'}} className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">הזמנות</h1>
           <p className="text-muted-foreground">ניהול הזמנות ומעקב אחר סטטוס</p>

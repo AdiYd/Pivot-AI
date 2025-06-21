@@ -75,17 +75,14 @@ export default function LoginPage() {
         await new Promise(resolve => setTimeout(resolve, 1000));
         
         const session = await getSession();
-        console.log("🎫 Current session after auth:", session);
         
         if (session) {
-          console.log("🏠 Redirecting to home page...");
           router.push("/");
         } else {
           console.log("⚠️ No session found after successful authentication");
           // Try to get session again
           setTimeout(async () => {
             const retrySession = await getSession();
-            console.log("🔄 Retry session check:", retrySession);
             if (retrySession) {
               router.push("/");
             }
@@ -133,7 +130,7 @@ export default function LoginPage() {
         <CardHeader className="max-sm:p-4 text-center space-y-6 pb-8">
           {/* Logo */}
           <div className="flex justify-center">
-            <PivotAvatar className="!w-12 !h-12 max-sm:!w-8 max-sm:!h-8" style={{ display: 'block' }} />
+            <PivotAvatar float rotate className="!w-12 !h-12 max-sm:!w-8 max-sm:!h-8" style={{ display: 'block' }} />
           </div>
           
           {/* Title */}
@@ -142,7 +139,7 @@ export default function LoginPage() {
               פיבוט
             </CardTitle>
             <CardDescription className="text-lg text-gray-600 dark:text-gray-300">
-              מערכת ניהול מסעדות ומלאי
+               מערכת ניהול מסעדות ומלאי
             </CardDescription>
           </div>
 
@@ -167,8 +164,8 @@ export default function LoginPage() {
 
           {/* Username Form */}
           <form onSubmit={handleUsernameSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="username" className="text-sm font-medium">
+            <div className="mb-2">
+              <Label htmlFor="username" className="text-sm max-sm:hidden font-medium">
                 שם משתמש
               </Label>
               <Input
@@ -184,7 +181,7 @@ export default function LoginPage() {
             </div>
             <Button
               type="submit"
-              className="p-3 h-12 w-full text-center font-bold items-center text-white bg-gradient-to-r from-green-700 to-green-500  hover:bg-gradient-to-l dark:from-green-400 dark:to-green-600 border-purple-500 border-2 shadow-md hover:shadow-purple-400 transform transition-all ease-in-out duration-200 cursor-pointer border-none rounded-lg my-1 flex justify-center gap-2"
+              className="h-12 w-full btn-primary font-bold"
               // disabled={!username.trim() || isLoading || isGoogleLoading}
             >
               {isLoading ? (
@@ -203,8 +200,8 @@ export default function LoginPage() {
             <div className="absolute inset-0 flex items-center">
               <Separator className="w-full" />
             </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">או</span>
+            <div className="relative flex justify-center text-xs cursor-default uppercase">
+              <span className="bg-background/10 backdrop-blur-xl px-2 text-muted-foreground">או</span>
             </div>
           </div>
 
@@ -214,7 +211,7 @@ export default function LoginPage() {
             variant="default"
             onClick={handleGoogleSignIn}
             disabled={isLoading || isGoogleLoading}
-            className="w-full h-12 rounded-lg font-semibold bg-black text-white dark:bg-white dark:text-black text-base border-[0.8px] border-gray-200 hover:border-gray-300 py-3 transition-all duration-200 hover:shadow-md hover:opacity-80"
+            className="w-full h-12 rounded-lg font-semibold bg-black text-white dark:bg-white dark:text-black text-base border-[0.8px] border-gray-200 hover:border-gray-300 py-3 transition-all duration-200 hover:shadow-md active:scale-100 active:opacity-100 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isGoogleLoading ? (
               <>

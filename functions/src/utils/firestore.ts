@@ -406,6 +406,16 @@ export async function getConversationState(
     }
     
     const state = doc.data() as Conversation;
+    const messagesSnapshot = await firestore
+      .collection(collectionName)
+      .doc(phone)
+      .collection('messages')
+      .orderBy('createdAt', 'asc')
+      .get();
+    const messages = messagesSnapshot.docs.map(msgDoc => MessageSchema.parse({
+      ...msgDoc.data(),
+    }));
+    state.messages = messages; // Add messages to the state
     console.log(`[Firestore] ✅ Found conversation state for phone: ${phone}`, {
       currentState: state?.currentState,
       contextKeys: Object.keys(state?.context || {})
@@ -429,7 +439,7 @@ export async function initializeConversationState(
   conversation: Conversation,
   phone: Contact['whatsapp'],
   isSimulator: boolean = false
-): Promise<Conversation> {
+): Promise<Omit<Conversation, 'messages'>> {
   try {
     console.log(`[Firestore] Initializing conversation state for phone: ${phone}`);
     
@@ -440,11 +450,11 @@ export async function initializeConversationState(
     const conversationsCollection = getCollectionName('conversations', isSimulator);
 
 
-    const newState = ConversationSchema.parse({...conversation, ...(restaurantId ? { restaurantId } : {})});
+    const newState = ConversationSchema.omit({ messages: true }).parse({...conversation, ...(restaurantId ? { restaurantId } : {})});
     await firestore
       .collection(conversationsCollection)
       .doc(phone)
-      .set(newState as Conversation, { merge: true });
+      .set(newState, { merge: true });
 
     console.log(`[Firestore] ✅ Initialized conversation state for phone: ${phone}`);
     return newState;
@@ -516,20 +526,26 @@ export async function logMessage(
 
     const conversationsCollection = getCollectionName('conversations', isSimulator);
     const finalMessage = MessageSchema.parse(message)
-    const now = new Date();
     console.log(`[Firestore] Writing message to ${conversationsCollection}/${phone}/messages...`, {
       message: message,
     });
     // Update the conversation document with the new message in the messages array
+    // Add the message to the messages subcollection
+    await firestore
+      .collection(conversationsCollection)
+      .doc(phone)
+      .collection('messages')
+      .add({
+      ...finalMessage,
+      createdAt: FieldValue.serverTimestamp(),
+      });
+    
+    // Separately update the timestamp on the parent document
     await firestore
       .collection(conversationsCollection)
       .doc(phone)
       .update({
-        messages: FieldValue.arrayUnion({
-          ...finalMessage,
-          createdAt: now,
-        } as Message),
-        updatedAt: now,
+        updatedAt: FieldValue.serverTimestamp(),
       });
 
     console.log(`[Firestore] ✅ Message logged for phone: ${phone}`);

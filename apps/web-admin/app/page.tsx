@@ -428,7 +428,7 @@ function DashboardPage() {
     <div className="space-y-6 p-2 pt-6">
       <DebugButton debugFunction={debugFunction} />
       {/* Header */}
-      <div>
+      <div style={{marginTop: '0px'}}>
         <div className="w-full flex justify-center">
           <PivotAvatar rotate float className="h-[50px] w-[50px]" />
         </div>

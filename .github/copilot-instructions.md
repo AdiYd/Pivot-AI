@@ -73,10 +73,7 @@ Copilot: keep this context in memory when suggesting code.
 ## 4. Data Model (Firestore Structure and TypeScript Interfaces)
 /**
  * Firestore Data Model
- *
-/**
- * Firestore Data Model
- * 
+
  * Based on the Zod schemas defined in schemas.ts
  * Organized into 3 main collections: restaurants, orders, and conversations
  *
@@ -92,7 +89,8 @@ Copilot: keep this context in memory when suggesting code.
  *     ├─ createdAt: Timestamp
  *     └─ updatedAt: Timestamp
  *
- *     /suppliers[] (array of suppliers objects)
+ *     /suppliers (collection of suppliers objects)
+ *       {supplierId} (doc)
  *         ├─ whatsapp: string                // WhatsApp number (matches document ID)
  *         ├─ name: string
  *         ├─ role: "supplier"              // Always "supplier"
@@ -103,7 +101,8 @@ Copilot: keep this context in memory when suggesting code.
  *         ├─ createdAt: Timestamp
  *         └─ updatedAt: Timestamp
  *
- *         /products[] (array of products objects)
+ *         /products (collection of products objects)
+ *           {productId} (doc)
  *             ├─ name: string
  *             ├─ unit: string                // "kg", "pcs", etc.
  *             ├─ emoji: string              // Emoji representation
@@ -166,8 +165,9 @@ Copilot: keep this context in memory when suggesting code.
  *     ├─ role: string (optional) // Role of the contact in conversation
  *     ├─ createdAt: Timestamp
  *     └─ updatedAt: Timestamp
- *     
- *     /messages[] (array of messages objects)
+ *
+ *     /messages (collection of messages objects)
+ *       {messageId} (doc)
  *         ├─ role: string      // "user" or "assistant"
  *         ├─ body: string      // Message content
  *         ├─ templateId: string (optional) // WhatsApp template ID
@@ -175,11 +175,7 @@ Copilot: keep this context in memory when suggesting code.
  *         ├─ mediaUrl: string (optional) // URL for attached media
  *         ├─ messageState: string // State when message was sent
  *         └─ createdAt: Timestamp
-
  */
-
-
-
 ```
 
 ---

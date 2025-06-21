@@ -3,7 +3,7 @@ import * as admin from "firebase-admin";
 import { FieldValue } from 'firebase-admin/firestore';
 
 import { conversationStateReducer, processActions } from "./botEngine";
-import { Conversation, IncomingMessage, Restaurant } from "./schema/types";
+import { Conversation, IncomingMessage, Message, Restaurant } from "./schema/types";
 import { validateTwilioWebhook } from "./utils/twilio";
 import { getCollectionName } from "./utils/firestore";
 import { ConversationSchema } from "./schema/schemas";
@@ -85,14 +85,7 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
   
     if (!conversationDoc.exists) {
       // If it doesn't exist, create a new document with the message
-      const initialConversation: Conversation = ConversationSchema.parse(
-        {
-        messages: [{
-          body,
-          role: 'user',
-          createdAt: now,
-          messageState: 'INIT' 
-        }],
+      const initialConversation = {
         currentState: 'INIT',
         context: {
           contactNumber: phoneNumber,
@@ -101,18 +94,32 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
         role: 'owner', // Default role for new conversations
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp()
-      });
+      };
+      
+      // First create the conversation document
       console.log('Setting new conversation:', initialConversation);
       await conversationRef.set(initialConversation);
+      
+      // Then add the first message to the messages subcollection
+      await conversationRef.collection('messages').add({
+        body,
+        role: 'user',
+        createdAt: now,
+        messageState: 'INIT' 
+      } as Message);
     } else {
-      // Document exists, update the messages array
+      // Document exists, update the messages collection
+      // Add the new message to the messages subcollection
+      await conversationRef.collection('messages').add({
+        body,
+        role: 'user',
+        createdAt: now,
+        messageState: conversationDoc.data()?.currentState || 'INIT', // Use current state or default to INIT
+        ...(mediaUrl && { mediaUrl }) // Include mediaUrl if it exists
+      });
+      
+      // Update the conversation's timestamp
       await conversationRef.update({
-        messages: FieldValue.arrayUnion({
-          body,
-          role: 'user',
-          createdAt: now,
-          messageState: conversationDoc.data()?.currentState || 'INIT', // Use current state or default to INIT
-        }),
         updatedAt: FieldValue.serverTimestamp()
       });
     }
@@ -132,7 +139,6 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
     let restaurantId = "";
 
     // Get existing conversation state by phone number
-
     if (!conversationDoc.exists) {
       console.log(`[${isSimulator ? 'Simulator' : 'WhatsApp'}] No existing conversation found for phone: ${phoneNumber}`);
       // New conversation - check if restaurant already exists for this phone
@@ -177,8 +183,29 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
     } else {
       // Existing conversation - load
       const data = conversationDoc.data() as Conversation;
-      conversation = ConversationSchema.parse(data);
-      conversation.messages = conversation.messages.filter(m => m.messageState === data.currentState)
+      conversation = ConversationSchema.parse({
+        currentState: data.currentState,
+        role: data.role || "owner",
+        context: {
+          ...data.context,
+          contactNumber: phoneNumber,
+          ...(isSimulator && { isSimulator })
+        }
+      });
+      const messagesSnapshot = await conversationRef.collection('messages').orderBy('createdAt', 'asc').get();
+      const Usermessages = messagesSnapshot.docs.map(doc => {
+        const messageData = doc.data();
+        return {
+          body: messageData.body,
+          role: messageData.role,
+          createdAt: messageData.createdAt?.toDate() || new Date(),
+          messageState: messageData.messageState,
+          ...(messageData.mediaUrl && { mediaUrl: messageData.mediaUrl }),
+          ...(messageData.templateId && { templateId: messageData.templateId }),
+          ...(messageData.hasTemplate !== undefined && { hasTemplate: messageData.hasTemplate })
+        };
+      }).filter(m => m.messageState === data.currentState);
+      conversation.messages = Usermessages;
     }
 
     /**

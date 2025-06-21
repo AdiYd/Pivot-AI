@@ -43,7 +43,7 @@ export const supplierRemindersSchema = z.array(z.object({
     const [hours, minutes] = time.split(':').map(Number);
     return (hours >= 6 && hours <= 23) || (hours === 23 && minutes === 59);
   }, {
-    message: "שעת המסירה חייבת להיות בין 06:00 ל-23:59",
+    message: "שעת התזכורת חייבת להיות בין 06:00 ל-23:59",
   })
 }));
 export const supplierCutoffHourSchema = z.number().min(0, "אנא הזן שעה תקינה בין 0 ל-23").max(23, 'שעת סיום חייבת להיות בין 0 ל-23'); // Cutoff hour for placing orders, default to 20:00
@@ -205,7 +205,7 @@ export const MessageSchema = z.object({
 
 // Conversation schema for validation
 export const ConversationSchema = z.object({
-    currentState: conversationStateSchema.default('IDLE'),                           // Current state of the state machine of the conversation, e.g., "IDLE", "WAITING_FOR_PAYMENT" etc.
+    currentState: conversationStateSchema.default('INIT'),                           // Current state of the state machine of the conversation, e.g., "IDLE", "WAITING_FOR_PAYMENT" etc.
     context: z.record(z.any()).default({}),                            // Context of the conversation, can be any key-value pairs
     messages: z.array(MessageSchema).default([]),                     // Array of messages in the conversation
     restaurantId: restaurantLegalIdSchema.optional(),                // Optional restaurant ID to link between a conversation and a restaurant
@@ -216,7 +216,7 @@ export const ConversationSchema = z.object({
 
 
 export const DatabaseSchema = z.object({
-  restaurants: z.record(RestaurantSchema), // Collection of restaurant documents keyed by legalId
-  orders: z.record(OrderSchema),           // Collection of order documents keyed by orderId
-  conversations: z.record(ConversationSchema) // Collection of conversation documents keyed by phoneNumber
+  restaurants: z.record(RestaurantSchema).default({}), // Record of restaurants
+  orders: z.record(OrderSchema).default({}),           // Record of orders
+  conversations: z.record(ConversationSchema).default({}) // Record of conversations
 });

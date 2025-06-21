@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode, useMemo, useCallback } from "react";
 import { FirebaseApp, getApps, initializeApp } from "firebase/app";
 import { 
   Firestore, 
@@ -9,7 +9,7 @@ import {
   getDocs
 } from "firebase/firestore";
 import { DataBase, Order, Restaurant, Conversation } from "@/schema/types";
-import { RestaurantSchema, OrderSchema, ConversationSchema } from "@/schema/schemas";
+import { RestaurantSchema, OrderSchema, ConversationSchema, MessageSchema } from "@/schema/schemas";
 
 // Firebase configuration
 const firebaseConfig = {
@@ -35,31 +35,36 @@ if (typeof window !== 'undefined' && getApps().length === 0) {
 export { app, db };
 
 // Context interface for database only
-interface FirebaseContextValue {
-  database: DataBase | null;
+export interface FirebaseContextValue {
+  database: DataBase;
   databaseLoading: boolean;
   refreshDatabase: () => Promise<void>;
 }
 
 // Create firebase context with default values
 const FirebaseContext = createContext<FirebaseContextValue>({
-  database: null,
+  database: {} as DataBase,
   databaseLoading: true,
   refreshDatabase: async () => {},
 });
 
+const emptyDatabase: DataBase = {
+  restaurants: {},
+  orders: {},
+  conversations: {},
+};
+
 // Firebase provider that only manages database state
 export function FirebaseAppProvider({ children }: { children: ReactNode }) {
-  const [database, setDatabase] = useState<DataBase | null>(null);
+  const [database, setDatabase] = useState<DataBase>(emptyDatabase);
   const [databaseLoading, setDatabaseLoading] = useState(true);
 
   // Helper function to fetch all collections and build database object
-  const fetchDatabase = async (): Promise<DataBase | null> => {
-    if (typeof window === 'undefined' || !db) return null;
+  const fetchDatabase = async (): Promise<DataBase> => {
+    if (typeof window === 'undefined' || !db) return emptyDatabase;
 
     try {
       setDatabaseLoading(true);
-
       // Fetch all collections in parallel
       const [restaurantsSnap, ordersSnap, conversationsSnap] = await Promise.all([
         getDocs(collection(db, 'restaurants_simulator')),
@@ -94,38 +99,63 @@ export function FirebaseAppProvider({ children }: { children: ReactNode }) {
 
       // Parse conversations with validation
       const conversations: Record<string, Conversation> = {};
+      // Create an array to store all the message loading promises
+      const messageLoadingPromises: Promise<void>[] = [];
+
       conversationsSnap.forEach((doc) => {
         try {
           const data = { ...doc.data() };
           const parsed = ConversationSchema.parse(data);
-          conversations[doc.id] = parsed;
+          
+          // Add this conversation to the collection with empty messages initially
+          conversations[doc.id] = {
+            ...parsed,
+          };
+          
+          // Create a promise for loading messages and add to our array
+          const messagesPromise = async () => {
+            const messagesCollectionRef = collection(db, 'conversations_simulator', doc.id, 'messages');
+            const messagesSnap = await getDocs(messagesCollectionRef);
+            const loadedMessages = messagesSnap.docs.map(msgDoc => MessageSchema.parse(msgDoc.data()));
+            
+            // Update the conversation with loaded messages
+            conversations[doc.id].messages = [...conversations[doc.id].messages, ...loadedMessages];
+            // conversations[doc.id].messages = [ ...loadedMessages];
+          };
+          
+          messageLoadingPromises.push(messagesPromise());
         } catch (error) {
           console.warn(`Failed to parse conversation ${doc.id}:`, error);
         }
       });
 
-      const databaseObject: DataBase = {
+      // Wait for all message loading to complete
+      await Promise.all(messageLoadingPromises);
+
+
+      const databaseObject = {
         restaurants,
         orders,
-        conversations
-      };
+        conversations,
+      } as DataBase;
+      console.log('Database:', databaseObject);
 
       // console.log(`Database loaded: ${Object.keys(restaurants).length} restaurants, ${Object.keys(orders).length} orders, ${Object.keys(conversations).length} conversations`);
       
       return databaseObject;
     } catch (error) {
       console.error('Error fetching database:', error);
-      return null;
+      return emptyDatabase;
     } finally {
       setDatabaseLoading(false);
     }
   };
 
   // Refresh database function
-  const refreshDatabase = async () => {
+  const refreshDatabase = useCallback(async () => {
     const db = await fetchDatabase();
     setDatabase(db);
-  };
+  }, []);
 
   // Fetch database on mount
   useEffect(() => {
@@ -133,14 +163,14 @@ export function FirebaseAppProvider({ children }: { children: ReactNode }) {
     fetchDatabase().then(setDatabase);
   }, []);
 
-  const value = {
+  const value = useMemo(() => ({
     database,
     databaseLoading,
     refreshDatabase,
-  };
+  } as FirebaseContextValue), [database, databaseLoading, refreshDatabase]);
 
   return <FirebaseContext.Provider value={value}>{children}</FirebaseContext.Provider>;
 }
 
 // Simple hook to access Firebase context
-export const useFirebase = () => useContext(FirebaseContext);
+export const useFirebase = () => useContext(FirebaseContext as React.Context<FirebaseContextValue>);

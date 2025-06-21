@@ -172,17 +172,15 @@ export function SideNav() {
             "h-16 flex items-center px-2",
             isCollapsed ? "justify-center" : "justify-between px-4"
             )}>
-            {!isCollapsed && 
-            <div className="flex items-center gap-1 ml-2">
-              <PivotAvatar />
-              <h3 className="mr-2 font-semibold text-sm truncate">P-vot</h3>
-            </div>}
-            <div className="flex items-center gap-2">
               {!isCollapsed && <ThemeToggle />}
+               {!isCollapsed && 
+            <div className="flex items-center justify-center">
+              <PivotAvatar />
+            </div>}
               <Button variant="ghost" size="icon" onClick={toggleCollapse} className="flex-shrink-0">
                 {isCollapsed ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
               </Button>
-            </div>
+              
           </div>
 
           {/* User info when not collapsed */}
@@ -249,9 +247,13 @@ export function SideNav() {
           
           {/* User & Logout */}
           <div className={cn(
-            "border-t border-zinc-400/40",
+            "border-t space-y-2 border-zinc-400/40",
             isCollapsed ? "p-2 mx-auto" : "p-4"
           )}>
+            {isCollapsed && 
+            <div className="flex my-2 items-center justify-center">
+              <PivotAvatar />
+            </div>}
            
             
             {isCollapsed ? (

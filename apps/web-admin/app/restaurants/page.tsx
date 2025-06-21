@@ -65,7 +65,6 @@ declare type Stats = {
 
 export default function RestaurantsPage() {
   const {database} = useFirebase();
-  const [data, setData] = useState(database || exampleDatabase);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant & { stats: Stats } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -97,6 +96,7 @@ export default function RestaurantsPage() {
   const editingRestaurantRef = useRef<Restaurant | null>(null);
   const { toast } = useToast();
 
+
   // Validation function for new restaurant
   const validateNewRestaurant = (form: Restaurant): Record<string, string> => {
     const errors: Record<string, string> = {};
@@ -115,7 +115,7 @@ export default function RestaurantsPage() {
     }
 
     // Check if restaurant already exists
-    if (data.restaurants[form.legalId]) {
+    if (database.restaurants[form.legalId]) {
       errors.legalId = 'מסעדה עם מספר חברה זה כבר קיימת';
     }
 
@@ -163,13 +163,7 @@ export default function RestaurantsPage() {
       };
 
       // Update local state (later this will be a Firestore create)
-      setData(prevData => ({
-        ...prevData,
-        restaurants: {
-          ...prevData.restaurants,
-          [newRestaurant.legalId]: newRestaurant
-        }
-      }));
+      console.log('Creating new restaurant:', newRestaurant);
 
       toast({
         title: "מסעדה נוצרה",
@@ -215,18 +209,7 @@ export default function RestaurantsPage() {
       
       // Simulate API call delay
       await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Update local state (later this will be a Firestore update)
-      setData(prevData => ({
-        ...prevData,
-        restaurants: {
-          ...prevData.restaurants,
-          [restaurantId]: {
-            ...prevData.restaurants[restaurantId],
-            ...updatedData
-          }
-        }
-      }));
+      console.log('Updating restaurant:', restaurantId, updatedData);
 
       // Update selectedRestaurant to reflect changes
       setSelectedRestaurant((prev: Restaurant | null) => ({ ...prev, ...updatedData }));
@@ -260,23 +243,8 @@ export default function RestaurantsPage() {
       await new Promise(resolve => setTimeout(resolve, 500));
       
       // Update local state (later this will be a Firestore delete)
-      setData(prevData => {
-        const newRestaurants = { ...prevData.restaurants };
-        delete newRestaurants[restaurantId];
-        
-        // Also remove related conversations
-        const newConversations = Object.fromEntries(
-          Object.entries(prevData.conversations).filter(
-            ([phone, conv]) => conv.restaurantId !== restaurantId
-          )
-        );
-        
-        return {
-          ...prevData,
-          restaurants: newRestaurants,
-          conversations: newConversations
-        };
-      });
+      console.log('Deleting restaurant:', restaurantId);
+      
 
       toast({
         title: "מסעדה נמחקה",
@@ -317,7 +285,7 @@ export default function RestaurantsPage() {
   // Extract restaurants with calculated stats
   const restaurantsWithStats = useMemo(() => {
     try {
-      return Object.values(data.restaurants).map(restaurant => {
+      return Object.values(database.restaurants).map(restaurant => {
         // Calculate suppliers count
         const suppliersCount = Object.keys(restaurant.suppliers).length;
         
@@ -328,7 +296,7 @@ export default function RestaurantsPage() {
         });
 
         // Calculate orders stats
-        const orders = Object.values(restaurant.orders).map(order=>data.orders[order]);
+        const orders = Object.values(restaurant.orders).map(order=>database.orders[order]);
         const totalOrders = orders.length;
         const pendingOrders = orders.filter(o => o.status === 'pending').length;
         const deliveredOrders = orders.filter(o => o.status === 'delivered').length;
@@ -339,7 +307,7 @@ export default function RestaurantsPage() {
           : null;
 
         // Get conversation status
-        const conversation = Object.values(data.conversations).find(c => c.restaurantId === restaurant.legalId);
+        const conversation = Object.values(database.conversations).find(c => c.restaurantId === restaurant.legalId);
 
         return {
           ...restaurant,
@@ -358,7 +326,7 @@ export default function RestaurantsPage() {
       console.error('Error processing restaurants:', error);
       return [];
     }
-  }, [data]);
+  }, [ database]);
 
   // Filter restaurants based on search term and status filter
   const filteredRestaurants = useMemo(() => {
@@ -836,7 +804,7 @@ export default function RestaurantsPage() {
     );
   };
 
-  if (isLoading && !data) {
+  if (isLoading) {
     return (
       <div className="p-6 space-y-6">
         <div className="flex items-center justify-between">
@@ -861,10 +829,10 @@ export default function RestaurantsPage() {
 
 
   return (
-    <div className="p-6 max-sm:p-2 space-y-6">
+    <div className="p-4 max-sm:p-2 space-y-6">
       <DebugButton debugFunction={debugFunction} />
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div style={{marginTop:'0px'}} className="flex items-center mt-0 justify-between">
         <div>
           <h1 className="text-3xl font-bold">מסעדות</h1>
           <p className="text-muted-foreground">נהל את כל המסעדות במערכת</p>
@@ -1372,7 +1340,7 @@ export default function RestaurantsPage() {
                     <div className="grid lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1 gap-4">
                       {Object.values(selectedRestaurant.orders).length > 0 ? (
                         Object.values(selectedRestaurant.orders).map((orderId: string) => {
-                          const order = data.orders[orderId] as Order;
+                          const order = database.orders[orderId] as Order;
                           const supplier = selectedRestaurant.suppliers.find((s) => s.whatsapp === order.supplier.whatsapp);
                           return (
                             <Card className='!min-w-[300px] max-sm:!min-w-fit' key={order.id}>
