@@ -147,13 +147,13 @@ export default function LoginPage() {
           </div>
 
           {/* Greeting */}
-          <div className="bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20 rounded-lg p-4 border border-blue-200/50 dark:border-blue-700/50">
+          {/* <div className="bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20 rounded-lg p-4 border border-blue-200/50 dark:border-blue-700/50">
             <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
               ברוכים הבאים למערכת ניהול המסעדות המתקדמת שלנו. 
               <br />
               התחברו כדי לגשת לפאנל הניהול
             </p>
-          </div>
+          </div> */}
         </CardHeader>
 
         <CardContent className="max-sm:p-4 space-y-6">
