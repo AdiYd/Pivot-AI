@@ -181,7 +181,7 @@ export default function LoginPage() {
             </div>
             <Button
               type="submit"
-              className="h-12 w-full btn-primary font-bold"
+              className="h-12 w-full btn-primary font-semibold"
               // disabled={!username.trim() || isLoading || isGoogleLoading}
             >
               {isLoading ? (
@@ -211,7 +211,7 @@ export default function LoginPage() {
             variant="default"
             onClick={handleGoogleSignIn}
             disabled={isLoading || isGoogleLoading}
-            className="w-full h-12 rounded-lg font-semibold bg-black text-white dark:bg-white dark:text-black text-base border-[0.8px] border-gray-200 hover:border-gray-300 py-3 transition-all duration-200 hover:shadow-md active:scale-100 active:opacity-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full h-12 rounded-lg  bg-black text-white dark:bg-white dark:text-black text-base border-[0.8px] border-gray-200 hover:border-gray-300 py-3 transition-all duration-200 hover:shadow-md active:scale-100 active:opacity-100 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isGoogleLoading ? (
               <>

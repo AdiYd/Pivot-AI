@@ -15,7 +15,8 @@
     "serve:emulators": "firebase emulators:start --only functions",
     "deploy": "npm run build && firebase deploy --only functions",
     "lint": "turbo run lint",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\""
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "git-amend": "git add . && git commit --amend --no-edit && git push --force"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",

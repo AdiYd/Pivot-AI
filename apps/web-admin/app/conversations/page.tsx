@@ -38,6 +38,7 @@ import { cn } from '@/lib/utils';
 import { useFirebase } from '@/lib/firebaseClient';
 import Image from 'next/image';
 import { STATE_MESSAGES } from '@/schema/states';
+import Avatar from 'boring-avatars';
 
 
 // Enhanced conversation type with display-specific properties
@@ -103,7 +104,7 @@ const categoryNames: Record<string, string> = {
 };
 
 export default function ConversationsPage() {
-  const {database, databaseLoading} = useFirebase();
+  const {database, databaseLoading, refreshDatabase} = useFirebase();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedRestaurant, setSelectedRestaurant] = useState<string>('all');
@@ -183,6 +184,16 @@ const enhancedConversations = useMemo((): EnhancedConversation[] => {
   }
 }, [database]);
 
+const pivotAvatar = useMemo(() => {
+  return (
+          <Avatar
+              size={32}
+              name={'P-vote'}
+              variant="beam"
+              colors={["#FFB9B9", "#FFDA77", "#B9E4FF", "#FFB9F1"]}
+            />
+      )
+    }, []);
 
   // Filter conversations based on search and filters
 const filteredConversations = useMemo(() => {
@@ -200,8 +211,7 @@ const filteredConversations = useMemo(() => {
       const matchesCategory = selectedCategory === 'all' || conversation.stateCategory === selectedCategory;
       
       // Restaurant filtering - check if the conversation's restaurantId matches the selected restaurant
-      const matchesRestaurant = selectedRestaurant === 'all' || conversation.restaurantId === selectedRestaurant;
-      
+      const matchesRestaurant = selectedRestaurant === 'all' || (conversation.restaurantId || conversation.context?.legalId) === selectedRestaurant;
       return matchesSearch && matchesCategory && matchesRestaurant;
     })
     .sort((a, b) => {
@@ -371,7 +381,7 @@ const filteredConversations = useMemo(() => {
                   {lastMessage.role === 'user' ? (
                     <User className="w-3 h-3 text-blue-500 flex-shrink-0" />
                   ) : (
-                    <PivotAvatar />
+                    pivotAvatar
                   )}
                   <span className="truncate">{lastMessage.body}</span>
                 </div>
@@ -381,7 +391,7 @@ const filteredConversations = useMemo(() => {
         </CardContent>
       </Card>
     );
-  }, [getRelativeTime, getStateBadge, toast, openConversation]);
+  }, [getRelativeTime, getStateBadge, toast, openConversation, pivotAvatar]);
 
   const ConversationTable = useCallback(({ conversations }: { conversations: EnhancedConversation[] }) => {
     return (
@@ -476,13 +486,12 @@ const filteredConversations = useMemo(() => {
   const messageDate = message.createdAt instanceof Date ? 
     message.createdAt : 
     message.createdAt?.toDate?.() || new Date();
-    
   return (
     <div className={`flex ${isBot ? 'justify-start' : 'justify-end'} mb-4 ${index === 0 ? 'mt-16' : ''}`}>
       <div className={`flex my-2 items-end gap-2 max-w-[70%]* ${isBot ? 'flex-row' : 'flex-row-reverse'}`}>
         <div className={`p-2 max-sm:hidden rounded-full ${isBot ? '' : 'bg-blue-100 dark:bg-blue-900'}`}>
           {isBot ? (
-            <PivotAvatar rotate float />
+            pivotAvatar
           ) : (
             <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
           )}
@@ -493,7 +502,17 @@ const filteredConversations = useMemo(() => {
               ? "bg-white dark:bg-zinc-800 rounded-bl-none" 
               : "text-start bg-[#DCF8C6] rounded-br-none backdrop-blur-md text-black dark:bg-[#005C4B] dark:text-[#E9EDEF]"
           )}>
-            {message.hasTemplate ? <WhatsAppTemplateRenderer message={message} context={{}} onSelect={()=>{}} /> : <div dir='auto' className="text-sm whitespace-pre-wrap">{message.body}</div>}
+            {message.hasTemplate ? <WhatsAppTemplateRenderer message={message} context={{}} onSelect={()=>{}} /> : 
+              <p className="text-sm whitespace-pre-wrap">
+                    {
+                    (message.body || '').split(/(\*[^*]+\*)/g).map((part: string, index: number) => {
+                      if (part.startsWith('*') && part.endsWith('*')) {
+                        return <strong key={index}>{part.slice(1, -1)}</strong>;
+                      }
+                      return part;
+                    })
+                  }
+              </p>}
           <div className={`text-xs mt-1 ${
             isBot ? "text-muted-foreground text-start" : "text-gray-800/80 dark:text-gray-400 text-end"
           }`}>
@@ -503,7 +522,7 @@ const filteredConversations = useMemo(() => {
       </div>
     </div>
   );
-  }, []);
+  }, [pivotAvatar]);
 
   if (isLoading) {
     return (
@@ -573,7 +592,7 @@ const filteredConversations = useMemo(() => {
               </Button>
             </div>
           </div>
-          <Button className='max-sm:hidden' onClick={() => window.location.reload()}>
+          <Button className='max-sm:hidden' onClick={refreshDatabase}>
             <RefreshCw className="w-4 h-4 ml-2" />
             רענן
           </Button>
@@ -873,7 +892,7 @@ const WhatsAppTemplateRenderer = ({ message, context={}, onSelect }: WhatsAppTem
   };
 
   // Process body text with context variables
-  let bodyText = template.body;
+  let bodyText = message.body || template.body;
   if (context && typeof bodyText === 'string') {
     Object.entries(context).forEach(([key, value]) => {
       const placeholder = new RegExp(`{${key}}`, 'g');
