@@ -1,10 +1,11 @@
 "use client";
 
-import { useFirebase } from "@/lib/firebaseClient";
+import { useSession } from "next-auth/react";
 
 export function DashboardHeader() {
-  const { user } = useFirebase();
-  
+  const { data: session } = useSession();
+  const user = session?.user;
+
   return (
     <div className="flex flex-col gap-1">
       <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>

@@ -1,10 +1,11 @@
 import { Icon } from "@iconify/react/dist/iconify.js";
 
-export const PivotAvatar = ({float=false, rotate=false, className=''}) => {
+export const PivotAvatar = ({float=false, rotate=false, className='', ...props}) => {
     return (
       <div 
       className='max-sm:hidden shadow-lg hover:shadow-amber-400 rounded-full'
       style={{
+        ...(props.style || {}),
       // background: 'radial-gradient(circle at 30% 40%, rgba(255, 255, 255, 0.4) 0%, transparent 60%)',
       animation: float ? 'float 8s ease-in-out infinite': ''}}>
       <div 

@@ -3,24 +3,10 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { FirebaseApp, getApps, initializeApp } from "firebase/app";
 import { 
-  getAuth, 
-  onAuthStateChanged, 
-  signOut as firebaseSignOut, 
-  sendSignInLinkToEmail as firebaseSendSignInLink, 
-  isSignInWithEmailLink as firebaseIsSignInWithEmailLink,
-  signInWithEmailLink as firebaseSignInWithEmailLink,
-  type User, 
-  Auth
-} from "firebase/auth";
-import { 
-  doc, 
   Firestore, 
   getFirestore, 
-  onSnapshot, 
   collection, 
-  getDocs,
-  DocumentData,
-  QuerySnapshot
+  getDocs
 } from "firebase/firestore";
 import { DataBase, Order, Restaurant, Conversation } from "@/schema/types";
 import { RestaurantSchema, OrderSchema, ConversationSchema } from "@/schema/schemas";
@@ -38,47 +24,33 @@ const firebaseConfig = {
 
 // Initialize Firebase only on the client side
 let app: FirebaseApp | undefined;
-let auth: Auth;
 let db: Firestore;
 
 // Only initialize Firebase if we're in the browser and it hasn't been initialized yet
 if (typeof window !== 'undefined' && getApps().length === 0) {
   app = initializeApp(firebaseConfig);
-  auth = getAuth(app);
   db = getFirestore(app);
 }
 
-export { app, auth, db };
+export { app, db };
 
-// Context interface with only what we need
+// Context interface for database only
 interface FirebaseContextValue {
-  user: User | null;
   database: DataBase | null;
-  loading: boolean;
   databaseLoading: boolean;
-  signOut: () => Promise<void>;
-  sendSignInLink: (email: string) => Promise<void>;
-  signInWithLink: (email: string) => Promise<User | null>;
   refreshDatabase: () => Promise<void>;
 }
 
 // Create firebase context with default values
 const FirebaseContext = createContext<FirebaseContextValue>({
-  user: null,
   database: null,
-  loading: true,
   databaseLoading: true,
-  signOut: async () => {},
-  sendSignInLink: async () => {},
-  signInWithLink: async () => null,
   refreshDatabase: async () => {},
 });
 
-// Simple Firebase provider that only manages auth state
+// Firebase provider that only manages database state
 export function FirebaseAppProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
   const [database, setDatabase] = useState<DataBase | null>(null);
-  const [loading, setLoading] = useState(true);
   const [databaseLoading, setDatabaseLoading] = useState(true);
 
   // Helper function to fetch all collections and build database object
@@ -95,11 +67,12 @@ export function FirebaseAppProvider({ children }: { children: ReactNode }) {
         getDocs(collection(db, 'conversations_simulator'))
       ]);
 
+
       // Parse restaurants with validation
       const restaurants: Record<string, Restaurant> = {};
       restaurantsSnap.forEach((doc) => {
         try {
-          const data = { id: doc.id, ...doc.data() };
+          const data = { ...doc.data() };
           const parsed = RestaurantSchema.parse(data);
           restaurants[doc.id] = parsed;
         } catch (error) {
@@ -111,7 +84,7 @@ export function FirebaseAppProvider({ children }: { children: ReactNode }) {
       const orders: Record<string, Order> = {};
       ordersSnap.forEach((doc) => {
         try {
-          const data = { id: doc.id, ...doc.data() };
+          const data = {...doc.data() };
           const parsed = OrderSchema.parse(data);
           orders[doc.id] = parsed;
         } catch (error) {
@@ -123,7 +96,7 @@ export function FirebaseAppProvider({ children }: { children: ReactNode }) {
       const conversations: Record<string, Conversation> = {};
       conversationsSnap.forEach((doc) => {
         try {
-          const data = { id: doc.id, ...doc.data() };
+          const data = { ...doc.data() };
           const parsed = ConversationSchema.parse(data);
           conversations[doc.id] = parsed;
         } catch (error) {
@@ -137,7 +110,7 @@ export function FirebaseAppProvider({ children }: { children: ReactNode }) {
         conversations
       };
 
-      console.log(`Database loaded: ${Object.keys(restaurants).length} restaurants, ${Object.keys(orders).length} orders, ${Object.keys(conversations).length} conversations`);
+      // console.log(`Database loaded: ${Object.keys(restaurants).length} restaurants, ${Object.keys(orders).length} orders, ${Object.keys(conversations).length} conversations`);
       
       return databaseObject;
     } catch (error) {
@@ -154,83 +127,17 @@ export function FirebaseAppProvider({ children }: { children: ReactNode }) {
     setDatabase(db);
   };
 
-  // Get database from firestore on mount and when user changes
+  // Fetch database on mount
   useEffect(() => {
     if (typeof window === 'undefined' || !db) return;
-
-    // Only fetch database if user is authenticated
-    if (user) {
-      fetchDatabase().then(setDatabase);
-    } else {
-      setDatabase(null);
-      setDatabaseLoading(false);
-    }
-  }, [user]);
-
-  // Listen for auth state changes
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
     fetchDatabase().then(setDatabase);
-
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
   }, []);
 
-  // Simple sign out function
-  const handleSignOut = async () => {
-    try {
-      await firebaseSignOut(auth);
-      setDatabase(null); // Clear database on sign out
-    } catch (error) {
-      console.error("Error signing out:", error);
-    }
-  };
-
-  // Send sign-in link with redirect URL based on current domain
-  const handleSendSignInLink = async (email: string) => {
-    try {
-      const actionCodeSettings = {
-        url: `${window.location.origin}/login`,
-        handleCodeInApp: true,
-      };
-      await firebaseSendSignInLink(auth, email, actionCodeSettings);
-      window.localStorage.setItem("emailForSignIn", email);
-    } catch (error) {
-      console.error("Error sending sign-in link:", error);
-      throw error;
-    }
-  };
-
-  // Sign in with email link
-  const handleSignInWithLink = async (email: string) => {
-    try {
-      if (firebaseIsSignInWithEmailLink(auth, window.location.href)) {
-        const result = await firebaseSignInWithEmailLink(auth, email);
-        window.localStorage.removeItem("emailForSignIn");
-        return result.user;
-      }
-      return null;
-    } catch (error) {
-      console.error("Error signing in with link:", error);
-      return null;
-    }
-  };
-
   const value = {
-    user,
     database,
-    loading,
     databaseLoading,
-    signOut: handleSignOut,
-    sendSignInLink: handleSendSignInLink,
-    signInWithLink: handleSignInWithLink,
     refreshDatabase,
   };
-  console.log('Firebase context:', value);
 
   return <FirebaseContext.Provider value={value}>{children}</FirebaseContext.Provider>;
 }

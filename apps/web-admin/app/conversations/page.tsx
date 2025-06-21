@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui';
 import { Button } from '@/components/ui';
 import { Input } from '@/components/ui';
@@ -114,6 +114,7 @@ export default function ConversationsPage() {
   const [sortBy, setSortBy] = useState<'activity' | 'created' | 'messages'>('activity');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
+   const {toast} = useToast();
   const {theme} = useTheme();
   const isDark = theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
@@ -268,7 +269,7 @@ const filteredConversations = useMemo(() => {
     }
   }, [enhancedConversations]);
 
-  const getStateBadge = (state: BotState) => {
+  const getStateBadge = useCallback((state: BotState) => {
     const category = getStateCategory(state);
     const colors: Record<string, string> = {
       onboarding: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
@@ -287,9 +288,9 @@ const filteredConversations = useMemo(() => {
         </Badge>
       </div>
     );
-  };
+  }, []);
 
-  const getRelativeTime = (date: Date | any): string => {
+  const getRelativeTime = useCallback((date: Date | any): string => {
     // Convert to Date if it's a Timestamp
     const dateObj = date instanceof Date ? date : date?.toDate?.() || new Date();
     
@@ -306,17 +307,17 @@ const filteredConversations = useMemo(() => {
     if (diffDays < 7) return `לפני ${diffDays} ימים`;
     if (diffDays < 30) return `לפני ${Math.floor(diffDays / 7)} שבועות`;
     return `לפני ${Math.floor(diffDays / 30)} חודשים`;
-  };
+  }, []);
 
-  const openConversation = (conversation: EnhancedConversation) => {
+  const openConversation = useCallback((conversation: EnhancedConversation) => {
     setSelectedConversation(conversation);
     setIsDialogOpen(true);
-  };
+  }, []);
 
-  const ConversationCard = ({ conversation }: { conversation: EnhancedConversation }) => {
-    const lastMessage = conversation.messages.length > 0 ? 
+  const ConversationCard = useCallback(({ conversation }: { conversation: EnhancedConversation }) => {
+    const lastMessage = conversation.messages.length > 0 ?
       conversation.messages[conversation.messages.length - 1] : null;
-    const {toast} = useToast();
+   
     
     return (
       <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => {
@@ -371,19 +372,20 @@ const filteredConversations = useMemo(() => {
         </CardContent>
       </Card>
     );
-  };
+  }, [getRelativeTime, getStateBadge, toast, openConversation]);
 
-  const ConversationTable = ({ conversations }: { conversations: EnhancedConversation[] }) => (
-    <div className="border rounded-lg overflow-hidden">
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="text-right">מספר טלפון</TableHead>
-              <TableHead className="text-right">
-                <div className="flex items-center cursor-pointer" onClick={() => {
-                  if (sortBy === 'activity') {
-                    setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+  const ConversationTable = useCallback(({ conversations }: { conversations: EnhancedConversation[] }) => {
+    return (
+      <div className="border rounded-lg overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-right">מספר טלפון</TableHead>
+                <TableHead className="text-right">
+                  <div className="flex items-center cursor-pointer" onClick={() => {
+                    if (sortBy === 'activity') {
+                      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
                   } else {
                     setSortBy('activity');
                     setSortOrder('desc');
@@ -458,9 +460,9 @@ const filteredConversations = useMemo(() => {
         </Table>
       </div>
     </div>
-  );
+  )}, [sortBy, sortOrder, getRelativeTime, getStateBadge, openConversation]);
 
-  const ChatBubble = ({ message, isBot, index }: { message: any; isBot: boolean, index: number }) => {
+  const ChatBubble = useCallback(({ message, isBot, index }: { message: any; isBot: boolean, index: number }) => {
   // Ensure we have a proper date
   const messageDate = message.createdAt instanceof Date ? 
     message.createdAt : 
@@ -492,7 +494,7 @@ const filteredConversations = useMemo(() => {
       </div>
     </div>
   );
-  };
+  }, []);
 
   if (isLoading) {
     return (
@@ -858,7 +860,7 @@ const WhatsAppTemplateRenderer = ({ message, context={}, onSelect }: WhatsAppTem
     listContainer: "border-gray-200 dark:border-gray-700 min-h-full overflow-y-auto",
     listItem: "p-3 flex items-center text-sm justify-between hover:bg-gray-200/50 dark:hover:bg-gray-800 transition-colors cursor-pointer border-b last:border-b-0 my-0 flex justify-center border-gray-400 overflow-y-auto",
     buttonMultiple: "p-3 flex text-center items-center text-sm justify-center gap-2 hover:bg-gray-200/50 dark:hover:bg-gray-800 transition-colors cursor-pointer border rounded-lg my-0.5 flex justify-center border-gray-400 overflow-y-auto",
-    buttonSingle: "p-3 flex text-center font-bold items-center text-white justify-center gap-2 bg-gradient-to-r from-green-700 to-green-500  hover:bg-gradient-to-l dark:from-green-400 dark:to-green-600 border-purple-500 border-2 shadow-md hover:shadow-purple-400 transform transition-all ease-in-out duration-200 cursor-pointer border-none rounded-lg my-1 flex justify-center gap-2 overflow-y-auto",
+    buttonSingle: "p-3 flex text-center font-bold items-center text-white bg-gradient-to-r from-green-700 to-green-500  hover:bg-gradient-to-l dark:from-green-400 dark:to-green-600 border-purple-500 border-2 shadow-md hover:shadow-purple-400 transform transition-all ease-in-out duration-200 cursor-pointer border-none rounded-lg my-1 flex justify-center gap-2 overflow-y-auto*",
     cardContainer: "p-3 space-y-2",
     cardItem: "bg-gray-100 border text-center dark:bg-gray-800 rounded-md p-3 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors cursor-pointer",
   };

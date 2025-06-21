@@ -6,6 +6,7 @@ import { ReactNode } from "react";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { FirebaseAppProvider } from "@/lib/firebaseClient";
+import { AuthProvider } from "@/components/auth-provider";
 
 // Create a client
 // const queryClient = new QueryClient({
@@ -19,19 +20,21 @@ import { FirebaseAppProvider } from "@/lib/firebaseClient";
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
-    <ThemeProvider
-      attribute="class"
-      defaultTheme="system"
-      enableSystem
-      disableTransitionOnChange
-    >
-      {/* <QueryClientProvider client={queryClient}> */}
-        <TooltipProvider>
-          <FirebaseAppProvider>
-            {children}
-          </FirebaseAppProvider>
-        </TooltipProvider>
-      {/* </QueryClientProvider> */}
-    </ThemeProvider>
+    <AuthProvider>
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="system"
+        enableSystem
+        disableTransitionOnChange
+      >
+        {/* <QueryClientProvider client={queryClient}> */}
+          <TooltipProvider>
+            <FirebaseAppProvider>
+              {children}
+            </FirebaseAppProvider>
+          </TooltipProvider>
+        {/* </QueryClientProvider> */}
+      </ThemeProvider>
+    </AuthProvider>
   );
 }

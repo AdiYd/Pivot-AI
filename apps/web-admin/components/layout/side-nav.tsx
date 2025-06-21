@@ -3,35 +3,40 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import Avatar from "boring-avatars"
 import { 
-  Users, 
   Package, 
   ShoppingCart, 
   MessageSquare,
-  Settings,
-  Database,
-  Workflow,
   LogOut,
   Menu,
   X,
   ChevronRight,
   ChevronLeft,
-  Home
+  Home,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { useFirebase } from "@/lib/firebaseClient";
-import { useState, useEffect } from "react";
+import { signOut, useSession } from "next-auth/react"; // Import NextAuth signOut and useSession
+import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Icon } from "@iconify/react/dist/iconify.js";
 import { PivotAvatar } from "../ui";
+import Image from "next/image";
 
 interface NavItemProps {
   href: string;
   icon: React.ReactNode;
   title: string;
   isCollapsed: boolean;
+}
+
+type AvatarVariant = 'beam' | 'marble' | 'pixel' | 'sunset' | 'ring' | 'bauhaus';
+
+const getRandomAvatarVariant = (): AvatarVariant => {
+  const variants = ['beam', 'marble', 'pixel', 'sunset', 'ring', 'bauhaus'];
+  return variants[Math.floor(Math.random() * variants.length)] as AvatarVariant;
 }
 
 function NavItem({ href, icon, title, isCollapsed }: NavItemProps) {
@@ -81,9 +86,37 @@ function NavItem({ href, icon, title, isCollapsed }: NavItemProps) {
 }
 
 export function SideNav() {
-  const { signOut } = useFirebase();
+  // Use NextAuth session instead of Firebase
+  const { data: session } = useSession();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+ 
+  const userAvatar = useMemo(() => {
+    if (session && session.user?.image) {
+      return (
+        <Image
+          src={session.user.image}
+          alt="User Avatar"
+          width={24}
+          height={24}
+          className="rounded-full"
+        />
+      );
+    }
+    return (
+      <Avatar
+        size={24}
+        name={session?.user?.name || session?.user?.email || 'user'}
+        variant={getRandomAvatarVariant()} // Use a random variant
+        colors={['#92A1C6', '#146A7C', '#F0AB3D', '#C271B4', '#C20D90']}
+      />
+    );
+  }, [session]);
+
+  // Handle logout with NextAuth
+  const handleLogout = () => {
+    signOut({ callbackUrl: "/login" });
+  };
   
   // Check if we're on mobile when component mounts
   useEffect(() => {
@@ -133,9 +166,10 @@ export function SideNav() {
         )}
       >
         <div className="flex flex-col h-full bg-stone-100/60 dark:bg-stone-900/60 backdrop-blur-xl">
+          
           {/* Logo area */}
           <div className={cn(
-            "h-16 flex items-center border-b px-2",
+            "h-16 flex items-center px-2",
             isCollapsed ? "justify-center" : "justify-between px-4"
             )}>
             {!isCollapsed && 
@@ -150,6 +184,23 @@ export function SideNav() {
               </Button>
             </div>
           </div>
+
+          {/* User info when not collapsed */}
+          {!isCollapsed && session && (
+            <div className="flex border-b items-center gap-2 mb-3 p-2 rounded-md">
+              {userAvatar}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">
+                  {session.user?.name || session.user?.email?.split('@')[0]}
+                </p>
+                {session.user?.email && session.user.name && (
+                  <p className="text-xs text-muted-foreground truncate">
+                    {session.user.email}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
           
           {/* Navigation */}
           <nav className={cn(
@@ -193,24 +244,6 @@ export function SideNav() {
                 title="סימולטור צ'אט"
                 isCollapsed={isCollapsed}
               />
-              {/* <NavItem 
-                href="/workflow" 
-                icon={<Workflow size={16} />} 
-                title="מכונת מצבים"
-                isCollapsed={isCollapsed}
-              /> */}
-              {/* <NavItem 
-                href="/bot-config" 
-                icon={<Settings size={16} />} 
-                title="הגדרות"
-                isCollapsed={isCollapsed}
-              /> */}
-              {/* <NavItem 
-                href="/raw-data" 
-                icon={<Database size={16} />} 
-                title="נתונים גולמיים"
-                isCollapsed={isCollapsed}
-              /> */}
             </div>
           </nav>
           
@@ -219,6 +252,8 @@ export function SideNav() {
             "border-t border-zinc-400/40",
             isCollapsed ? "p-2 mx-auto" : "p-4"
           )}>
+           
+            
             {isCollapsed ? (
               <TooltipProvider delayDuration={0}>
                 <Tooltip>
@@ -226,7 +261,7 @@ export function SideNav() {
                     <Button 
                       variant="ghost" 
                       size="icon"
-                      onClick={() => signOut()}
+                      onClick={handleLogout}
                     >
                       <LogOut size={16} />
                       <span className="sr-only">התנתק</span>
@@ -241,7 +276,7 @@ export function SideNav() {
               <Button 
                 variant="ghost" 
                 className="w-full justify-start gap-2"
-                onClick={() => signOut()}
+                onClick={handleLogout}
               >
                 <LogOut size={16} />
                 <span>התנתק</span>
@@ -267,7 +302,10 @@ export function SideNav() {
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="h-16 flex items-center justify-between px-6 border-b">
-            <h1 className="text-lg font-semibold">P-vot</h1>
+            <div className="flex items-center gap-2">
+              <PivotAvatar style={{display:'block'}}  />
+              <h3 className="font-semibold text-sm truncate">P-vot</h3>
+            </div>
             <ThemeToggle />
           </div>
           
@@ -309,26 +347,31 @@ export function SideNav() {
               title="סימולטור צ'אט" 
               isCollapsed={false}
             />
-            {/* <NavItem 
-              href="/workflow" 
-              icon={<Workflow size={16} />} 
-              title="מכונת מצבים"
-              isCollapsed={false}
-            /> */}
-            {/* <NavItem 
-              href="/bot-config" 
-              icon={<Settings size={16} />} 
-              title="הגדרות" 
-              isCollapsed={false}
-            /> */}
           </nav>
           
-          {/* User & Logout */}
-          <div className="p-4 border-t">
+          {/* User & Logout for mobile */}
+          <div className="p-4 border-t space-y-3">
+            {/* User info */}
+            {session && (
+              <div className="flex items-center gap-2 p-2 rounded-md">
+                {userAvatar}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">
+                    {session.user?.name || session.user?.email?.split('@')[0]}
+                  </p>
+                  {session.user?.email && session.user.name && (
+                    <p className="text-xs text-muted-foreground truncate">
+                      {session.user.email}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+            
             <Button 
               variant="ghost" 
               className="w-full justify-start gap-2"
-              onClick={() => signOut()}
+              onClick={handleLogout}
             >
               <LogOut size={16} />
               <span>התנתק</span>

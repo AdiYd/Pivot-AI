@@ -23,6 +23,7 @@ import {
 import exampleDatabase from "@/schema/example";
 import { BotState } from "@/schema/types";
 import { DebugButton, debugFunction } from "@/components/debug";
+import { ProtectedLayout } from "@/components/layout/protected-layout";
 
 // Helper function to get category name (previously imported from /schema/messages)
 function getCategoryName(category: string): string {
@@ -136,7 +137,7 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>)
   return null;
 };
 
-export default function DashboardPage() {
+function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(exampleDatabase);
   const [activePieIndex, setActivePieIndex] = useState<number | null>(null);
@@ -834,4 +835,10 @@ function getConversationAction(state: BotState): string {
     default:
       return "פעיל בשיחה";
   }
+}
+
+export default function HomePage() {
+  return (
+      <DashboardPage />
+  );
 }
