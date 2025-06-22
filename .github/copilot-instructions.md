@@ -72,17 +72,20 @@ Copilot: keep this context in memory when suggesting code.
 <!-- You can see the Firestore data model and TypeScript interfaces in the code snippets below -->
 ## 4. Data Model (Firestore Structure and TypeScript Interfaces)
 /**
+ /**
  * Firestore Data Model
-
+ * 
  * Based on the Zod schemas defined in schemas.ts
  * Organized into 3 main collections: restaurants, orders, and conversations
  *
  * /restaurants (collection)
- *   {restaurantId} (doc)               // Use legalId as restaurantId
- *     ├─ legalId: string              // 9-digit legal ID
- *     ├─ legalName: string           // Legal business name
- *     ├─ name: string               // Restaurant name (customer-facing)
- *     ├─ contacts: Contact[]       // Array of contacts items, including primary contact ({whatsapp, name, role, email})
+ *   {restaurantId} (doc)                 // Use legalId as restaurantId
+ *     ├─ legalId: string                // 9-digit legal ID
+ *     ├─ legalName: string             // Legal business name
+ *     ├─ name: string                 // Restaurant name (customer-facing)
+ *     ├─ contacts: {                 // Map of contacts items, including primary contact ({whatsapp, name, role, email})
+ *       [whatsapp: string]: Contact{}
+ *     }       
  *     ├─ isActivated: boolean     // Whether the restaurant is activated for service
  *     ├─ payment: PaymentMeta    // {provider, status (boolean)}
  *     ├─ orders: string[]       // Array of order IDs
@@ -176,6 +179,7 @@ Copilot: keep this context in memory when suggesting code.
  *         ├─ messageState: string // State when message was sent
  *         └─ createdAt: Timestamp
  */
+
 ```
 
 ---

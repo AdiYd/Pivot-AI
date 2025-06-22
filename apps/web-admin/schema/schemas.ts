@@ -132,10 +132,10 @@ export const SupplierSchema = ContactSchema.extend({
 
 // Restaurant schema for validation
 export const RestaurantSchema = z.object({
-  legalId: restaurantLegalIdSchema,                    // 9-digit legal ID will use also as restaurant ID
+  legalId: restaurantLegalIdSchema,                      // 9-digit legal ID will use also as restaurant ID
   legalName: restaurantLegalNameSchema,
   name: restaurantNameSchema,
-  contacts: z.array(ContactSchema),                  // Array of contacts for the restaurant
+  contacts: z.record(whatsappSchema, ContactSchema),   // Map of contacts for the restaurant
   payment: PaymentMetaSchema,
   suppliers: z.array(SupplierSchema).default([]),   // Array of supplier IDs
   orders: z.array(z.string()).default([]),         // Array of order IDs

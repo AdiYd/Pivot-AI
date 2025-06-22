@@ -32,20 +32,20 @@ export const exampleRestaurants: Record<Restaurant['legalId'], Restaurant> = {
     legalId: "123456789",
     legalName: "לה בל קוויזין בע״מ",
     name: "לה בל קוויזין",
-    contacts: [
-      {
+    contacts: {
+      "0501234567": {
         whatsapp: "0501234567",
         name: "דוד כהן",
         role: "owner",
         email: "david@labellecuisine.com"
       },
-      {
+      "0501234568": {
         whatsapp: "0501234568",
         name: "יעל לוי",
         role: "manager",
         email: "yael@labellecuisine.com"
       }
-    ],
+    },
     isActivated: true,
     payment: {
       provider: "credit_card",
@@ -185,14 +185,14 @@ export const exampleRestaurants: Record<Restaurant['legalId'], Restaurant> = {
     legalId: "987654321",
     legalName: "ביסטרו אורבני בע״מ",
     name: "ביסטרו אורבני",
-    contacts: [
-      {
+    contacts: {
+      "0523456789": {
         whatsapp: "0523456789",
         name: "שרה לוי",
         role: "manager",
         email: "sarah@urbanbistro.com"
       }
-    ],
+    },
     isActivated: true,
     payment: {
       provider: "paypal",
@@ -288,14 +288,14 @@ export const exampleRestaurants: Record<Restaurant['legalId'], Restaurant> = {
     legalId: "567890123",
     legalName: "קפה הבוקר בע״מ",
     name: "קפה הבוקר",
-    contacts: [
-      {
+    contacts: {
+      "0547890123": {
         whatsapp: "0547890123",
         name: "מיכאל בן-דוד",
         role: "owner",
         email: "michael@morningcafe.com"
       }
-    ],
+    },
     isActivated: false,
     payment: {
       provider: "trial",

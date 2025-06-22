@@ -125,12 +125,14 @@ function createActionFromState(
           legalId: context.legalId || context.restaurantId,
           legalName: context.companyName || '',
           name: context.restaurantName || '',
-          contacts: [{
-            whatsapp: context.contactNumber || '',
-            name: context.contactName || '',
-            role: 'owner',
-           ...(context.contactEmail && { email: context.contactEmail })
-          }],
+          contacts: {
+            [context.contactName]: {
+              whatsapp: context.contactNumber || '',
+              name: context.contactName || '',
+              role: 'owner',
+              ...(context.contactEmail && { email: context.contactEmail })
+            }
+          },
           payment: {
             provider: context.paymentMethod || 'trial',
             status: false
@@ -193,7 +195,7 @@ function createActionFromState(
       return {
         type: 'CREATE_INVENTORY_SNAPSHOT',
         payload: {
-          restaurantId: context.legalId || context.restaurantId || '',
+          restaurantId: context.legalId || context.restaurantId,
           category: context.currentCategory || '',
           items: context.inventoryItems || []
         }
@@ -203,7 +205,7 @@ function createActionFromState(
       return {
         type: 'SEND_ORDER',
         payload: {
-          restaurantId: context.legalId || context.restaurantId || '',
+          restaurantId: context.legalId || context.restaurantId,
           supplierId: context.supplierWhatsapp || '',
           items: context.orderItems || []
         }

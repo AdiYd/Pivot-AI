@@ -5,11 +5,13 @@
  * Organized into 3 main collections: restaurants, orders, and conversations
  *
  * /restaurants (collection)
- *   {restaurantId} (doc)               // Use legalId as restaurantId
- *     ├─ legalId: string              // 9-digit legal ID
- *     ├─ legalName: string           // Legal business name
- *     ├─ name: string               // Restaurant name (customer-facing)
- *     ├─ contacts: Contact[]       // Array of contacts items, including primary contact ({whatsapp, name, role, email})
+ *   {restaurantId} (doc)                 // Use legalId as restaurantId
+ *     ├─ legalId: string                // 9-digit legal ID
+ *     ├─ legalName: string             // Legal business name
+ *     ├─ name: string                 // Restaurant name (customer-facing)
+ *     ├─ contacts: {                 // Map of contacts items, including primary contact ({whatsapp, name, role, email})
+ *       [whatsapp: string]: Contact{}
+ *     }       
  *     ├─ isActivated: boolean     // Whether the restaurant is activated for service
  *     ├─ payment: PaymentMeta    // {provider, status (boolean)}
  *     ├─ orders: string[]       // Array of order IDs

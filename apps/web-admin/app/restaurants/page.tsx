@@ -80,12 +80,8 @@ export default function RestaurantsPage() {
     name: '',
     legalName: '',
     legalId: '',
-    contacts: [{
-      name: '',
-      whatsapp: '',
-      email: '',
-      role: 'owner',
-    }],
+    contacts: {
+    },
     payment: {
       provider: 'credit_card',
       status: false
@@ -146,12 +142,8 @@ export default function RestaurantsPage() {
         legalId: '',
         legalName:  '',
         name:  '',
-        contacts: [{
-          whatsapp: '',
-          name: '',
-          role: 'owner',
-          email: undefined
-        }],
+        contacts: {        
+        },
         payment: {
           provider: 'credit_card',
           status: false // New restaurants start with pending payment
@@ -175,12 +167,7 @@ export default function RestaurantsPage() {
         name: '',
         legalName: '',
         legalId: '',
-        contacts: [{
-          name: '',
-          whatsapp: '',
-          email: '',
-          role: 'owner',
-        }],
+        contacts:{},
         payment: {
           provider: 'credit_card',
           status: false
@@ -336,7 +323,7 @@ export default function RestaurantsPage() {
         const matchesSearch = restaurant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           restaurant.legalName.toLowerCase().includes(searchTerm.toLowerCase()) ||
           restaurant.legalId.includes(searchTerm) ||
-          restaurant.contacts.some(contact => 
+          Object.values(restaurant.contacts).some(contact => 
             contact.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
             contact.whatsapp.includes(searchTerm)
           );
@@ -646,8 +633,8 @@ export default function RestaurantsPage() {
                   <div className="text-xs text-muted-foreground">{restaurant.legalName}</div>
                 </TableCell>
                 <TableCell>
-                  <div className="text-sm">{restaurant.contacts[0]?.name}</div>
-                  <div className="text-xs text-muted-foreground">{restaurant.contacts[0]?.whatsapp}</div>
+                  <div className="text-sm">{Object.values(restaurant.contacts).find(contact=> contact.role ==='owner')?.name}</div>
+                  <div className="text-xs text-muted-foreground">{Object.values(restaurant.contacts).find(contact=> contact.role ==='owner')?.whatsapp}</div>
                 </TableCell>
                 <TableCell>
                   {getStatusBadge(restaurant)}
@@ -1179,115 +1166,163 @@ export default function RestaurantsPage() {
                   <TabsContent dir='rtl' value="contact" className="space-y-4 mt-6">
                     {isEditing ? (
                       <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
+                      <h3 className="font-medium mb-2">אנשי קשר</h3>
+                      {Object.entries(editingRestaurantRef.current?.contacts || {}).map(([phoneNumber, contact]) => (
+                        <Card key={phoneNumber} className="border rounded-lg p-4 mb-4">
+                        <div className="grid grid-cols-2 gap-4 mb-4">
                           <EditableField
-                            label="שם"
-                            value={editingRestaurantRef.current?.contacts[0]?.name || ''}
-                            onChange={(value) => editingRestaurantRef.current = {
+                          label="שם"
+                          value={contact?.name || ''}
+                          onChange={(value) => {
+                            if (editingRestaurantRef.current) {
+                            editingRestaurantRef.current = {
                               ...editingRestaurantRef.current,
-                              contacts: [{ ...editingRestaurantRef.current?.contacts[0], name: value as string }]
-                            } as Restaurant}
+                              contacts: {
+                              ...editingRestaurantRef.current.contacts,
+                              [phoneNumber]: {
+                                ...editingRestaurantRef.current.contacts[phoneNumber],
+                                name: value as string
+                              }
+                              }
+                            } as Restaurant;
+                            }
+                          }}
                           />
                           <div className="space-y-2">
-                            <Label>תפקיד</Label>
-                            <Select
-                              value={editingRestaurantRef.current?.contacts[0]?.role || 'owner'}
-                              onValueChange={(value: Contact["role"]) => 
-                                editingRestaurantRef.current = {
-                                  ...editingRestaurantRef.current,
-                                  contacts: [{ ...editingRestaurantRef.current?.contacts[0], role: value }]
-                                } as Restaurant
+                          <Label>תפקיד</Label>
+                          <Select
+                            value={contact?.role || 'owner'}
+                            onValueChange={(value: Contact["role"]) => {
+                            if (editingRestaurantRef.current) {
+                              editingRestaurantRef.current = {
+                              ...editingRestaurantRef.current,
+                              contacts: {
+                                ...editingRestaurantRef.current.contacts,
+                                [phoneNumber]: {
+                                ...editingRestaurantRef.current.contacts[phoneNumber],
+                                role: value
+                                }
                               }
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="owner">בעלים</SelectItem>
-                                <SelectItem value="manager">מנהל</SelectItem>
-                                <SelectItem value="shift">משמרת</SelectItem>
-                                <SelectItem value="general">אחר</SelectItem>
-                              </SelectContent>
-                            </Select>
+                              } as Restaurant;
+                            }
+                            }}
+                          >
+                            <SelectTrigger>
+                            <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                            <SelectItem value="owner">בעלים</SelectItem>
+                            <SelectItem value="manager">מנהל</SelectItem>
+                            <SelectItem value="shift">משמרת</SelectItem>
+                            <SelectItem value="general">אחר</SelectItem>
+                            </SelectContent>
+                          </Select>
                           </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                           <EditableField
-                            label="WhatsApp"
-                            value={editingRestaurantRef.current?.contacts[0]?.whatsapp || ''}
-                            onChange={(value) => editingRestaurantRef.current = {
+                          label="WhatsApp"
+                          value={phoneNumber}
+                          onChange={(value) => {
+                            if (editingRestaurantRef.current && value !== phoneNumber) {
+                            const updatedContacts = { ...editingRestaurantRef.current.contacts };
+                            const contactData = { ...updatedContacts[phoneNumber] };
+                            delete updatedContacts[phoneNumber];
+                            updatedContacts[value as string] = contactData;
+                            
+                            editingRestaurantRef.current = {
                               ...editingRestaurantRef.current,
-                              contacts: [{ ...editingRestaurantRef.current?.contacts[0], whatsapp: value }]
-                            } as Restaurant}
+                              contacts: updatedContacts
+                            } as Restaurant;
+                            }
+                          }}
                           />
                           <EditableField
-                            label="אימייל"
-                            value={editingRestaurantRef.current?.contacts[0]?.email || ''}
-                            onChange={(value) => editingRestaurantRef.current = {
+                          label="אימייל"
+                          value={contact?.email || ''}
+                          onChange={(value) => {
+                            if (editingRestaurantRef.current) {
+                            editingRestaurantRef.current = {
                               ...editingRestaurantRef.current,
-                              contacts: [{ ...editingRestaurantRef.current?.contacts[0], email: value }]
-                            } as Restaurant}
-                            type="email"
+                              contacts: {
+                              ...editingRestaurantRef.current.contacts,
+                              [phoneNumber]: {
+                                ...editingRestaurantRef.current.contacts[phoneNumber],
+                                email: value as string
+                              }
+                              }
+                            } as Restaurant;
+                            }
+                          }}
+                          type="email"
                           />
                         </div>
-                        <div className="flex justify-end gap-2 pt-4 border-t">
-                          <Button
-                            variant="outline"
-                            onClick={() => {
-                              setIsEditing(false);
-                              editingRestaurantRef.current = null;
-                            }}
-                          >
-                            <X className="w-4 h-4 mr-1" />
-                            ביטול
-                          </Button>
-                          <Button
-                            onClick={() => handleEdit(selectedRestaurant.legalId, editingRestaurantRef.current)}
-                            disabled={isLoading}
-                          >
-                            <Save className="w-4 h-4 mr-1" />
-                            שמור שינויים
-                          </Button>
-                        </div>
+                        </Card>
+                      ))}
+                      
+                      <div className="flex justify-end gap-2 pt-4 border-t mt-6">
+                        <Button
+                        variant="outline"
+                        onClick={() => {
+                          setIsEditing(false);
+                          editingRestaurantRef.current = null;
+                        }}
+                        >
+                        <X className="w-4 h-4 mr-1" />
+                        ביטול
+                        </Button>
+                        <Button
+                        onClick={() => handleEdit(selectedRestaurant.legalId, editingRestaurantRef.current)}
+                        disabled={isLoading}
+                        >
+                        <Save className="w-4 h-4 mr-1" />
+                        שמור שינויים
+                        </Button>
+                      </div>
                       </div>
                     ) : (
                       <>
+                      <h3 className="font-medium mb-4">אנשי קשר</h3>
+                      {Object.entries(selectedRestaurant.contacts).map(([phoneNumber, contact]) => (
+                        <Card key={phoneNumber} className="border rounded-lg p-4 mb-4">
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
-                            <Label>שם</Label>
-                            <Input value={selectedRestaurant.contacts[0].name} readOnly />
+                          <Label>שם</Label>
+                          <Input value={contact.name} readOnly />
                           </div>
                           <div className="space-y-2">
-                            <Label>תפקיד</Label>
-                            <Input value={selectedRestaurant.contacts[0].role} readOnly />
+                          <Label>תפקיד</Label>
+                          <Input value={contact.role} readOnly />
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 gap-4 mt-3">
                           <div className="space-y-2">
-                            <Label>WhatsApp</Label>
-                            <Input value={selectedRestaurant.contacts[0].whatsapp} readOnly />
+                          <Label>WhatsApp</Label>
+                          <Input value={phoneNumber} readOnly />
                           </div>
-                          {selectedRestaurant.contacts[0].email && (
-                            <div className="space-y-2">
-                              <Label>אימייל</Label>
-                              <Input value={selectedRestaurant.contacts[0].email} readOnly />
-                            </div>
+                          {contact.email && (
+                          <div className="space-y-2">
+                            <Label>אימייל</Label>
+                            <Input value={contact.email} readOnly />
+                          </div>
                           )}
                         </div>
-                        
-                        <div className="border-t pt-4">
-                          <h4 className="font-medium mb-3">פרטי תשלום</h4>
-                          <div className="flex justify-start gap-4">
-                            <div className="space-y-2 min-w-[60%]">
-                              <Label>ספק תשלומים</Label>
-                              <Input value={selectedRestaurant.payment.provider} readOnly />
-                            </div>
-                            <div className="space-y-2 grid ">
-                              <Label>סטטוס תשלום</Label>
-                              {getStatusBadge(selectedRestaurant)}
-                            </div>
-                          </div>
+                        </Card>
+                      ))}
+                      
+                      <div className="border-t pt-4 mt-4">
+                        <h4 className="font-medium mb-3">פרטי תשלום</h4>
+                        <div className="flex justify-start gap-4">
+                        <div className="space-y-2 min-w-[60%]">
+                          <Label>ספק תשלומים</Label>
+                          <Input value={selectedRestaurant.payment.provider} readOnly />
                         </div>
+                        <div className="space-y-2 grid ">
+                          <Label>סטטוס תשלום</Label>
+                          {getStatusBadge(selectedRestaurant)}
+                        </div>
+                        </div>
+                      </div>
                       </>
                     )}
                   </TabsContent>

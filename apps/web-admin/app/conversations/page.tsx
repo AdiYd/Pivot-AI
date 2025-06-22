@@ -142,7 +142,7 @@ const enhancedConversations = useMemo((): EnhancedConversation[] => {
       const restaurantName = restaurant?.name || conversation.context?.restaurantName || 'מסעדה לא רשומה';
       
       if (!!restaurant) {
-        contactName = restaurant.contacts?.find((c: any) => c.whatsapp === phone)?.name || 'אורח';
+        contactName = restaurant.contacts?.[phone]?.name || 'אורח';
       } else {
         // Try to get name from context
         contactName = conversation.context?.contactName || conversation.context?.name || 'אורח';

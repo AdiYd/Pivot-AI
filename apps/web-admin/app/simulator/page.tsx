@@ -117,7 +117,7 @@ useEffect(() => {
       return;
     }
 
-    const loadedSession : SimulatorSession = (await loadSession(session.phoneNumber)) as SimulatorSession;
+    const loadedSession : SimulatorSession = (await loadSession(session.phoneNumber, database.conversations[session.phoneNumber])) as SimulatorSession;
     console.log('Loaded session:', loadedSession);
     // Convert messages to the correct format
 
@@ -626,7 +626,7 @@ useEffect(() => {
                           }
                         }}
                         disabled={session.isLoading}
-                        className="flex-1 min-h-[40px] h-auto* max-h-[120px] rounded-2xl shadow-md bg-white dark:bg-zinc-800 ring-1 ring-zinc-300/40 focus-visible:ring-zinc-500/40 resize-none overflow-hidden"
+                        className="flex-1 min-h-[40px] h-auto* max-h-[120px] rounded-2xl shadow-md bg-white dark:bg-zinc-800 ring-1 border-none ring-zinc-300/40 focus-visible:ring-zinc-500/80 resize-none overflow-hidden"
                         maxLength={4000}
                         rows={1}
                       />
@@ -672,22 +672,10 @@ const useAutoResizeTextarea = () => {
 
 // Helper functions
 
-const loadSession = async (phoneNumber: string): Promise<SimulatorSession | null> => {
+const loadSession = async (phoneNumber: string, conversationData: Conversation): Promise<SimulatorSession | null> => {
   try {
     // Clean phone number format
     const cleanPhone = phoneNumber.replace(/\s|-/g, '');
-    
-    // Reference to the conversation document
-    const conversationRef = doc(db, 'conversations_simulator', cleanPhone);
-    const conversationDoc = await getDoc(conversationRef);
-    
-    // If no conversation exists yet, return null
-    if (!conversationDoc.exists()) {
-      return null;
-    }
-    
-    // Get conversation data
-    const conversationData = conversationDoc.data() as Conversation;
     
     // Try to validate with ConversationSchema (excluding messages)
     const conversation: Omit<SimulatorSession, 'messages' | 'isConnected' | 'isLoading'> = {
@@ -723,28 +711,6 @@ const loadSession = async (phoneNumber: string): Promise<SimulatorSession | null
       });
     }
   
-    
-    // messages.forEach((messageData) => {
-      
-    //   // Validate message with MessageSchema and add status
-    //   try {
-    //     const message: Message & { status?: string } = {
-    //       role: messageData.role || 'user',
-    //       body: messageData.body || '',
-    //       hasTemplate: messageData.hasTemplate || false,
-    //       templateId: messageData.templateId,
-    //       messageState: messageData.messageState || 'IDLE',
-    //       createdAt: messageData.createdAt?.toDate() || new Date(),
-    //       status: 'delivered'
-    //     };
-        
-    //     messages.push(message);
-    //   } catch (error) {
-    //     console.error('Error parsing message:', error);
-    //   }
-    // });
-    
-    // Return the session data
     return {
       ...conversation,
       messages,

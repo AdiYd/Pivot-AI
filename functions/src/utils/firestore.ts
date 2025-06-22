@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import * as admin from 'firebase-admin';
 import {SupplierSchema, ConversationSchema, MessageSchema, RestaurantSchema} from '../schema/schemas';
-import { Conversation, Supplier,SupplierCategory, Restaurant, Contact, Message } from '../schema/types';
+import { Conversation, Supplier,SupplierCategory, Restaurant, Contact, Message, ContactMap } from '../schema/types';
 import { FieldValue, DocumentReference } from 'firebase-admin/firestore';
 
 
@@ -46,11 +46,7 @@ export async function createRestaurant(data: Restaurant, isSimulator: boolean = 
       legalName: data.legalName,
       name: data.name,
       isActivated: false,
-      contacts: data.contacts || [{
-        whatsapp: "",
-        name: "",
-        role: "",
-      }],
+      contacts: data.contacts as ContactMap, // Ensure contacts are typed correctly
       payment:  {
         provider: "trial",
         status: false,

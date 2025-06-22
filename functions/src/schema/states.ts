@@ -326,18 +326,20 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
     },
     description: "Ask for more suppliers to be added after the initial setup.",
     callback: (context, data) => {
-      if(context.supplierWhatsapp){
-        delete context.supplierWhatsapp; // Remove whatsapp number from context
-      }
-      if(context.supplierName){
-        delete context.supplierName; // Remove supplier name from context
-      }
-      if(context.supplierCategories){
-        delete context.supplierCategories; // Remove supplier categories from context
-      }
-      if(context.supplierReminders){
-        delete context.supplierReminders; // Remove supplier reminders from context
-      }
+      context.suppliersList =
+      [...(context.suppliersList || []), {
+        name: context.supplierName,
+        whatsapp: context.supplierWhatsapp,
+        categories: context.supplierCategories,
+        reminders: context.supplierReminders,
+        products: context.supplierProducts
+      }]
+      delete context.supplierName;
+      delete context.supplierWhatsapp;
+      delete context.supplierCategories;
+      delete context.supplierProducts;
+      delete context.supplierReminders;
+      delete context.dataToApprove; // Clear any pending approval data
     },
     nextState: {
       add_supplier: "SUPPLIER_CATEGORY",

@@ -6,9 +6,13 @@ import {
   Firestore, 
   getFirestore, 
   collection, 
-  getDocs
+  getDocs,
+  doc,
+  updateDoc,
+  query,
+  orderBy
 } from "firebase/firestore";
-import { DataBase, Order, Restaurant, Conversation } from "@/schema/types";
+import { DataBase, Order, Restaurant, Conversation, Contact } from "@/schema/types";
 import { RestaurantSchema, OrderSchema, ConversationSchema, MessageSchema } from "@/schema/schemas";
 
 // Firebase configuration
@@ -114,10 +118,10 @@ export function FirebaseAppProvider({ children }: { children: ReactNode }) {
           
           // Create a promise for loading messages and add to our array
           const messagesPromise = async () => {
-            const messagesCollectionRef = collection(db, 'conversations_simulator', doc.id, 'messages');
+            // Fetch messages for this conversation order by timestamp with ascending order
+            const messagesCollectionRef = query(collection(db, 'conversations_simulator', doc.id, 'messages'), orderBy('createdAt', 'asc'));
             const messagesSnap = await getDocs(messagesCollectionRef);
             const loadedMessages = messagesSnap.docs.map(msgDoc => MessageSchema.parse(msgDoc.data()));
-            
             // Update the conversation with loaded messages
             conversations[doc.id].messages = [...conversations[doc.id].messages, ...loadedMessages];
             // conversations[doc.id].messages = [ ...loadedMessages];
@@ -149,6 +153,23 @@ export function FirebaseAppProvider({ children }: { children: ReactNode }) {
     } finally {
       setDatabaseLoading(false);
     }
+  };
+
+  // Function to update contacts from array to map
+  const updateContacts = async() => {
+    // Iterate through each restaurant and convert contacts array to map (e.g from [{ whatsapp: '123', name: 'John' }] to { '123': { whatsapp: '123', name: 'John' } })
+    const restaurantSnap = await getDocs(collection(db, 'restaurants_simulator'));
+    restaurantSnap.forEach((doc) => {
+      const data = doc.data();
+      // Update the 'contacts' field to be a map (e.g from : [{ whatsapp: '123', name: 'John' }] to { '123': { whatsapp: '123', name: 'John' } })
+      updateDoc(doc.ref, {
+        contacts: data.contacts.reduce((acc: Record<string, Contact>, contact: { whatsapp: string; name: string, email: string , role: Contact['role'] }) => {
+            acc[contact.whatsapp] = { whatsapp: contact.whatsapp, name: contact.name , ...(contact.email ? { email: contact.email } : {}), role: contact.role };
+            return acc;
+        }, {})
+      });
+      console.log(`Updated contacts for restaurant ${doc.id} with ${data.contacts.length} contacts`);
+    });
   };
 
   // Refresh database function

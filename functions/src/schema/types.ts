@@ -18,6 +18,7 @@ import {
 
 // Core types derived directly from schemas
 export type Contact = z.infer<typeof ContactSchema>;
+export type ContactMap = Record<Contact['whatsapp'], Contact>;
 export type PaymentMeta = z.infer<typeof PaymentMetaSchema>;
 export type paymentProvider = z.infer<typeof PaymentMetaSchema.shape.provider>;
 export type Product = z.infer<typeof ProductSchema>;

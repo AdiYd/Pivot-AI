@@ -16,11 +16,11 @@ import {
 } from './schemas';
 
 // ======== Schema-based types using z.infer ========
+
 export type DataBase = z.infer<typeof DatabaseSchema>;
-
-
 // Core types derived directly from schemas
 export type Contact = z.infer<typeof ContactSchema>;
+export type ContactMap = Record<Contact['whatsapp'], Contact>;
 export type PaymentMeta = z.infer<typeof PaymentMetaSchema>;
 export type paymentProvider = z.infer<typeof PaymentMetaSchema.shape.provider>;
 export type Product = z.infer<typeof ProductSchema>;
@@ -119,7 +119,7 @@ export interface StateObject {
   whatsappTemplate?: {
     id: string;                // Template ID registered with WhatsApp Business API
     type: "text" | "button" | "list" | "card";  // Template type
-    body: string;              // Main message body
+    body: string ;              // Main message body
     options?: Array<{         // Response options
       name: string;           // Human-readable option text
       id: string;             // Machine-readable option identifier

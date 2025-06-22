@@ -325,6 +325,22 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
       ]
     },
     description: "Ask for more suppliers to be added after the initial setup.",
+    callback: (context, data) => {
+      context.suppliersList =
+      [...(context.suppliersList || []), {
+        name: context.supplierName,
+        whatsapp: context.supplierWhatsapp,
+        categories: context.supplierCategories,
+        reminders: context.supplierReminders,
+        products: context.supplierProducts
+      }]
+      delete context.supplierName;
+      delete context.supplierWhatsapp;
+      delete context.supplierCategories;
+      delete context.supplierProducts;
+      delete context.supplierReminders;
+      delete context.dataToApprove; // Clear any pending approval data
+    },
     nextState: {
       add_supplier: "SUPPLIER_CATEGORY",
       finished: "RESTAURANT_FINISHED"
@@ -410,7 +426,7 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
     description: "Select which days of the week this supplier delivers goods.",
     validator: SupplierSchema.pick({ reminders: true }),
     aiValidation: {
-      prompt: "עליך לבקש מהמשתמש לבחור את הימים והשעות בהם הוא מעוניין לקבל תזכורות לבצע הזמנה מהספק הנוכחי.",
+      prompt: "עליך לבקש מהמשתמש לבחור את הימים והשעות בהם הוא מעוניין לקבל תזכורות לבצע הזמנה מהספק הנוכחי. אם מבקשים שעה לר ברורה, יש להניח שעה עגולה (למשל 10:00). ובנוסף לא ניתן להגדיר יותר מתזכורת אחת בכל יום",
       schema: SupplierSchema.pick({ reminders: true })
     },
     callback: (context, data) => {

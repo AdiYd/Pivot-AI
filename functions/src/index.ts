@@ -79,50 +79,16 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
     const conversationsCollection = getCollectionName('conversations', isSimulator);
     const conversationRef = firestore.collection(conversationsCollection).doc(phoneNumber);
     const conversationDoc = await conversationRef.get();
-    const now = new Date();
-    console.log(`[${isSimulator ? 'Simulator' : 'WhatsApp'}] Received message from ${from}: "${body}"`);
-
-  
-    if (!conversationDoc.exists) {
-      // If it doesn't exist, create a new document with the message
-      const initialConversation = {
-        currentState: 'INIT',
-        context: {
-          contactNumber: phoneNumber,
-          ...(isSimulator && { isSimulator })
-        },
-        role: 'owner', // Default role for new conversations
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp()
-      };
-      
-      // First create the conversation document
-      console.log('Setting new conversation:', initialConversation);
-      await conversationRef.set(initialConversation);
-      
-      // Then add the first message to the messages subcollection
-      await conversationRef.collection('messages').add({
-        body,
-        role: 'user',
-        createdAt: now,
-        messageState: 'INIT' 
-      } as Message);
-    } else {
-      // Document exists, update the messages collection
-      // Add the new message to the messages subcollection
-      await conversationRef.collection('messages').add({
-        body,
-        role: 'user',
-        createdAt: now,
-        messageState: conversationDoc.data()?.currentState || 'INIT', // Use current state or default to INIT
-        ...(mediaUrl && { mediaUrl }) // Include mediaUrl if it exists
-      });
-      
-      // Update the conversation's timestamp
-      await conversationRef.update({
-        updatedAt: FieldValue.serverTimestamp()
-      });
-    }
+    const restaurantsCollection = getCollectionName('restaurants', isSimulator);
+    
+    // Lookup restaurant by phone number in contacts array (contacts: [{ whatsapp: string , name: string, role: string }])
+    const restaurantRef = await firestore
+      .collection(restaurantsCollection)
+      .where(`contacts.${phoneNumber}`, '!=', null) // Check if phoneNumber exists in contacts map
+      .limit(1)
+      .get();
+    
+    log(`[${isSimulator ? 'Simulator' : 'WhatsApp'}] Received message from ${from}: "${body}"`);
 
     // Create the incoming message object
     const message: IncomingMessage = {
@@ -136,19 +102,13 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
      * Phone number is now the document ID for conversations
      */
     let conversation: Conversation;
-    let restaurantId = "";
+    let restaurantId = restaurantRef.empty ? null : restaurantRef.docs[0].id;
 
     // Get existing conversation state by phone number
     if (!conversationDoc.exists) {
       console.log(`[${isSimulator ? 'Simulator' : 'WhatsApp'}] No existing conversation found for phone: ${phoneNumber}`);
       // New conversation - check if restaurant already exists for this phone
-      const restaurantsCollection = getCollectionName('restaurants', isSimulator);
-      const restaurantRef = await firestore
-        .collection(restaurantsCollection)
-        .where("contacts", "array-contains", { whatsapp: phoneNumber })
-        .limit(1)
-        .get();
-
+      console.log(`[${isSimulator ? 'Simulator' : 'WhatsApp'}] This phone number is associated with ${restaurantRef.size} restaurant(s)`);
       if (restaurantRef.empty) {
         // Completely new user - start onboarding
         conversation = ConversationSchema.parse({
@@ -156,33 +116,60 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
           role: "owner",
           context: {
             contactNumber: phoneNumber,
+            contactRole: "owner",
             ...(isSimulator && { isSimulator })
           },
         });
+      
+
         console.log(`[${isSimulator ? 'Simulator' : 'WhatsApp'}] New user starting onboarding - phone: ${phoneNumber}, restaurantId: ${restaurantId}`);
+      
       } else {
         // Existing restaurant, new conversation
         const restaurantDoc = restaurantRef.docs[0];
-        const Restaurant = restaurantDoc.data() as Restaurant;
-        const contactName = Restaurant.contacts.find(c => c.whatsapp === phoneNumber)?.name || "";
-        const contactRole = Restaurant.contacts.find(c => c.whatsapp === phoneNumber)?.role || "";
+        const restaurant = restaurantDoc.data() as Restaurant;
+        const contactName = restaurant.contacts[phoneNumber]?.name || "";
+        const contactRole = restaurant.contacts[phoneNumber]?.role || "";
 
         conversation = ConversationSchema.parse({
           currentState: "IDLE",
-          role: contactRole || "owner",
+          role: contactRole || "general",
+          restaurantId,
           context: {
-            restaurantId: Restaurant.legalId,
-            restaurantName: Restaurant.name,
+            legalId: restaurant.legalId,
+            restaurantName: restaurant.name,
             contactNumber: phoneNumber,
+            contactRole,
             contactName,
             ...(isSimulator && { isSimulator })
           },
         });
+
+
         console.log(`[${isSimulator ? 'Simulator' : 'WhatsApp'}] Existing restaurant, new conversation - phone: ${phoneNumber}, restaurantId: ${restaurantId}`);
       }
+      // Create the conversation document and first message with initial state
+      const {messages, ...conversationData} = conversation;
+
+      await conversationRef.set(conversationData, { merge: true });
+      await conversationRef.collection('messages').add({
+        body,
+        role: 'user',
+        createdAt: FieldValue.serverTimestamp(),
+        messageState: 'INIT'
+      } as Message);
+
     } else {
       // Existing conversation - load
       const data = conversationDoc.data() as Conversation;
+      await conversationRef.collection('messages').add({
+        body,
+        role: 'user',
+        createdAt: FieldValue.serverTimestamp(),
+        messageState: data.currentState || 'INIT', // Use current state or default to INIT
+        ...(mediaUrl && { mediaUrl }) // Include mediaUrl if it exists
+      });
+    
       conversation = ConversationSchema.parse({
         currentState: data.currentState,
         role: data.role || "owner",
@@ -192,8 +179,8 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
           ...(isSimulator && { isSimulator })
         }
       });
-      const messagesSnapshot = await conversationRef.collection('messages').orderBy('createdAt', 'asc').get();
-      const Usermessages = messagesSnapshot.docs.map(doc => {
+      const messagesSnapshot = await conversationRef.collection('messages').orderBy('createdAt', 'desc').get();
+      const userMessages = messagesSnapshot.docs.map(doc => {
         const messageData = doc.data();
         return {
           body: messageData.body,
@@ -201,12 +188,19 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
           createdAt: messageData.createdAt?.toDate() || new Date(),
           messageState: messageData.messageState,
           ...(messageData.mediaUrl && { mediaUrl: messageData.mediaUrl }),
-          ...(messageData.templateId && { templateId: messageData.templateId }),
-          ...(messageData.hasTemplate !== undefined && { hasTemplate: messageData.hasTemplate })
+          ...(messageData.hasTemplate && { hasTemplate: messageData.hasTemplate, templateId: messageData.templateId })
         };
       }).filter(m => m.messageState === data.currentState);
-      conversation.messages = Usermessages;
+      conversation.messages = userMessages;
+     
+      
+      // Update the conversation's timestamp
+      await conversationRef.update({
+        updatedAt: FieldValue.serverTimestamp()
+      });
+    
     }
+
 
     /**
      * Process the message through our state machine
@@ -221,21 +215,24 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
       phone: phoneNumber,
       oldState: conversation.currentState,
       newState: newState.currentState,
-      actionsCount: actions.length,
-      newContextKeys: Object.keys(newState.context)
     });
 
     /**
      * Save the updated conversation state to Firestore
      * Using phone number as document ID
      */
+    restaurantId = restaurantId || newState.context?.restaurantId || newState.context?.legalId || null;
     const firestoreState = {
       currentState: newState.currentState,
-      context: newState.context,
+      ...(restaurantId && { restaurantId }),
       updatedAt: FieldValue.serverTimestamp()
     };
 
-    await conversationRef.set(firestoreState, { merge: true });
+    await conversationRef.set(firestoreState, { merge: true })
+    .then(() => {
+      console.log(`[${isSimulator ? 'Simulator' : 'WhatsApp'}] ✅ Updating context for phone: ${phoneNumber}`);
+      conversationRef.update({context: newState.context});
+    });
     console.log(`[${isSimulator ? 'Simulator' : 'WhatsApp'}] ✅ Conversation state saved for phone: ${phoneNumber}`);
 
     /**
@@ -399,3 +396,13 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
 //     res.status(500).send("Internal Server Error");
 //   }
 // });
+
+
+const log = ( message: string, data?: any) => {
+  console.log('🤖 ====================================================== 🤖');
+  console.log(message);
+  if (data) {
+    console.log(data);
+  }
+  console.log('🤖 ====================================================== 🤖');
+}

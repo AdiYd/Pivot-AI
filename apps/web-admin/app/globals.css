@@ -103,7 +103,7 @@
   .btn-primary {
     /* @apply p-3 bg-transparent font-semibold font-sans text-base text-center text-white bg-gradient-to-r from-teal-700 to-green-600 dark:from-teal-400 dark:to-green-600 border-purple-500 border-2 shadow-md hover:shadow-lg hover:shadow-purple-400/60 transform transition-all ease-in-out duration-200 cursor-pointer border-none rounded-lg my-1 flex items-center justify-center gap-2; */
     /* @apply text-white bg-gradient-to-r from-cyan-400 via-cyan-500 to-cyan-600 hover:bg-gradient-to-br focus:ring-4 focus:outline-none focus:ring-cyan-300 dark:focus:ring-cyan-800 shadow-lg shadow-cyan-500/50 dark:shadow-lg dark:shadow-cyan-800/80 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2; */
-    @apply text-white shadow-md hover:shadow-lg bg-gradient-to-br from-pink-500 to-orange-400 hover:bg-gradient-to-bl focus:ring-4 focus:outline-none focus:ring-pink-200 dark:focus:ring-pink-800 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2;
+    @apply text-white shadow-md hover:shadow-lg bg-gradient-to-br from-pink-500 to-orange-400 hover:bg-gradient-to-bl focus:outline-none font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2;
   }
 }
 
