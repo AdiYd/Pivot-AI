@@ -17,7 +17,6 @@ export const CATEGORIES_DICT: Record<string, Pick<Product, 'name' | 'emoji'>> = 
   disposables: { name: "חד פעמי", emoji: "🥤" },
   desserts: { name: "קינוחים", emoji: "🍰" },
   juices: { name: "מיצים טבעיים", emoji: "🧃" },
-  general: { name: "כללי", emoji: "📦" }
 };
 
 // Helper object to get days of the week in Hebrew
@@ -375,9 +374,9 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
        ...Object.entries(CATEGORIES_DICT).map(([id, name]) => ({ id, name: `${name.name}  ${name.emoji}` }))
       ]
     },
-    description: "list to select one or more supplier categories from available list.",
+    description: "list to select one or more supplier categories from available list or write a new category.",
     aiValidation: {
-      prompt: "עליך לבקש מהמשתמש לבחור קטגוריה (או כמה קטגוריות) לספק הנוכחי מתוך רשימת הקטגוריות המוצעות.",
+      prompt: "עליך לבקש מהמשתמש לבחור קטגוריה (או כמה קטגוריות) לספק הנוכחי מתוך רשימת הקטגוריות המוצעות או לכתוב קטגוריה חדשה.",
       schema: SupplierSchema.pick({ category: true })
     },
     validator: SupplierSchema.pick({ category: true }),
@@ -440,8 +439,9 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
   "PRODUCTS_LIST": {
     description: "Select products from the list or enter a custom product name and units in order to create full products list from the supplier.",
     message: `🏷️ נגדיר עכשיו את רשימת המוצרים שאתה מזמין מהספק ואת יחידות המידה שלהם
-      כיתבו בצורה ברורה את רשימת המוצרים המלאה שאתם מזמינים מהספק ואת יחידות המידה שלהם, לדוגמה:
-
+      .כיתבו בצורה ברורה את רשימת המוצרים המלאה שאתם מזמינים מהספק ואת יחידות המידה שלהם
+      
+      למשל אם הספק הוא ספק של ירקות, הרשימה יכולה להראות ככה:
       ק"ג: עגבניות שרי, מלפפון, בצל, גזר
       יח': חסה, פטרוזיליה
       `,
@@ -629,11 +629,11 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
       type: "list",
       body: "👋 *שלום {contactName}!*\n\nמה תרצה לעשות היום?\n\nבחר אחת מהאפשרויות:",
       options: [
-        { name: "🛒 יצירת הזמנה", id: "create_order" },
-        { name: "🚚 הוספת ספק חדש", id: "add_supplier" },
+        { name: "🛒 יצירת הזמנה חדשה", id: "create_order" },
         { name: "🏪 נתוני מסעדה", id: "restaurant_data" },
         { name: "📊 נתוני הזמנות", id: "order_data" },
-        { name: "❓ עזרה", id: "help" }
+        { name: "🚚 הוספת/עריכת ספק חדש", id: "add_supplier" },
+        { name: "❓ שאלות ותמיכה", id: "help" }
       ]
     },
     description: "Main menu shown when the user is not in any active flow.",

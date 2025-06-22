@@ -48,7 +48,7 @@ const FUNCTION_URL = process.env.NODE_ENV === 'development'
 const SIMULATOR_API_KEY = process.env.NEXT_PUBLIC_SIMULATOR_API_KEY;
 
 export default function SimulatorPage() {
-  const {database, databaseLoading} = useFirebase();
+  const {database, databaseLoading, refreshDatabase} = useFirebase();
   const [session, setSession] = useState<SimulatorSession>({
     phoneNumber: '0523456789',
     messages: [],
@@ -303,6 +303,7 @@ useEffect(() => {
       context: {}
     }));
     setAvailableConversations(availableConversations.filter(conv => conv !== phoneNumber));
+    await refreshDatabase();
     setLoading(false);
     setNewMessage('');
     toast({

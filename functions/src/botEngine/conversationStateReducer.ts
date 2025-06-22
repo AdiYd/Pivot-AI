@@ -451,8 +451,8 @@ export async function conversationStateReducer(
               \n
               -------------------------------------------------
               \n
-              יש לאשר על ידי לחיצה על כפתור "אישור" למטה.
-              *במידה ויש צורך בתיקונים, יש לכתוב הודעה עם ההערות המתאימות.*`  
+              יש לאשר את הנתונים על ידי לחיצה על כפתור "אישור" למטה.
+              *במידה ויש צורך בתיקונים או תוספות, יש לכתוב הודעה עם ההערות המתאימות.*`  
               // Send the approval Template message for whatsapp card with button to approve
               const approvalAction = createMessageAction(
                 {
