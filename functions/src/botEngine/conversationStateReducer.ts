@@ -126,7 +126,7 @@ function createActionFromState(
           legalName: context.companyName || '',
           name: context.restaurantName || '',
           contacts: {
-            [context.contactName]: {
+            [context.contactNumber]: {
               whatsapp: context.contactNumber || '',
               name: context.contactName || '',
               role: 'owner',
@@ -377,17 +377,19 @@ export async function conversationStateReducer(
               }
             }
             result.newState.currentState = nextState;
-              if (currentStateDefinition.action) {
-                const action = createActionFromState(
-                  currentStateDefinition.action,
-                  result.newState.context,
-                  nextState
-                );
-                
-                if (action) {
-                  result.actions.push(action);
-                }
+
+            // Prepare message action for the next state
+            if (currentStateDefinition.action) {
+              const action = createActionFromState(
+                currentStateDefinition.action,
+                result.newState.context,
+                nextState
+              );
+              
+              if (action) {
+                result.actions.push(action);
               }
+            }
             const nextStateMessage = createMessageAction(
               STATE_MESSAGES[nextState], message.from, result.newState.context, nextState
             );
@@ -403,7 +405,7 @@ export async function conversationStateReducer(
     if (currentStateDefinition.validator && userInput !== 'aiValid') {
       try {
         const filteredMessages = conversation.messages.filter(msg => msg.messageState === conversation.currentState)
-        .slice(-5) // Limit to last 5 messages for context
+        .slice(-8)
           .map(msg => {
             // Handle both Date objects and Firestore Timestamps
             let timeString = '';

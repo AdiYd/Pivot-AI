@@ -398,7 +398,7 @@ useEffect(() => {
                     />
                   </div>
                    {availableConversations.length > 0 && availableConversations.map((conv) => (
-                    <Badge onClick={() =>{setSession(prev => ({ ...prev, phoneNumber: conv }))}} key={conv} variant={session.phoneNumber === conv ? "default" : "outline"} className="mr-2 cursor-pointer">
+                    <Badge title={`${database.conversations[conv].context?.contactName} - ${database.conversations[conv].context?.restaurantName}`} onClick={() =>{setSession(prev => ({ ...prev, phoneNumber: conv }))}} key={conv} variant={session.phoneNumber === conv ? "default" : "outline"} className="mr-2 cursor-pointer">
                       {conv}
                     </Badge>
                   ))}

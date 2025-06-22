@@ -111,7 +111,8 @@ export function SideNav() {
         colors={['#92A1C6', '#146A7C', '#F0AB3D', '#C271B4', '#C20D90']}
       />
     );
-  }, [session]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Handle logout with NextAuth
   const handleLogout = () => {
@@ -165,7 +166,7 @@ export function SideNav() {
           "hidden lg:block h-screen border-l z-30 relative",
         )}
       >
-        <div className="flex flex-col h-full bg-stone-100/60 dark:bg-stone-900/60 backdrop-blur-xl">
+        <div className="flex flex-col h-full bg-stone-100/80 dark:bg-stone-900/60 backdrop-blur-xl">
           
           {/* Logo area */}
           <div className={cn(

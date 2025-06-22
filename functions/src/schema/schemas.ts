@@ -35,7 +35,11 @@ export const emojySchema = z.string().default("📦"); // Optional emoji for pro
 
 // Supplier types
 export const supplierRatingSchema = z.number().min(0).max(5); // Rating from 0 to 5
-export const supplierCategorySchema = z.enum(['vegetables', 'fruits', 'meats', 'fish', 'dairy', 'alcohol', 'eggs', 'oliveOil', 'disposables', 'desserts', 'juices','general']).default("general");
+const baseCategorySchema = z.string().min(2, 'קטגוריה חייבת להיות באורך של לפחות 2 תווים'); // Minimum 2 characters
+export const supplierCategorySchema = z.union([
+  z.enum(['vegetables', 'fruits', 'meats', 'fish', 'dairy', 'alcohol', 'eggs', 'oliveOil', 'disposables', 'desserts', 'juices', 'general']),
+  baseCategorySchema
+]).default("general");
 export const supplierRemindersSchema = z.array(z.object({
   day: daysSchema,
   // Time in HH:MM format, e.g., 20:00 between 06:00 and 23:59
@@ -216,7 +220,7 @@ export const ConversationSchema = z.object({
 
 
 export const DatabaseSchema = z.object({
-  restaurants: z.array(RestaurantSchema).default([]), // Array of restaurants
-  orders: z.array(OrderSchema).default([]),           // Array of orders
-  conversations: z.array(ConversationSchema).default([]) // Array of conversations
+  restaurants: z.record(RestaurantSchema).default({}), // Record of restaurants
+  orders: z.record(OrderSchema).default({}),           // Record of orders
+  conversations: z.record(ConversationSchema).default({}) // Record of conversations
 });

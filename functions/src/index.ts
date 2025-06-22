@@ -179,7 +179,7 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
           ...(isSimulator && { isSimulator })
         }
       });
-      const messagesSnapshot = await conversationRef.collection('messages').orderBy('createdAt', 'desc').get();
+      const messagesSnapshot = await conversationRef.collection('messages').orderBy('createdAt', 'asc').get();
       const userMessages = messagesSnapshot.docs.map(doc => {
         const messageData = doc.data();
         return {

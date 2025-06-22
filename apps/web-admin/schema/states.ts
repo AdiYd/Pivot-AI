@@ -193,7 +193,7 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
   
   "ONBOARDING_COMPANY_NAME": {
     message: `📄 *תהליך הרשמה למערכת*
-    מהו השם החוקי של העסק או החברה שלך?`,
+    מהו השם החוקי של העסק או החברה שלך? (השם שיופיע בחשבוניות)`,
     description: "Ask for the legal company name as the first step of onboarding.",
     validator: restaurantLegalNameSchema,
     callback: (context, data) => {
@@ -442,8 +442,8 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
     message: `🏷️ נגדיר עכשיו את רשימת המוצרים שאתה מזמין מהספק ואת יחידות המידה שלהם
       כיתבו בצורה ברורה את רשימת המוצרים המלאה שאתם מזמינים מהספק ואת יחידות המידה שלהם, לדוגמה:
 
-      ק"ג: 🍅 עגבניות שרי, 🥒 מלפפון, 🧅 בצל, 🥕 גזר
-      יח': 🥬 חסה, 🌿 פטרוזיליה
+      ק"ג: עגבניות שרי, מלפפון, בצל, גזר
+      יח': חסה, פטרוזיליה
       `,
     aiValidation: {
       prompt: "עליך לבקש מהמשתמש לבחור, לרשום בכל דרך שיבחר רשימה של מוצרים וpcs המידה שלהם שאותם ניתן להזמין מהספק, אם נתונים על מוצר מסויים חסרים, השלם אותם לפי הסבירות הגבוהה ביותר.",
@@ -629,16 +629,21 @@ export const STATE_MESSAGES: Record<BotState, StateObject> = {
       type: "list",
       body: "👋 *שלום {contactName}!*\n\nמה תרצה לעשות היום?\n\nבחר אחת מהאפשרויות:",
       options: [
-        { name: "📦 עדכון מלאי", id: "update_inventory" },
         { name: "🛒 יצירת הזמנה", id: "create_order" },
-        { name: "🏪 הוספת ספק חדש", id: "add_supplier" },
-        { name: "🏷️ הוספת מוצר חדש", id: "add_product" },
-        { name: "📊 דוחות והזמנות", id: "reports" },
-        { name: "⚙️ הגדרות", id: "settings" },
+        { name: "🚚 הוספת ספק חדש", id: "add_supplier" },
+        { name: "🏪 נתוני מסעדה", id: "restaurant_data" },
+        { name: "📊 נתוני הזמנות", id: "order_data" },
         { name: "❓ עזרה", id: "help" }
       ]
     },
-    description: "Main menu shown when the user is not in any active flow."
+    description: "Main menu shown when the user is not in any active flow.",
+    nextState:{
+      // create_order: "ORDER_SETUP_START",
+      add_supplier: "SUPPLIER_CATEGORY",
+      // restaurant_data: "RESTAURANT_FINISHED", // Assuming this shows restaurant data
+      // order_data: "ORDER_SETUP_START", // Assuming this shows order data
+      help: "IDLE" // Redirect to help state or show help message
+    }
   }
 };
 
