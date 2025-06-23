@@ -27,7 +27,7 @@ export const contactRoleSchema = z.enum(["owner", "manager", "shift", "general",
 
 
 // Product types
-export const productUnitSchema = z.enum(["kg", "g", "l", "ml", "mg", "pcs", "box", "bag", "bottle", "can","pack", "packet", "other"]).default("other");
+export const productUnitSchema = z.enum(["kg", "g", "l", "ml", "mg", "pcs", "box", "pkg", "unit", "bag", "barrel", "bottle", "can","pack", "packet", "other"]).default("other");
 export const productNameSchema = z.string().min(2, "שם המוצר חייב להיות באורך של לפחות 2 תווים");
 export const parSchema = z.number().gt(0, "כמות מינימלית חייבת להיות מעל 0");
 export const emojySchema = z.string().default("📦"); // Optional emoji for product representation
@@ -66,6 +66,7 @@ const botStateValues: BotState[] = [
   "ONBOARDING_CONTACT_NAME",
   "ONBOARDING_CONTACT_EMAIL",
   "ONBOARDING_PAYMENT_METHOD",
+  "ONBOARDING_SIMULATOR",
   "WAITING_FOR_PAYMENT",
   "SETUP_SUPPLIERS_START",
   "SETUP_SUPPLIERS_ADDITIONAL",

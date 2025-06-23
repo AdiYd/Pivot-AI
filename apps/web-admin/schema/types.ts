@@ -18,6 +18,7 @@ import {
 // ======== Schema-based types using z.infer ========
 
 export type DataBase = z.infer<typeof DatabaseSchema>;
+
 // Core types derived directly from schemas
 export type Contact = z.infer<typeof ContactSchema>;
 export type ContactMap = Record<Contact['whatsapp'], Contact>;
@@ -53,6 +54,7 @@ export type BotState =
   | "ONBOARDING_CONTACT_NAME"
   | "ONBOARDING_CONTACT_EMAIL"
   | "ONBOARDING_PAYMENT_METHOD"
+  | "ONBOARDING_SIMULATOR"
   | "WAITING_FOR_PAYMENT"
 
 // Supplier setup states 
@@ -155,4 +157,10 @@ export interface StateObject {
   nextState?: Record<string, BotState>; // Mapping of user responses to next states
 
   action?: BotAction['type']; // Optional action to perform when this state is finished
+}
+
+
+export interface StateReducerResult {
+  newState: Conversation;
+  actions: BotAction[];
 }

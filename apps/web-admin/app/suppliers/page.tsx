@@ -12,7 +12,8 @@ import {
 } from '@/components/ui';
 import { 
   Plus, Search, Truck, Calendar, Clock, Phone, Star, Package, 
-  Eye, Store, Filter, TrendingUp, X, Table as TableIcon
+  Eye, Store, Filter, TrendingUp, X, Table as TableIcon,
+  RefreshCw
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -44,7 +45,7 @@ const weekDaysDict: Record<number, Days> = {
 }
 
 export default function SuppliersPage() {
-  const {database} = useFirebase();
+  const {database, refreshDatabase} = useFirebase();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedSupplier, setSelectedSupplier] = useState<EnhancedSupplier | null>(null);
@@ -387,6 +388,10 @@ export default function SuppliersPage() {
                 <TableIcon className="w-4 h-4" />
               </Button>
             </div>
+            <Button className='max-sm:hidden' onClick={refreshDatabase}>
+              <RefreshCw className="w-4 h-4 ml-2" />
+              רענן
+            </Button>
           </div>
           {/* <Dialog>
             <DialogTrigger asChild>

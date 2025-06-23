@@ -51,6 +51,7 @@ export type BotState =
   | "ONBOARDING_CONTACT_NAME"
   | "ONBOARDING_CONTACT_EMAIL"
   | "ONBOARDING_PAYMENT_METHOD"
+  | "ONBOARDING_SIMULATOR"
   | "WAITING_FOR_PAYMENT"
 
 // Supplier setup states 
@@ -153,4 +154,10 @@ export interface StateObject {
   nextState?: Record<string, BotState>; // Mapping of user responses to next states
 
   action?: BotAction['type']; // Optional action to perform when this state is finished
+}
+
+
+export interface StateReducerResult {
+  newState: Conversation;
+  actions: BotAction[];
 }

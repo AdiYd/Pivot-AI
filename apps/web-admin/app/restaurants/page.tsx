@@ -39,11 +39,12 @@ import {
   X,
   Filter,
   ArrowUpDown,
-  Table as TableIcon
+  Table as TableIcon,
+  RefreshCw
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Timestamp } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDocs, Timestamp } from 'firebase/firestore';
 import { Icon } from '@iconify/react/dist/iconify.js';
 
 // Import the actual database
@@ -51,7 +52,7 @@ import exampleDatabase from '@/schema/example';
 import { Contact, DataBase, Order, paymentProvider, Restaurant, Supplier, SupplierCategory } from '@/schema/types';
 import { getCategoryBadge } from '@/components/ui/badge';
 import { DebugButton, debugFunction } from '@/components/debug';
-import { useFirebase } from '@/lib/firebaseClient';
+import { db, useFirebase } from '@/lib/firebaseClient';
 
 
 declare type Stats = {
@@ -64,7 +65,7 @@ declare type Stats = {
 };
 
 export default function RestaurantsPage() {
-  const {database} = useFirebase();
+  const {database, refreshDatabase} = useFirebase();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant & { stats: Stats } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -226,12 +227,18 @@ export default function RestaurantsPage() {
     try {
       setIsLoading(true);
       console.log('Deleting restaurant:', restaurantId);
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Update local state (later this will be a Firestore delete)
-      console.log('Deleting restaurant:', restaurantId);
-      
+      const restaurantName = database.restaurants[restaurantId]?.name || 'מסעדה לא מזוהה';
+      const userConfirm = window.confirm(`האם אתה בטוח שברצונך למחוק את המסעדה ${restaurantName} עם ח.פ ${restaurantId}?`);
+      if (!userConfirm) {
+        setIsLoading(false);
+        return;
+      }
+      const restaurantDocRef = doc(db, 'restaurants_simulator', restaurantId);
+      if (restaurantDocRef) {
+        // Delete all documents in the collection
+        await deleteDoc(restaurantDocRef);
+        await refreshDatabase();
+      }
 
       toast({
         title: "מסעדה נמחקה",
@@ -534,7 +541,7 @@ export default function RestaurantsPage() {
               <AlertDialogFooter>
                 <AlertDialogCancel>ביטול</AlertDialogCancel>
                 <AlertDialogAction
-                  onClick={() => handleDelete(restaurant.legalId)}
+                  onClick={(e) => { e.stopPropagation(); handleDelete(restaurant.legalId); }}
                   className="bg-red-600 hover:bg-red-700"
                 >
                   מחק מסעדה
@@ -685,7 +692,12 @@ export default function RestaurantsPage() {
                       <AlertDialogTrigger asChild>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
+                            <Button 
+                             onClick={(e) => {
+                                e.stopPropagation(); // Stop propagation here
+                                handleDelete(restaurant.legalId);
+                              }}
+                            variant="outline" size="sm" className="text-red-600 hover:text-red-700">
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           </TooltipTrigger>
@@ -706,7 +718,7 @@ export default function RestaurantsPage() {
                         <AlertDialogFooter>
                           <AlertDialogCancel>ביטול</AlertDialogCancel>
                           <AlertDialogAction
-                            onClick={() => handleDelete(restaurant.legalId)}
+                            onClick={(e) => { e.stopPropagation(); handleDelete(restaurant.legalId); }}
                             className="bg-red-600 hover:bg-red-700"
                           >
                             מחק מסעדה
@@ -848,6 +860,10 @@ export default function RestaurantsPage() {
               </Button>
             </div>
           </div>
+           <Button className='max-sm:hidden' onClick={refreshDatabase}>
+                <RefreshCw className="w-4 h-4 ml-2" />
+                רענן
+            </Button>
           {/* Add restaurant button (commented out) */}
         </div>
       </div>
@@ -1374,11 +1390,11 @@ export default function RestaurantsPage() {
                   <TabsContent dir='rtl' value="orders" className="space-y-4 mt-6">
                     <div className="grid lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1 gap-4">
                       {Object.values(selectedRestaurant.orders).length > 0 ? (
-                        Object.values(selectedRestaurant.orders).map((orderId: string) => {
+                        Object.values(selectedRestaurant.orders).map((orderId: string, index: number) => {
                           const order = database.orders[orderId] as Order;
                           const supplier = selectedRestaurant.suppliers.find((s) => s.whatsapp === order.supplier.whatsapp);
                           return (
-                            <Card className='!min-w-[300px] max-sm:!min-w-fit' key={order.id}>
+                            <Card className='!min-w-[300px] max-sm:!min-w-fit' key={index}>
                               <CardHeader>
                                 <CardTitle className="text-lg flex items-center justify-between">
                                   <div className="flex items-center gap-2">

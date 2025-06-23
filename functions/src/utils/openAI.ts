@@ -1,9 +1,9 @@
-import { STATE_MESSAGES } from "../schema/states";
-import { BotState, ConversationContext } from "../schema/types";
+import { Conversation } from "../schema/types";
 import OpenAI from "openai";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { getConfig } from "./config";
+import { stateObject } from "../schema/states";
 // Load environment variables for local development
 if (process.env.NODE_ENV !== 'production' && process.env.FUNCTIONS_EMULATOR === 'true') {
   require('dotenv').config();
@@ -36,12 +36,16 @@ function getOpenAIClient(): OpenAI {
  * @param userInput User's message to process
  * @returns Structured data or enhanced interpretation
  */
-export async function callOpenAISchema(userInput: string, currentState: BotState, currentContext: ConversationContext, messagesHistory: string): Promise<any> {
+export async function callOpenAISchema(userInput: string, conversation: Conversation, messagesHistory: string): Promise<any> {
   try {
     const openai = getOpenAIClient();
+    const { currentState } = conversation;
     // Convert to JSON schema
-    const currentStateDefinition = STATE_MESSAGES[currentState];
-    const context = currentContext || {};
+    const currentStateDefinition = stateObject(conversation);
+    if (!currentStateDefinition) {
+      throw new Error(`State definition not found for current state: ${currentState}`);
+    }
+    const context = JSON.parse(JSON.stringify(conversation.context || {}));  
     delete context.suppliersList; // Remove suppliersList from context to avoid circular references or confusion
     const schema = currentStateDefinition.aiValidation?.schema || currentStateDefinition.validator || z.object({});
     const jsonSchema = zodToJsonSchema(schema, currentState);
@@ -75,15 +79,14 @@ export async function callOpenAISchema(userInput: string, currentState: BotState
               },
               approval_message: {
                 type: "string",
-                // description: "If 'is_data_final_and_confirmed' is true, Provide a message (In Hebrew) that summarizes this data of this step in a visually appealing way. Style the message in a simple and intuitive manner, focusing on the data you structured and completed from the user's message. don't include any unnecessary details or questions and don't make it sound as if the data is already confirmed, the message's purpose is to inform the user about the structured data and get his final approval. use new lines to separate different sections of the message, and use emojis to enhance readability and engagement. Use *bold* text to highlight important information, and use bullet points or numbered lists to organize the data clearly. The message should be concise, clear, and visually appealing, making it easy for the user to understand the structured data at a glance. Assume the message will be wrapped in a generic template with header and request to approve the data in the footer, so keep it short and to the point, ideally no more than 3-4 lines of text.",
                 description: "If 'is_data_final_and_confirmed' is true, craft a concise and visually appealing summary (in Hebrew, ready for WhatsApp message) of the structured data extracted from the user's message. Focus on clarity and intuitiveness, highlighting key information without adding unnecessary details or questions. The message should not imply confirmation, but rather seek the user's approval. Use new lines, emojis, bold text, bullet points, or numbered lists to enhance readability and engagement. Aim for a maximum of 3-4 lines, assuming it will be incorporated into a template with a header and approval request in the footer.",
               },
               follow_up_message: {
                 type: "string",
-                description: "If 'is_data_final_and_confirmed' is false, Provide Instruction, question or message (In Hebrew) for the client, to help him improve or clarify the input towards the desired outcome. (otherwise, leave empty). This message should be clear and actionable, guiding the user to provide the necessary information or corrections."
+                description: "If 'is_data_final_and_confirmed' is false, Provide Instruction, question or message (In Hebrew) for the client, to help him improve or clarify the input towards the desired outcome. This message should be clear and actionable, guiding the user to provide the necessary information or corrections. Use new lines, emojis, bold text, bullet points, or numbered lists to enhance readability and engagement. Aim for a maximum of 3-4 lines."
               }
             },
-            required: ["is_user_data_valid", "is_data_completed_by_ai", "is_data_final_and_confirmed", "follow_up_message"]
+            required: ["is_data_final_and_confirmed", "approval_message", "follow_up_message"]
           },
         },
         required: ["data", "meta"]
@@ -127,14 +130,14 @@ export async function callOpenAISchema(userInput: string, currentState: BotState
           ` },
           { role: "system", content: `השלב הנוכחי הוא: ${currentState}` },
           { role: "system", content: `תיאור השלב: ${currentStateDefinition.description}` },
-          { role: "system", content: `הוראות למשתמש: ${currentStateDefinition.message || currentStateDefinition.whatsappTemplate?.body}` },
-          { role: "system", content: `מה עליך לעשות: ${currentStateDefinition.aiValidation?.prompt || ""}` },
+          { role: "system", content: `מה עליך לעשות בשלב זה: ${currentStateDefinition.aiValidation?.prompt || ""}` },
+          { role: "system", content: `הוראות שניתנו למשתמש: ${currentStateDefinition.message || currentStateDefinition.whatsappTemplate?.body}` },
+          { role: "system", content: `נתונים גולמיים שנאספו בשיחות קודמות: ${JSON.stringify(context, null, 2) || ""}` },
           { role: "system", content: `היסטוריית השיחות הקודמות: ${messagesHistory || "אין היסטוריה"}` },
-          { role: "user",   content: `נתונים גולמיים משיחות קודמות: ${JSON.stringify(currentContext, null, 2) || ""}` },
           { role: "user",   content: userInput }
       ],
-      temperature: 0.4, // Lower temperature for more predictable, structured output
-      max_tokens: 2500,
+      temperature: 0.2, // Lower temperature for more predictable, structured output
+      max_tokens: 3000,
       tools: [
         {type: "function", function: functionStyle}
       ],
@@ -151,10 +154,8 @@ export async function callOpenAISchema(userInput: string, currentState: BotState
     const result = JSON.parse(toolCall.function.arguments);
 
     console.log("\n🤖 %c==================== OPENAI RESPONSE ====================\n", 
-      "font-size: 14px; font-weight: bold; color: #00a67d;", 
       result, 
-      "\n🤖 %c======================================================\n", 
-      "font-size: 14px; font-weight: bold; color: #00a67d;");
+      "\n🤖 %c======================================================\n");
 
     if (!result) {
       throw new Error("Empty response from OpenAI");
@@ -162,13 +163,18 @@ export async function callOpenAISchema(userInput: string, currentState: BotState
     if (!result.meta.is_data_final_and_confirmed){
       return {
         data: result.data,
-        error: result.meta.follow_up_message
+        meta: result.meta,
+        error: result.meta.follow_up_message,
+        success: false,
     };
     }
-    return {data: result.data, meta: result.meta, ai: true};
+    return {data: result.data, meta: result.meta, success: true};
 
   } catch (error) {
     console.error("OpenAI API call failed:", error);
-    throw error;
+    return {
+      error: "שגיאה במהלך עיבוד ההודעה עם AI. אנא נסה שוב מאוחר יותר.",
+      success: false,
+    };
   }
 }

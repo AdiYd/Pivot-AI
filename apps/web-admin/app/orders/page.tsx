@@ -13,7 +13,8 @@ import {
 import { 
   Search, Filter, Package, ShoppingCart, CheckCircle, Clock, 
   TrendingUp, Truck, Store, X, Eye, ArrowUpDown, 
-  Calendar, User, PackageOpen
+  Calendar, User, PackageOpen,
+  RefreshCw
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { format } from 'date-fns';
@@ -27,7 +28,7 @@ import { getCategoryBadge } from '@/components/ui/badge';
 import { OrderSchema } from '@/schema/schemas';
 import { CATEGORIES_DICT } from '@/schema/states';
 import { DebugButton, debugFunction } from '@/components/debug';
-import { debug } from 'console';
+import { useFirebase } from '@/lib/firebaseClient';
 
 // Types for enhanced order data
 interface EnhancedOrder extends Order {
@@ -46,6 +47,7 @@ const STATUS_DICT: Record<OrderStatus, { name: string, variant: string, icon: Re
 };
 
 export default function OrdersPage() {
+  const {database, refreshDatabase} = useFirebase();
   const [data, setData] = useState(exampleDatabase);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
@@ -579,6 +581,10 @@ export default function OrdersPage() {
               <Icon icon="mdi:table" width="1.5em" height="1.5em" />
             </Button>
           </div>
+          <Button className='max-sm:hidden' onClick={refreshDatabase}>
+              <RefreshCw className="w-4 h-4 ml-2" />
+              רענן
+          </Button>
         </div>
       </div>
       

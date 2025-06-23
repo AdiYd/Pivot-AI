@@ -6,18 +6,22 @@ import {
   IncomingMessage,
   ConversationContext,
   StateObject,
+  StateReducerResult,
 } from '../schema/types';
-import { STATE_MESSAGES } from '../schema/states';
+import { stateObject } from '../schema/states';
 import { ProductSchema, restaurantLegalIdSchema, RestaurantSchema, SupplierSchema } from '../schema/schemas';
 import { callOpenAISchema } from '../utils/openAI';
 
 /**
  * Interface for the state machine's result
  */
-interface StateReducerResult {
-  newState: Conversation;
-  actions: BotAction[];
-}
+
+export const escapeDict: Record<string, BotState> = {
+ 'menu': 'IDLE',
+ 'תפריט': 'IDLE',
+ 'עזרה': 'IDLE',
+ 'help': 'IDLE',
+};
 
 /**
  * Validates input data against a schema or using AI
@@ -32,8 +36,7 @@ async function stateValidator(
   input: string,
   validator?: z.ZodTypeAny,
   aiValidation?: StateObject['aiValidation'],
-  currentState?: BotState,
-  currentContext?: ConversationContext,
+  conversation?: Conversation,
   messagesHistory?: string
 ): Promise<any | null> {
   try {
@@ -42,7 +45,7 @@ async function stateValidator(
     
     // Skip validation if no validator provided
     if (!validator && !aiValidation) {
-      return { data: trimmedInput };
+      return { data: trimmedInput, success: true };
     }
     
     // If AI validation is required
@@ -51,7 +54,7 @@ async function stateValidator(
       
       try {
         //Collect history of messages only from the current state and map them to body only
-        const aiResult = await callOpenAISchema(trimmedInput, currentState as BotState, currentContext as ConversationContext, messagesHistory as string);
+        const aiResult = await callOpenAISchema(trimmedInput, conversation as Conversation, messagesHistory as string);
         console.log(`[StateReducer] AI validation result:`, aiResult);
         
         // If AI returns structured data and we have a schema, validate it
@@ -82,24 +85,24 @@ async function stateValidator(
             validatedData = validator.parse(trimmedInput);
           }
         }         
-        return { data: validatedData, ok: true };
+        return { data: validatedData, success: true };
       } catch (validationError) {
         // Capture and return the specific validation error message
         if (validationError instanceof z.ZodError) {
           const errorMessage = validationError.errors.map(e => e.message).join(', ');
-          return { data: null, error: errorMessage };
+          return { data: null, error: errorMessage, success: false  };
         }
         throw validationError;
       }
     }
     
     // If we get here, return the trimmed input as fallback
-    return { data: trimmedInput };
+    return { data: trimmedInput, success: true };
   } catch (error) {
     console.error('[StateReducer] Validation error:', error);
     
     // Return null to indicate validation failure
-    return null;
+    return { data: null, error: String(error), success: false };
   }
 }
 
@@ -327,7 +330,7 @@ export async function conversationStateReducer(
   
   try {
     // Get current state definition
-    const currentStateDefinition = STATE_MESSAGES[conversation.currentState];
+    const currentStateDefinition = stateObject(result.newState, result);
     
     if (!currentStateDefinition) {
       console.error(`[StateReducer] No state definition found for state: ${conversation.currentState}`);
@@ -348,14 +351,32 @@ export async function conversationStateReducer(
     }
     
     // Handle special button/list responses
-    let userInput = message.body;
+    let userInput = message.body.trim();
     let validationResult = null;
     let nextState: BotState | null = null;
 
+    // Check if the message is one of the special commands (escapeDict)
+    if (escapeDict[userInput.toLocaleLowerCase()]) {
+      console.log(`[StateReducer] User input is a special command: ${userInput}`);
+      result.newState.currentState = escapeDict[userInput.toLocaleLowerCase()];
+      const nextStateDefinition = stateObject(result.newState);
+      if (nextStateDefinition) {
+        // Create message action for the next state
+        const nextStateMessage = createMessageAction(
+          nextStateDefinition,
+          message.from,
+          result.newState.context,
+          result.newState.currentState
+        );
+        result.actions.push(nextStateMessage);
+        return result; // Return early with the new state and message
+      }
+    }
+
     // Check if this is a template option selection
-    if (currentStateDefinition.whatsappTemplate?.options && userInput !== 'aiValid') {
+    if (currentStateDefinition.whatsappTemplate?.options && userInput !== 'user_confirmed') {
       const selectedOption = currentStateDefinition.whatsappTemplate.options.find(
-        option => option.id === userInput
+        (option: any) => option.id === userInput
       );
       
       // If user selected a valid option from the template
@@ -391,7 +412,7 @@ export async function conversationStateReducer(
               }
             }
             const nextStateMessage = createMessageAction(
-              STATE_MESSAGES[nextState], message.from, result.newState.context, nextState
+              currentStateDefinition, message.from, result.newState.context, nextState
             );
             result.actions.push(nextStateMessage);
               // Create action if defined in the state
@@ -402,7 +423,7 @@ export async function conversationStateReducer(
     }
     
     // First, try to validate the input
-    if (currentStateDefinition.validator && userInput !== 'aiValid') {
+    if (currentStateDefinition.validator && userInput !== 'user_confirmed') {
       try {
         const filteredMessages = conversation.messages.filter(msg => msg.messageState === conversation.currentState)
         .slice(-8)
@@ -431,12 +452,11 @@ export async function conversationStateReducer(
           userInput, 
           currentStateDefinition.validator,
           currentStateDefinition.aiValidation,
-          conversation.currentState,
-          conversation.context,
+          conversation,
           filteredMessages
         );
 
-        if (validationResult.ai 
+        if (validationResult.success 
           && validationResult.meta 
           && validationResult.meta?.is_data_final_and_confirmed 
         ) {
@@ -461,7 +481,7 @@ export async function conversationStateReducer(
                     type: 'button',
                     body: approvalMessageWrapper,
                     options: [
-                      { name: 'אישור', id: 'aiValid' },
+                      { name: 'אישור', id: 'user_confirmed' },
                     ]
                   },
                   description: 'Approval message for AI validated data',
@@ -510,7 +530,7 @@ export async function conversationStateReducer(
       }
     } else {
       // If no validator, just use the trimmed input
-      validationResult = { data: result.newState?.context?.dataToApprove || userInput.trim(), aiValid: userInput === 'aiValid' };
+      validationResult = { data: result.newState?.context?.dataToApprove || userInput.trim(), user_confirmed: userInput === 'user_confirmed' };
     }
     
     // If validation failed
@@ -571,12 +591,12 @@ export async function conversationStateReducer(
     
     // Determine next state based on validation result and state definition
     if (currentStateDefinition.nextState) {
-      // Handle direct value response
-      if (validationResult.ok && currentStateDefinition.nextState.ok) {
-        nextState = currentStateDefinition.nextState.ok;
+      // Handle validation success and user confirmation
+      if (validationResult.success && currentStateDefinition.nextState.success) {
+        nextState = currentStateDefinition.nextState.success;
       }
-      if (validationResult.aiValid && currentStateDefinition.nextState.aiValid) {
-        nextState = currentStateDefinition.nextState.aiValid;
+      if (validationResult.user_confirmed && currentStateDefinition.nextState.user_confirmed) {
+        nextState = currentStateDefinition.nextState.user_confirmed;
         if (result.newState.context.dataToApprove) {
           delete result.newState.context.dataToApprove; // Clear temporary data
         }
@@ -609,7 +629,7 @@ export async function conversationStateReducer(
       result.newState.currentState = nextState;
       
       // Get the next state definition
-      const nextStateDefinition = STATE_MESSAGES[nextState];
+      const nextStateDefinition = stateObject(result.newState);
       
       if (nextStateDefinition) {
         // Create and add message action for the next state

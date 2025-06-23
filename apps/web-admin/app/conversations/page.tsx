@@ -36,8 +36,7 @@ import { BotState, Contact, Conversation, DataBase, Message, Restaurant, StateOb
 import { DebugButton, debugFunction } from '@/components/debug';
 import { cn } from '@/lib/utils';
 import { useFirebase } from '@/lib/firebaseClient';
-import Image from 'next/image';
-import { STATE_MESSAGES } from '@/schema/states';
+import { stateObject } from '@/schema/states';
 import Avatar from 'boring-avatars';
 
 
@@ -60,6 +59,7 @@ const stateNames: Record<string, string> = {
   'ONBOARDING_CONTACT_NAME': 'שם איש קשר',
   'ONBOARDING_CONTACT_EMAIL': 'אימייל',
   'ONBOARDING_PAYMENT_METHOD': 'אמצעי תשלום',
+  'ONBOARDING_SIMULATOR': 'מצב סימולטור',
   'WAITING_FOR_PAYMENT': 'ממתין לתשלום',
   'SETUP_SUPPLIERS_START': 'התחלת הגדרת ספקים',
   'SETUP_SUPPLIERS_ADDITIONAL': 'ספקים נוספים',
@@ -805,7 +805,18 @@ interface WhatsAppTemplateProps {
 
 const WhatsAppTemplateRenderer = ({ message, context={}, onSelect }: WhatsAppTemplateProps): JSX.Element | null => {
   const [hasClientRendered, setHasClientRendered] = useState(false);
-  
+   const {database} = useFirebase();
+  const conversation :Conversation =  {
+    currentState: message?.messageState || "INIT",
+    context: {
+      isSimulator: true,
+      ...(database.conversations[context?.contactNumber]?.context || {}),
+      ...context,
+    },
+    messages: [],
+    role: 'owner',
+  }
+
   useEffect(() => {
     setHasClientRendered(true);
   }, []);
@@ -830,12 +841,12 @@ const WhatsAppTemplateRenderer = ({ message, context={}, onSelect }: WhatsAppTem
         type: 'button',
         body: approvalMessageWrapper,
         options: [
-          { name: 'אישור', id: 'aiValid' },
+          { name: 'אישור', id: 'user_confirmed' },
         ]
       }   
   }
-  else if (currentState && STATE_MESSAGES[currentState as BotState]) {
-    template = STATE_MESSAGES[currentState as BotState].whatsappTemplate;
+  else if (currentState && stateObject(conversation)) {
+    template = stateObject(conversation).whatsappTemplate;
   }
   
   // If no template found or no state info, try to use the message body directly

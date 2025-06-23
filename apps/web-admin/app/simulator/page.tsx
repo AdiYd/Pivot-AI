@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { doc, getDoc, collection, query, orderBy, getDocs, deleteDoc, where } from 'firebase/firestore';
@@ -25,8 +25,8 @@ import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 import axios from 'axios';
 import { Icon } from '@iconify/react/dist/iconify.js';
-import { BotState, Conversation, Message, StateObject } from '@/schema/types';
-import { STATE_MESSAGES } from '@/schema/states';
+import {  Contact, Conversation, Message, StateObject } from '@/schema/types';
+import { stateObject } from '@/schema/states';
 import Image from 'next/image';
 import { useTheme } from 'next-themes';
 import { DebugButton, debugFunction } from '@/components/debug';
@@ -55,7 +55,10 @@ export default function SimulatorPage() {
     isConnected: false,
     isLoading: false,
     role: 'owner',
-    context: {},
+    context: {
+      isSimulator: true,
+      contactNumber: '0523456789',
+    },
     currentState: 'INIT',
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -125,7 +128,9 @@ useEffect(() => {
       ...prev,
       messages: loadedSession?.messages || [],
       currentState: loadedSession?.currentState || 'INIT',
-      context: loadedSession?.context || {},
+      context: loadedSession?.context || {
+        ...prev.context,
+      },
       isConnected: true,
       isLoading: false,
     }));
@@ -300,7 +305,9 @@ useEffect(() => {
       isConnected: false,
       isLoading: false,
       currentState: 'INIT',
-      context: {}
+      context: {
+        isSimulator: true,
+      }
     }));
     setAvailableConversations(availableConversations.filter(conv => conv !== phoneNumber));
     await refreshDatabase();
@@ -320,7 +327,10 @@ useEffect(() => {
       isConnected: false,
       isLoading: false,
       role: 'owner',
-      context: {},
+      context: {
+        isSimulator: true,
+        contactNumber: '0523456789',
+      },
       currentState: 'INIT',
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -387,19 +397,30 @@ useEffect(() => {
             <CardContent className="space-y-4">
               {!session.isConnected ? (
                 <>
-                  <div className="space-y-2">
+                  <div className="relative space-y-2">
                     <Label htmlFor="phone">מספר טלפון</Label>
+                     <button
+                      type="button"
+                      title='מספר אקראי'
+                      onClick={() => {
+                        const randomPhoneNumber = `057${Math.ceil(Math.random() * 10000000)}`;
+                        setSession(prev => ({ ...prev, phoneNumber: randomPhoneNumber, context: { ...prev.context, contactNumber: randomPhoneNumber } }));
+                      }}
+                      className="absolute right-2 top-[45%] flex items-center justify-center text-muted-foreground hover:text-foreground focus:outline-none"
+                    >
+                      <Icon icon="fad:random-1dice" width="1.2rem" height="1.2rem" />
+                    </button>
                     <Input
                       id="phone"
                       dir='ltr'
                       placeholder="0501234567"
                       value={session.phoneNumber}
-                      onChange={(e) => setSession(prev => ({ ...prev, phoneNumber: e.target.value }))}
+                      onChange={(e) => setSession(prev => ({ ...prev, phoneNumber: e.target.value, context: { ...prev.context, contactNumber: e.target.value } }))}
                       onKeyPress={(e) => e.key === 'Enter' && startSession()}
                     />
                   </div>
                    {availableConversations.length > 0 && availableConversations.map((conv) => (
-                    <Badge title={`${database.conversations[conv].context?.contactName} - ${database.conversations[conv].context?.restaurantName}`} onClick={() =>{setSession(prev => ({ ...prev, phoneNumber: conv }))}} key={conv} variant={session.phoneNumber === conv ? "default" : "outline"} className="mr-2 cursor-pointer">
+                    <Badge title={`${database.conversations[conv]?.context?.contactName} - ${database.conversations[conv]?.context?.restaurantName}`} onClick={() =>{setSession(prev => ({ ...prev, phoneNumber: conv }))}} key={conv} variant={session.phoneNumber === conv ? "default" : "outline"} className={`${conv.startsWith('057') ? 'border-red-400/40' : ''} mr-2 cursor-pointer`}>
                       {conv}
                     </Badge>
                   ))}
@@ -608,7 +629,21 @@ useEffect(() => {
               {/* Input Area */}
               {session.isConnected && (
                 <div className=" z-10 p-4 absolute bottom-0 left-0 right-0 ">
-                  <form  onSubmit={handleSendMessage} className="flex items-center gap-2">
+                  <form  onSubmit={handleSendMessage} className="relative flex items-center gap-2">
+                      {session.currentState === 'SUPPLIER_CONTACT'  &&
+                      <button
+                      type="button"
+                      title='מספר אקראי'
+                      onClick={() => {
+                        const contact = `אבי כהן, 052${Math.ceil(Math.random() * 10000000)}`;
+                        setNewMessage(contact);
+                        setTimeout(resizeTextarea, 0);
+                      }}
+                      className="absolute left-14 top-[28%] flex items-center justify-center text-muted-foreground hover:text-foreground focus:outline-none"
+                    >
+                      <Icon icon="fad:random-1dice" width="1.2rem" height="1.2rem" />
+                    </button>}
+                      
                       <Textarea
                         ref={textareaRef}
                         placeholder="הקלד הודעה... (Ctrl+Enter לשורה חדשה)"
@@ -681,12 +716,12 @@ const loadSession = async (phoneNumber: string, conversationData: Conversation):
     // Try to validate with ConversationSchema (excluding messages)
     const conversation: Omit<SimulatorSession, 'messages' | 'isConnected' | 'isLoading'> = {
       phoneNumber: cleanPhone,
-      currentState: conversationData.currentState || 'INIT',
-      context: conversationData.context || {},
-      role: conversationData.role || 'owner',
-      restaurantId: conversationData.restaurantId,
-      createdAt: conversationData.createdAt?.toDate() || new Date(),
-      updatedAt: conversationData.updatedAt?.toDate() || new Date(),
+      currentState: conversationData?.currentState || 'INIT',
+      context: conversationData?.context || { isSimulator: true , contactNumber: cleanPhone },
+      role: conversationData?.role || 'owner',
+      restaurantId: conversationData?.restaurantId,
+      createdAt: conversationData?.createdAt?.toDate() || new Date(),
+      updatedAt: conversationData?.updatedAt?.toDate() || new Date(),
     };
     
     // Extract messages from the conversation document instead of querying a subcollection
@@ -783,7 +818,17 @@ interface WhatsAppTemplateProps {
 
 const WhatsAppTemplateRenderer = ({ message, context, onSelect }: WhatsAppTemplateProps): JSX.Element | null => {
   const [hasClientRendered, setHasClientRendered] = useState(false);
-  
+  const {database} = useFirebase();
+  const conversation :Conversation =  {
+    currentState: message?.messageState || "INIT",
+    context: {
+      isSimulator: true,
+      ...(database.conversations[context?.contactNumber]?.context || {}),
+      ...context,
+    },
+    messages: [],
+    role: 'owner',
+  }
   useEffect(() => {
     setHasClientRendered(true);
   }, []);
@@ -794,7 +839,7 @@ const WhatsAppTemplateRenderer = ({ message, context, onSelect }: WhatsAppTempla
   }
   if (!message.templateId || !message.hasTemplate) return null;
   
-  // Try to get the template from STATE_MESSAGES
+  // Try to get the template from stateObject
   let template : StateObject['whatsappTemplate'];
   const currentState = message.messageState;
   
@@ -808,12 +853,12 @@ const WhatsAppTemplateRenderer = ({ message, context, onSelect }: WhatsAppTempla
         type: 'button',
         body: approvalMessageWrapper,
         options: [
-          { name: 'אישור', id: 'aiValid' },
+          { name: 'אישור', id: 'user_confirmed' },
         ]
       }   
   }
-  else if (currentState && STATE_MESSAGES[currentState as BotState]) {
-    template = STATE_MESSAGES[currentState as BotState].whatsappTemplate;
+  else if (currentState && stateObject(conversation)) {
+    template = stateObject(conversation).whatsappTemplate;
   }
   
   // If no template found or no state info, try to use the message body directly
