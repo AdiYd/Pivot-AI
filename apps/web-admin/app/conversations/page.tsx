@@ -80,6 +80,8 @@ const stateNames: Record<string, string> = {
   'DELIVERY_CHECK_ITEM': 'בדיקת פריט',
   'DELIVERY_RECEIVED_AMOUNT': 'כמות שהתקבלה',
   'DELIVERY_INVOICE_PHOTO': 'צילום חשבונית',
+  'RESTAURANT_INFO': 'פרטי מסעדה',
+  'ORDERS_INFO': 'פרטי הזמנות',
   'IDLE': 'רגיל'
 };
 
@@ -450,7 +452,7 @@ const filteredConversations = useMemo(() => {
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <User className="w-3 h-3" />
-                    <span>{conversation.contactName}</span>
+                    <span>{conversation.contactName || 'אורח'}</span>
                   </div>
                 </TableCell>
                 <TableCell>
