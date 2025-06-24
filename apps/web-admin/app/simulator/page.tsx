@@ -218,7 +218,7 @@ useEffect(() => {
               status: 'delivered'
             };
           }
-          
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
           return message;
         });
 
@@ -515,7 +515,7 @@ useEffect(() => {
             chat-whatsApp
             ${isDark ? 'dark-chat': 'light-chat'}
               overflow-y-auto flex flex-col p-0`}>
-              <ScrollArea className="flex-1 p-4 max-sm:p-2 pt-0">
+              <ScrollArea className="flex-1 p-4 pb-0 max-sm:p-2 pt-0">
                 <div dir='rtl' className="space-y-4 my-20">
                   <AnimatePresence>
                     {session.messages?.map((message, index) => (
@@ -628,7 +628,7 @@ useEffect(() => {
 
               {/* Input Area */}
               {session.isConnected && (
-                <div className=" z-10 p-4 absolute bottom-0 left-0 right-0 ">
+                <div className=" z-10 px-4 py-1 relative bottom-0* left-0* right-0* ">
                   <form  onSubmit={handleSendMessage} className="relative flex items-center gap-2">
                       {session.currentState === 'SUPPLIER_CONTACT'  &&
                       <button
@@ -664,7 +664,7 @@ useEffect(() => {
                         disabled={session.isLoading}
                         className="flex-1 min-h-[40px] h-auto* max-h-[120px] rounded-2xl shadow-md bg-white dark:bg-zinc-800 ring-1 border-none ring-zinc-300/40 focus-visible:ring-zinc-500/80 resize-none overflow-hidden"
                         maxLength={4000}
-                        rows={1}
+                        rows={2}
                       />
                     <Button 
                       type="submit" 
