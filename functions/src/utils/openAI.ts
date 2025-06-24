@@ -378,7 +378,7 @@ export async function callOpenAIDataAnalysis(
           } catch (error) {
             console.error(`Error processing ${toolCall.function.name}:`, error);
             return{
-              response: "שגיאה במהלך שליפת הנתונים. אנא נסה שוב מאוחר יותר.",
+              response: "שגיאה במהלך קריאה מבסיס הנתונים. אנא נסה שוב מאוחר יותר.",
               is_finished: true,
               success: false
             }
@@ -394,13 +394,19 @@ export async function callOpenAIDataAnalysis(
           content: null,
           tool_calls: initialChoice.message.tool_calls
         });
-        
-        // Add the additional data as a new system message
-        messages.push({
-          role: "system",
-          content: `Additional data fetched: ${additionalData}`
-        });
-        
+          // For each tool call, we need to add a corresponding tool response message
+          for (const toolCall of initialChoice.message.tool_calls) {
+            if (toolCall.function.name === "fetchRestaurantDetails" || 
+                toolCall.function.name === "fetchOrdersHistory") {
+              let toolResponse = additionalData;
+              // Add the required tool message with the tool_call_id and content
+              messages.push({
+                role: "tool",
+                tool_call_id: toolCall.id,
+                content: toolResponse
+              });
+            }
+          }
         // Make second call with the enriched context
         const secondResponse = await openai.chat.completions.create({
          ...ai_models,
@@ -408,7 +414,7 @@ export async function callOpenAIDataAnalysis(
           tools: [
             { type: "function", function: dataAnalysisFunction }
           ],
-          tool_choice: { type: "function", function: { name: dataAnalysisFunction.name } }
+          tool_choice: { type: "function", function: dataAnalysisFunction }
         });
         
         const toolCall = secondResponse.choices[0]?.message?.tool_calls?.[0];

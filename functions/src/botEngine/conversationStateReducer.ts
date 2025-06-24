@@ -288,6 +288,8 @@ function createMessageAction(
       if (body.includes(placeholder)) {
         body = body.replace(new RegExp(placeholder, 'g'), String(context[key] || ''));
       }
+      // Clear all '{<string>}' placeholders that are not replaced
+      // body = body.replace(/{\w+}/g, '');
     });
     
     return {

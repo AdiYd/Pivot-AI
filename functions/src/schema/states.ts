@@ -204,6 +204,7 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
     switch (currentState) {
       // Initial state
       case "INIT": {
+        const { restaurantName, legalId, contactName, contactEmail } = getRandomRestaurant();
         stateObject = {
           whatsappTemplate: {
             id: "init_template",
@@ -218,6 +219,15 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
             ]
           },
           description: "Initial greeting when a new user contacts the bot. Offers basic navigation options.",
+          callback: (context, data) => {
+            if (context.isSimulator) {
+                context.companyName = restaurantName;
+                context.legalId = legalId;
+                context.restaurantName = restaurantName;
+                context.contactName = contactName;
+                context.contactEmail = contactEmail;
+            }
+          },
           nextState: {
             new_restaurant: "ONBOARDING_COMPANY_NAME",
             new_restaurant_fast: "ONBOARDING_SIMULATOR",
@@ -343,7 +353,6 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
       }
 
       case "ONBOARDING_SIMULATOR": {
-        const { legalId, restaurantName, contactName, contactEmail } = getRandomRestaurant();
 
         stateObject = {
           whatsappTemplate: {
@@ -352,10 +361,10 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
             body: `⚡ *ברוכים הבאים לסימולטור P-vot!*
             זהו תהליך מהיר לרישום מסעדה חדשה עם הגדרות בסיסיות.
             פרטי המסעדה החדשה הם:
-            *שם המסעדה*: ${restaurantName}
-            *מספר ח.פ*: ${legalId}
-            *איש קשר*: ${contactName}
-            *אימייל*: ${contactEmail}
+            *שם המסעדה*: {restaurantName}
+            *מספר ח.פ*: {legalId}
+            *איש קשר*: {contactName}
+            *אימייל*: {contactEmail}
 
             שים לב, לא ניתן לשנות פרטים אלה.
             האם אתה מוכן להתחיל?`,
@@ -363,13 +372,6 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
               { name: "כן", id: "start_simulator" },
               { name: "לא, אני מעדיף רישום רגיל", id: "regular_registration" }
             ]
-          },
-          callback: (context, data) => {
-            context.companyName = restaurantName;
-            context.legalId = legalId;
-            context.restaurantName = restaurantName;
-            context.contactName = contactName;
-            context.contactEmail = contactEmail;
           },
           description: "Prompt user to start the simulator for quick restaurant setup.",
           nextState: {
