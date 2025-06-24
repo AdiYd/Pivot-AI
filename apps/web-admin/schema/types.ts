@@ -19,6 +19,7 @@ import {
 
 export type DataBase = z.infer<typeof DatabaseSchema>;
 
+
 // Core types derived directly from schemas
 export type Contact = z.infer<typeof ContactSchema>;
 export type ContactMap = Record<Contact['whatsapp'], Contact>;
@@ -83,6 +84,10 @@ export type BotState =
   | "DELIVERY_CHECK_ITEM"
   | "DELIVERY_RECEIVED_AMOUNT"
   | "DELIVERY_INVOICE_PHOTO"
+
+// Info states
+  | "RESTAURANT_INFO"
+  | "ORDERS_INFO"
 
 // IDLE state
   | "IDLE";

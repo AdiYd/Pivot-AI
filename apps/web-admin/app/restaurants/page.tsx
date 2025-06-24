@@ -401,7 +401,7 @@ export default function RestaurantsPage() {
     if (restaurant.isActivated && restaurant.payment.status) {
       return <Badge variant="default" className="bg-green-500 mx-auto text-nowrap"><CheckCircle className="w-3 h-3 ml-1" />פעיל</Badge>;
     } else if (!restaurant.payment.status) {
-      return <Badge className='mx-auto text-nowrap' variant="secondary"><Clock className="w-3 h-3 ml-1" />ממתין לתשלום</Badge>;
+      return <Badge className='mx-auto text-nowrap bg-orange-300/60' variant="secondary">תקופת נסיון</Badge>;
     } else {
       return <Badge className='mx-auto text-nowrap' variant="destructive"><XCircle className="w-3 h-3 ml-1" />לא פעיל</Badge>;
     }
@@ -447,11 +447,11 @@ export default function RestaurantsPage() {
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Users className="w-4 h-4" />
-            <span>{restaurant.contacts[0].name} - {restaurant.contacts[0].role}</span>
+            <span>{`${Object.values(restaurant.contacts).find(contact => contact.role ==='owner')?.name} - ${Object.values(restaurant.contacts).find(contact => contact.role === 'owner')?.role}`}</span>
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Phone className="w-4 h-4" />
-            <span>{restaurant.contacts[0].whatsapp}</span>
+            <span>{`${Object.values(restaurant.contacts).find(contact => contact.role === 'owner')?.whatsapp}`}</span>
           </div>
 
           {/* Quick Stats */}

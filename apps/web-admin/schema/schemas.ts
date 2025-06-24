@@ -87,6 +87,8 @@ const botStateValues: BotState[] = [
   "DELIVERY_CHECK_ITEM",
   "DELIVERY_RECEIVED_AMOUNT",
   "DELIVERY_INVOICE_PHOTO",
+  "RESTAURANT_INFO",
+  "ORDERS_INFO",
   "IDLE",
 ];
 export const conversationStateSchema = z.enum(botStateValues as [BotState, ...BotState[]], {

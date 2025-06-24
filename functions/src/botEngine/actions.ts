@@ -165,7 +165,7 @@ export async function processActions(
       // For critical errors, try to send an error message to the user
       const errorMessage = "⚠️ משהו השתבש בעת עיבוד הבקשה שלך. אנא נסה שוב מאוחר יותר או צור קשר עם התמיכה.";
       
-      if (action.type !== "SEND_MESSAGE" && phone) {
+      if (phone) {
         if (isSimulator) {
           // For simulator, add error message to responses
           responses.push({ body: errorMessage , to: phone });

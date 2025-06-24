@@ -551,4 +551,227 @@ export async function logMessage(
   }
 }
 
+
+/**
+ * Get comprehensive restaurant data for data analysis
+ * @param restaurantId Restaurant ID (legalId)
+ * @param isSimulator Whether to use simulator collections
+ * @returns Consolidated restaurant data with suppliers
+ */
+export async function getRestaurantDatafromDb(
+  restaurantId: string,
+  isSimulator: boolean = false
+): Promise<any> {
+  try {
+    console.log(`[Firestore] Fetching comprehensive restaurant data for ID: ${restaurantId}`);
+    
+    const collectionName = getCollectionName('restaurants', isSimulator);
+    const restaurantDoc = await firestore.collection(collectionName).doc(restaurantId).get();
+    
+    if (!restaurantDoc.exists) {
+      console.log(`[Firestore] No restaurant found with ID: ${restaurantId}`);
+      throw new Error(`Restaurant not found: ${restaurantId}`);
+    }
+    
+    const restaurantData = restaurantDoc.data();
+    
+    // Get all orders associated with this restaurant
+    const ordersCollectionName = getCollectionName('orders', isSimulator);
+    const ordersSnapshot = await firestore
+      .collection(ordersCollectionName)
+      .where('restaurant.legalId', '==', restaurantId)
+      .orderBy('createdAt', 'desc')
+      .limit(20) // Get most recent orders for statistics
+      .get();
+    
+    const recentOrders = ordersSnapshot.docs.map(doc => doc.data());
+    
+    // Calculate order statistics
+    const orderStats = {
+      totalOrders: recentOrders.length,
+      pendingOrders: recentOrders.filter(order => order.status === 'pending').length,
+      confirmedOrders: recentOrders.filter(order => order.status === 'confirmed').length,
+      deliveredOrders: recentOrders.filter(order => order.status === 'delivered').length,
+      cancelledOrders: recentOrders.filter(order => order.status === 'cancelled').length,
+      mostOrderedProducts: calculateMostOrderedProducts(recentOrders),
+      recentOrderDate: recentOrders.length > 0 ? recentOrders[0].createdAt : null
+    };
+    
+    // Get supplier counts
+    const supplierCount = restaurantData?.suppliers?.length || 0;
+    const productCount = restaurantData?.suppliers?.reduce((total: number, supplier: any) => 
+      total + (supplier.products?.length || 0), 0) || 0;
+    
+    // Return comprehensive data object
+    return {
+      ...restaurantData,
+      stats: {
+        suppliersCount: supplierCount,
+        productsCount: productCount,
+        ...orderStats
+      },
+      recentOrders: recentOrders.slice(0, 5) // Include the 5 most recent orders
+    };
+  } catch (error) {
+    console.error(`[Firestore] ❌ Error fetching restaurant data:`, error);
+    throw new Error(`Failed to fetch restaurant data: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+/**
+ * Helper function to calculate most ordered products
+ * @param orders Array of orders
+ * @returns Object with product counts
+ */
+function calculateMostOrderedProducts(orders: any[]): Record<string, number> {
+  const productCounts: Record<string, number> = {};
+  
+  orders.forEach(order => {
+    (order.items || []).forEach((item: any) => {
+      const key = item.name;
+      productCounts[key] = (productCounts[key] || 0) + item.qty;
+    });
+  });
+  
+  return productCounts;
+}
+
+/**
+ * Get orders data for a specific restaurant
+ * @param restaurantId Restaurant ID (legalId)
+ * @param isSimulator Whether to use simulator collections
+ * @returns Orders data and statistics
+ */
+export async function getOrdersDatafromDb(
+  restaurantId: string,
+  isSimulator: boolean = false
+): Promise<any> {
+  try {
+    console.log(`[Firestore] Fetching orders data for restaurant ID: ${restaurantId}`);
+    
+    const ordersCollectionName = getCollectionName('orders', isSimulator);
+    const ordersSnapshot = await firestore
+      .collection(ordersCollectionName)
+      .where('restaurant.legalId', '==', restaurantId)
+      .orderBy('createdAt', 'desc')
+      .get();
+    
+    if (ordersSnapshot.empty) {
+      console.log(`[Firestore] No orders found for restaurant ID: ${restaurantId}`);
+      return { orders: [], stats: { totalOrders: 0 } };
+    }
+    
+    const orders = ordersSnapshot.docs.map(doc => doc.data());
+    
+    // Get restaurant details
+    const restaurantCollectionName = getCollectionName('restaurants', isSimulator);
+    const restaurantDoc = await firestore.collection(restaurantCollectionName).doc(restaurantId).get();
+    const restaurantData = restaurantDoc.exists ? restaurantDoc.data() : null;
+    
+    // Calculate order statistics by supplier, status, and time trends
+    const stats = {
+      totalOrders: orders.length,
+      ordersByStatus: calculateOrdersByStatus(orders),
+      ordersBySupplier: calculateOrdersBySupplier(orders),
+      ordersByMonth: calculateOrdersByMonth(orders),
+      pendingOrders: orders.filter(order => order.status === 'pending').length,
+      deliveredOrders: orders.filter(order => order.status === 'delivered').length,
+      mostOrderedProducts: calculateProductRanking(orders),
+      recentOrderDate: orders.length > 0 ? orders[0].createdAt : null
+    };
+    
+    return {
+      restaurant: restaurantData,
+      orders,
+      stats
+    };
+  } catch (error) {
+    console.error(`[Firestore] ❌ Error fetching orders data:`, error);
+    throw new Error(`Failed to fetch orders data: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+/**
+ * Helper function to calculate orders by status
+ * @param orders Array of orders
+ * @returns Object with counts by status
+ */
+function calculateOrdersByStatus(orders: any[]): Record<string, number> {
+  const statusCounts: Record<string, number> = {
+    pending: 0,
+    confirmed: 0,
+    sent: 0,
+    delivered: 0,
+    cancelled: 0
+  };
+  
+  orders.forEach(order => {
+    if (statusCounts.hasOwnProperty(order.status)) {
+      statusCounts[order.status]++;
+    }
+  });
+  
+  return statusCounts;
+}
+
+/**
+ * Helper function to calculate orders by supplier
+ * @param orders Array of orders
+ * @returns Object with counts by supplier
+ */
+function calculateOrdersBySupplier(orders: any[]): Record<string, number> {
+  const supplierCounts: Record<string, number> = {};
+  
+  orders.forEach(order => {
+    const supplierName = order.supplier?.name || 'Unknown';
+    supplierCounts[supplierName] = (supplierCounts[supplierName] || 0) + 1;
+  });
+  
+  return supplierCounts;
+}
+
+/**
+ * Helper function to calculate orders by month
+ * @param orders Array of orders
+ * @returns Object with counts by month
+ */
+function calculateOrdersByMonth(orders: any[]): Record<string, number> {
+  const monthCounts: Record<string, number> = {};
+  
+  orders.forEach(order => {
+    if (order.createdAt) {
+      // Convert Firebase timestamp to Date if needed
+      const date = order.createdAt instanceof Date ? order.createdAt : 
+                  (order.createdAt.toDate ? order.createdAt.toDate() : new Date(order.createdAt));
+      
+      const monthYear = `${date.getMonth() + 1}/${date.getFullYear()}`;
+      monthCounts[monthYear] = (monthCounts[monthYear] || 0) + 1;
+    }
+  });
+  
+  return monthCounts;
+}
+
+/**
+ * Helper function to rank products by order frequency
+ * @param orders Array of orders
+ * @returns Array of products sorted by order frequency
+ */
+function calculateProductRanking(orders: any[]): {name: string, count: number, emoji: string}[] {
+  const productCounts: Record<string, {count: number, emoji: string}> = {};
+  
+  orders.forEach(order => {
+    (order.items || []).forEach((item: any) => {
+      if (!productCounts[item.name]) {
+        productCounts[item.name] = {count: 0, emoji: item.emoji || '📦'};
+      }
+      productCounts[item.name].count += item.qty || 1;
+    });
+  });
+  
+  // Convert to array and sort by count descending
+  return Object.entries(productCounts)
+    .map(([name, {count, emoji}]) => ({name, count, emoji}))
+    .sort((a, b) => b.count - a.count);
+}
 // ==== SYSTEM CONFIGURATION ====

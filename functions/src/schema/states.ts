@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { emailSchema, nameSchema, ProductSchema, restaurantLegalIdSchema, restaurantLegalNameSchema, restaurantNameSchema, SupplierSchema } from './schemas';
+import { emailSchema, nameSchema, ProductSchema, restaurantLegalIdSchema, restaurantLegalNameSchema, restaurantNameSchema, SupplierSchema, textSchema } from './schemas';
 import { BotConfig,  Conversation, Product, StateObject, StateReducerResult, SupplierCategory } from './types';
 
 
@@ -109,6 +109,36 @@ export const CATEGORY_PRODUCTS: Record<string, Array<Partial<Product>>> = {
 
 // Categories list for validation
 export const CATEGORY_LIST = ['vegetables', 'fruits', 'meats', 'fish', 'dairy', 'alcohol', 'eggs', 'oliveOil', 'disposables', 'desserts', 'juices'];
+
+type RandomRestaurant = {
+  legalId: string;
+  restaurantName: string;
+  contactName: string;
+  contactEmail: string;
+};
+
+const getRandomRestaurant = (): RandomRestaurant => {
+  const restaurantList = [
+    { legalId : "123456789", restaurantName : "פיצה דליברו", contactName: "ישראל ישראלי", contactEmail: "israel@example.com"},
+    { legalId : "987654321", restaurantName : "סושי אקספרס", contactName: "יוסי כהן", contactEmail: "yossi@example.com"},
+    { legalId : "456789123", restaurantName : "המבורגר גולד", contactName: "מיכל לוי", contactEmail: "michal@example.com"},
+    { legalId : "321654987", restaurantName : "טאפאס ספרדי", contactName: "דודו בן דוד", contactEmail: "dudu@example.com"},
+    { legalId : "159753486", restaurantName : "פסטה פרש", contactName: "רונית ישראלי", contactEmail: "ronit@example.com"},
+    { legalId : "753159486", restaurantName : "סלטים בריאים", contactName: "אורן כהן", contactEmail: "oren@example.com"},
+    { legalId : "951753486", restaurantName : "בשרים על האש", contactName: "רוני לוי", contactEmail: "roni@example.com"},
+    { legalId : "852963741", restaurantName : "קינוחים מתוקים", contactName: "טליה ישראלי", contactEmail: "talya@example.com"},
+    { legalId : "369258147", restaurantName : "אוכל אסיאתי", contactName: "שי כהן", contactEmail: "shay@example.com"},
+    { legalId : "147258369", restaurantName : "דגים ופירות ים", contactName: "אורי לוי", contactEmail: "uri@example.com"},
+    { legalId : "258369147", restaurantName : "אוכל טבעוני", contactName: "נועה ישראלי", contactEmail: "noa@example.com"},
+    { legalId : "369147258", restaurantName : "אוכל מזרחי", contactName: "מאור כהן", contactEmail: "maor@example.com"},
+    { legalId : "741852963", restaurantName : "אוכל איטלקי", contactName: "אלון לוי", contactEmail: "alon@example.com"},
+    { legalId : "852741963", restaurantName : "אוכל מקסיקני", contactName: "גלית ישראלי", contactEmail: "galit@example.com"},
+    { legalId : "963852741", restaurantName : "אוכל הודית", contactName: "עדי כהן", contactEmail: "adi@example.com"}
+  ]
+  const randomIndex = Math.floor(Math.random() * restaurantList.length);
+  return restaurantList[randomIndex];
+}
+
 
 // Bot categories with emoji representation
 export const getCategoryName = (key: string): string => {
@@ -313,11 +343,7 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
       }
 
       case "ONBOARDING_SIMULATOR": {
-        const randomNum = Math.floor(Math.random() * 1000); // Generate a random number for simulator
-        const randomLegalId = `${Math.floor(Math.random() * 900000000) + 100000000}`; // Generate a random 9-digit legal ID
-        const restaurantName = `מסעדה_#${randomNum}`; // Random restaurant name for simulator
-        const contactName = `ישראל ישראלי`; // Generic contact name for simulator
-        const contactEmail = `demo${randomNum}@example.com`; // Generic email based on restaurant name
+        const { legalId, restaurantName, contactName, contactEmail } = getRandomRestaurant();
 
         stateObject = {
           whatsappTemplate: {
@@ -327,7 +353,7 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
             זהו תהליך מהיר לרישום מסעדה חדשה עם הגדרות בסיסיות.
             פרטי המסעדה החדשה הם:
             *שם המסעדה*: ${restaurantName}
-            *מספר ח.פ*: ${randomLegalId}
+            *מספר ח.פ*: ${legalId}
             *איש קשר*: ${contactName}
             *אימייל*: ${contactEmail}
 
@@ -340,7 +366,7 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
           },
           callback: (context, data) => {
             context.companyName = restaurantName;
-            context.legalId = randomLegalId;
+            context.legalId = legalId;
             context.restaurantName = restaurantName;
             context.contactName = contactName;
             context.contactEmail = contactEmail;
@@ -434,11 +460,15 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
             תודה על שהקדשתם זמן להגדיר את המסעדה שלכם. כעת תוכלו להתחיל להשתמש במערכת לניהול המלאי וההזמנות שלכם.`,
           },
           description: "Final message indicating the restaurant setup is complete.",
+          validator: textSchema,
           callback: (context, data) => {
             if (context.dataToApprove) {
               delete context.dataToApprove;
             }
           },
+          nextState: {
+            success: "IDLE"
+          }
         };
         break;
       }
@@ -754,6 +784,44 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
         break;
       }
       
+      // === INFO STATE === //
+
+      case "RESTAURANT_INFO": {
+        stateObject = {
+          message: `🏪 *נתוני המסעדה שלך* 📊\n
+            📌 נשמח לעזור לך במידע על המסעדה שלך!\n
+            💬 אפשר לשאול:
+            ▪️ שאלות כלליות על המסעדה
+            ▪️ מידע על ספקים ומוצרים
+            ▪️ נתוני הזמנות והיסטוריה\n
+            ✨ *דוגמאות*:
+            "מהו שם המסעדה שלי?"
+            "מי הספק של הירקות?"
+            "כמה הזמנות ביצעתי החודש?"`,
+          description: "Engage with the restaurant information (database). Ask anything about the restaurant, request visual or textual information, get reports and ask how to change data.",
+        };
+        break;
+      }
+
+      case "ORDERS_INFO": {
+        stateObject = {
+          message: `📊 *נתוני ההזמנות שלך* 🛒\n
+            📌 נשמח לעזור לך במידע על ההזמנות שביצעת!\n
+            💬 אפשר לשאול:
+            ▪️ היסטוריית הזמנות
+            ▪️ דוחות לפי ספקים
+            ▪️ סיכום הזמנות חודשיות\n
+            ✨ *דוגמאות*:
+            "כמה הזמנות ביצעתי החודש?"
+            "כמה פריטים הזמנתי מהספק <שם הספק>?"
+            "מהו הספק של ההזמנה האחרונה שלי?"`,
+          description: "Engage with the orders information (database). Ask anything about the orders, request visual or textual information, get reports and ask how to change data.",
+        };
+        break;
+      }
+
+
+
       // === IDLE STATE === //
       
       case "IDLE": {
@@ -771,11 +839,19 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
             ]
           },
           description: "Main menu shown when the user is not in any active flow.",
+          callback: (context, data) => {
+              delete context.supplierName;
+              delete context.supplierWhatsapp;
+              delete context.supplierCategories;
+              delete context.supplierProducts;
+              delete context.supplierReminders;
+              delete context.dataToApprove; // Clear any pending approval data
+          },
           nextState:{
             // create_order: "ORDER_SETUP_START",
             add_supplier: "SUPPLIER_CATEGORY",
-            // restaurant_data: "RESTAURANT_FINISHED", // Assuming this shows restaurant data
-            // order_data: "ORDER_SETUP_START", // Assuming this shows order data
+            restaurant_data: "RESTAURANT_INFO", // Assuming this shows restaurant data
+            order_data: "ORDERS_INFO",         // Assuming this shows order data
             help: "IDLE" // Redirect to help state or show help message
           }
         };

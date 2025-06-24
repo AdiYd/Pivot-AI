@@ -7,10 +7,11 @@ import {
   ConversationContext,
   StateObject,
   StateReducerResult,
+  Message,
 } from '../schema/types';
 import { stateObject } from '../schema/states';
 import { ProductSchema, restaurantLegalIdSchema, RestaurantSchema, SupplierSchema } from '../schema/schemas';
-import { callOpenAISchema } from '../utils/openAI';
+import { callOpenAIDataAnalysis, callOpenAISchema } from '../utils/openAI';
 
 /**
  * Interface for the state machine's result
@@ -244,6 +245,7 @@ function createMessageAction(
   context: ConversationContext,
   currentState: BotState
 ): BotAction {
+  console.log('Creating message action...', { messageData, to, context, currentState });
   // Prepare message template if defined
   if (messageData.whatsappTemplate) {
     const template = messageData.whatsappTemplate;
@@ -356,7 +358,7 @@ export async function conversationStateReducer(
     let nextState: BotState | null = null;
 
     // Check if the message is one of the special commands (escapeDict)
-    if (escapeDict[userInput.toLocaleLowerCase()]) {
+    if (escapeDict[userInput.toLocaleLowerCase()] &&  !['IDLE', 'INIT'].includes(conversation.currentState)) {
       console.log(`[StateReducer] User input is a special command: ${userInput}`);
       result.newState.currentState = escapeDict[userInput.toLocaleLowerCase()];
       const nextStateDefinition = stateObject(result.newState);
@@ -373,6 +375,44 @@ export async function conversationStateReducer(
       }
     }
 
+    if (['RESTAURANT_INFO', 'ORDERS_INFO'].includes(conversation.currentState)) {
+
+        const response = await callOpenAIDataAnalysis(
+          userInput,
+        conversation,
+        conversation.currentState === "RESTAURANT_INFO" ? 'restaurant' : 'orders',
+        conversation.messages.map((msg : Message) => `${msg.role}: ${msg.body || ''}`).slice(-10).join('\n'),
+        );
+        console.log(`[StateReducer] AI analysis result:`, response);
+        
+        if (response) {
+          result.actions.push({
+            type: 'SEND_MESSAGE',
+            payload: {
+              to: message.from,
+              body: response.response,
+              messageState: result.newState.currentState
+            }
+          });
+          if (response.is_finished){
+            result.newState.currentState = 'IDLE';
+          }
+          return result; // Return early with the AI response
+        } else {
+          console.error(`[StateReducer] AI analysis failed for input: ${userInput}`);
+          result.actions.push({
+            type: 'SEND_MESSAGE',
+            payload: {
+              to: message.from,
+              body: '⚠️ ניתוח הנתונים נכשל. אנא נסה שוב.',
+              messageState: result.newState.currentState
+            }
+          });
+          result.newState.currentState = 'IDLE'; // Reset to IDLE state on failure
+          return result; // Stay in current state
+        }
+    }
+
     // Check if this is a template option selection
     if (currentStateDefinition.whatsappTemplate?.options && userInput !== 'user_confirmed') {
       const selectedOption = currentStateDefinition.whatsappTemplate.options.find(
@@ -386,7 +426,7 @@ export async function conversationStateReducer(
         // If the selection directly maps to a next state, use it
         if (currentStateDefinition.nextState && currentStateDefinition.nextState[userInput]) {
           nextState = currentStateDefinition.nextState[userInput];
-
+          
           // If we have a valid next state, skip further validation
           if (nextState) {
             // Update context if needed based on selection
@@ -412,7 +452,7 @@ export async function conversationStateReducer(
               }
             }
             const nextStateMessage = createMessageAction(
-              currentStateDefinition, message.from, result.newState.context, nextState
+              stateObject(result.newState), message.from, result.newState.context, nextState
             );
             result.actions.push(nextStateMessage);
               // Create action if defined in the state
