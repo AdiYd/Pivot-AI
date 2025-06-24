@@ -532,21 +532,23 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
           whatsappTemplate: {
             id: "supplier_reminders_template",
             type: "list",
-            body: `📅 *כעת נגדיר את הזמנים בהם תרצה לקבל תזכורות לבצע הזמנה מהספק*
+            body: `📅 *כעת נגדיר את הזמנים (יום ושעה) בהם הספק שלכם מקבל הזמנות*
+            מומלץ להגדיר את הימים והשעות שבהם  לכל המאוחר ניתן לבצע הזמנה
+            ואנחנו נדאג לתזכר אותך בהתאם
             אפשר לבחור מהזמנים המוצעים ברשימה
             *או* לכתוב ימים ושעה עגולה שבה אתה נוהג לחדש הזמנה מהספק
 
-            לדוגמה: יום שני וחמישי ב14`,
+            לדוגמה: יום שני וחמישי עד 14`,
             options: [
               { name: "ראשון וחמישי ב-11:00", id: "ראשון וחמישי ב-11:00" },
               { name: "שני ושישי ב-10:00", id: "שני ושישי ב-10:00" },
               { name: "כל יום ב-12:00", id: "כל יום ב-12:00" },
             ]
           },
-          description: "Select which days of the week this supplier delivers goods.",
+          description: "Select which days of the week this supplier delivers goods, it will help us schedule reminders.",
           validator: SupplierSchema.pick({ reminders: true }),
           aiValidation: {
-            prompt: "עליך לבקש מהמשתמש לבחור את הימים והשעות בהם הוא מעוניין לקבל תזכורות לבצע הזמנה מהספק הנוכחי. אם מבקשים שעה לר ברורה, יש להניח שעה עגולה (למשל 10:00). ובנוסף לא ניתן להגדיר יותר מתזכורת אחת בכל יום",
+            prompt: "עליך לבקש מהמשתמש לציין את הימים והשעות בהם ניתן לבצע הזמנה מהספק הנוכחי (לכ המאוחר). אם מבקשים שעה לא עגולה, או עד שעה מסויימת, יש להניח שעה עגולה (למשל עד 10:00 זוהי השעה 10:00). לא ניתן להגדיר יותר מתזכורת אחת בכל יום",
             schema: SupplierSchema.pick({ reminders: true })
           },
           callback: (context, data) => {
