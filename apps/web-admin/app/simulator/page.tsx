@@ -19,7 +19,12 @@ import {
   User,
   Wifi,
   WifiOff,
-  Loader2
+  Loader2,
+  ArrowUpDown,
+  ArrowDown,
+  ArrowUp,
+  ArrowDownToLine,
+  ArrowUpToLine
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
@@ -67,7 +72,9 @@ export default function SimulatorPage() {
   const [templateSelect, setTemplateSelect] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const [availableConversations, setAvailableConversations] = useState<string[]>([]);
+  const [convAnchor, setConvAnchor] = useState<'start' | 'end' | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesStartRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
   const { toast } = useToast();
   const [isDark, setIsDark] = useState(false);
@@ -79,7 +86,10 @@ useEffect(() => {
 }, [theme]);
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      setConvAnchor('end');
+    }, 100);
   }, [session.messages]);
 
   // Focus input when connected
@@ -218,7 +228,6 @@ useEffect(() => {
               status: 'delivered'
             };
           }
-          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
           return message;
         });
 
@@ -233,6 +242,13 @@ useEffect(() => {
               isLoading: i === botMessages.length - 1 ? false : prev.isLoading
             }));
           }, i * 500);
+          // After the last message, scroll to the bottom
+          if (i === botMessages.length - 1) {
+            setTimeout(() => {
+              messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+              setConvAnchor('end');
+            }, 100);
+          }
         }
       } else {
         throw new Error(response.data.error || 'תגובה לא צפויה מהשרת');
@@ -336,6 +352,7 @@ useEffect(() => {
       updatedAt: new Date(),
     });
     setNewMessage('');
+    setConvAnchor(null)
     
     toast({
       title: "התנתקת",
@@ -490,10 +507,14 @@ useEffect(() => {
                 </div>
     
                  <div className="flex flex-row-reverse items-center gap-2">
-                   {session.isConnected && <div className="flex w-fit items-center">
+                   {session.isConnected && <div className="flex w-fit items-center gap-2">
+                      <Button title={convAnchor === 'start' ? 'מעבר לסוף השיחה' : 'מעבר להתחלת השיחה'} size="sm" onClick={() => {(convAnchor === 'start' ? messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }) : messagesStartRef.current?.scrollIntoView({ behavior: 'smooth' })); setConvAnchor(convAnchor === 'start' ? 'end' : 'start')}} variant="ghost" className="w-full bg-transparent border-none hover:bg-blue-500/50">
+                        <ArrowDownToLine className={`w-4 h-4 duration-700 transition-transform ${convAnchor === 'start'? '' : 'rotate-180'}`} />
+                      </Button>
                       <Button title='מחיקת שיחה' size="sm" onClick={() => clearConversation(session.phoneNumber)} variant="ghost" className="w-full bg-transparent border-none hover:bg-red-500/50">
                         {loading ? <Loader2 style={{animationDuration:'1s'}} className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                       </Button>
+                   
                     </div>}
                       {session.isConnected ? (
                         <Badge variant="default" className="bg-green-500 max-sm:hidden">
@@ -516,6 +537,7 @@ useEffect(() => {
             ${isDark ? 'dark-chat': 'light-chat'}
               overflow-y-auto flex flex-col p-0`}>
               <ScrollArea className="flex-1 p-4 pb-0 max-sm:p-2 pt-0">
+                <div ref={messagesStartRef} />
                 <div dir='rtl' className="space-y-4 my-20">
                   <AnimatePresence>
                     {session.messages?.map((message, index) => (
@@ -622,8 +644,8 @@ useEffect(() => {
                       </p>
                     </div>
                   )}
+                  <div ref={messagesEndRef} />
                 </div>
-                <div ref={messagesEndRef} />
               </ScrollArea>
 
               {/* Input Area */}

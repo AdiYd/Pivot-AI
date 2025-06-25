@@ -27,7 +27,10 @@ export const contactRoleSchema = z.enum(["owner", "manager", "shift", "general",
 
 
 // Product types
-export const productUnitSchema = z.enum(["kg", "g", "l", "ml", "mg", "pcs", "box", "pkg", "unit", "bag", "barrel", "bottle", "can","pack", "packet", "other"]).default("other");
+export const productUnitSchema = z.union([
+  z.enum(["kg", "g", "l", "ml", "mg", "pcs", "box", "pkg", "unit", "bag", "barrel", "bottle", "can","pack", "packet", "other"]),
+  z.string().min(1, "יחידת המוצר חייבת להיות באורך של לפחות תו אחד")
+]).default("other"); // Default unit is other, can be any string or predefined unit
 export const productNameSchema = z.string().min(2, "שם המוצר חייב להיות באורך של לפחות 2 תווים");
 export const parSchema = z.number().gt(0, "כמות מינימלית חייבת להיות מעל 0");
 export const emojySchema = z.string().default("📦"); // Optional emoji for product representation

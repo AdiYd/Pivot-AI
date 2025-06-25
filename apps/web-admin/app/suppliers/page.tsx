@@ -50,6 +50,7 @@ export default function SuppliersPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedSupplier, setSelectedSupplier] = useState<EnhancedSupplier | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [suppliersList, setSuppliersList] = useState<string[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
   const { toast } = useToast();
@@ -59,13 +60,14 @@ export default function SuppliersPage() {
   const enhancedSuppliers = useMemo((): EnhancedSupplier[] => {
     try {
       const suppliers: EnhancedSupplier[] = [];
-
+      let suppliersCategoriesList: string[] = [];
       Object.entries(database.restaurants).forEach(([restaurantId, restaurant]) => {
         // Each restaurant has an array of suppliers
         restaurant.suppliers.forEach(supplier => {
 
           // Count recent orders for this supplier
           const recentOrdersCount = restaurant.orders.length;
+          suppliersCategoriesList.push(...supplier.category);
 
           suppliers.push({
             ...supplier,
@@ -76,7 +78,7 @@ export default function SuppliersPage() {
           });
         });
       });
-
+      setSuppliersList(new Set(suppliersCategoriesList).size > 0 ? Array.from(new Set(suppliersCategoriesList)) : []);  
       return suppliers;
     } catch (error) {
       console.error('Error processing suppliers:', error);
@@ -122,7 +124,7 @@ export default function SuppliersPage() {
         averageRating,
         categoryStats,
         mostPopularCategory: mostPopularCategory ? {
-          name: CATEGORIES_DICT[mostPopularCategory[0]].name || mostPopularCategory[0],
+          name: mostPopularCategory[0],
           count: mostPopularCategory[1]
         } : null
       };
@@ -393,60 +395,6 @@ export default function SuppliersPage() {
               רענן
             </Button>
           </div>
-          {/* <Dialog>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="w-4 h-4 ml-2" />
-                הוסף ספק
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>הוסף ספק חדש</DialogTitle>
-                <DialogDescription>
-                  הזן את פרטי הספק החדש
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="supplier-name">שם הספק</Label>
-                    <Input id="supplier-name" placeholder="שם הספק" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="whatsapp">מספר WhatsApp</Label>
-                    <Input id="whatsapp" placeholder="+972-50-1234567" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="category">קטגוריה</Label>
-                    <select className="w-full p-2 border rounded-md">
-                      <option value="">בחר קטגוריה</option>
-                      {Object.entries(CATEGORIES_DICT).map(([key, value]) => (
-                        <option key={key} value={key}>{value.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>ימי משלוח</Label>
-                  <div className="grid grid-cols-7 gap-1">
-                    {Object.entries(WEEKDAYS_DICT).map(([key, value]) => (
-                      <div key={key} className="flex items-center space-x-2">
-                        <input type="checkbox" className='mx-1' id={`day-${key}`} />
-                        <Label htmlFor={`day-${key}`} className="text-sm">{value}</Label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline">ביטול</Button>
-                <Button>שמור</Button>
-              </div>
-            </DialogContent>
-          </Dialog> */}
         </div>
       </div>
 
@@ -536,8 +484,8 @@ export default function SuppliersPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">כל הקטגוריות</SelectItem>
-              {Object.entries(CATEGORIES_DICT).map(([key, value]) => (
-                <SelectItem key={key} value={key}>{value.name}</SelectItem>
+              {suppliersList.map((category) => (
+                <SelectItem key={category} value={category}>{CATEGORIES_DICT[category]?.name || category}</SelectItem>
               ))}
             </SelectContent>
           </Select>

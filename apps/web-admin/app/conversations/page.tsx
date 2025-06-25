@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui';
 import { Button } from '@/components/ui';
 import { Input } from '@/components/ui';
@@ -82,26 +82,24 @@ const stateNames: Record<string, string> = {
   'DELIVERY_INVOICE_PHOTO': 'צילום חשבונית',
   'RESTAURANT_INFO': 'פרטי מסעדה',
   'ORDERS_INFO': 'פרטי הזמנות',
-  'IDLE': 'רגיל'
+  'IDLE': 'תפריט'
 };
 
 const getStateCategory = (state: BotState): 'onboarding' | 'setup' | 'inventory' | 'order' | 'delivery' | 'idle' | 'other' => {
-  if (state.startsWith('ONBOARDING') || state === 'WAITING_FOR_PAYMENT') return 'onboarding';
-  if (state.startsWith('SETUP') || state.startsWith('SUPPLIER') || state.startsWith('PRODUCT')) return 'setup';
+  if (state.startsWith('ONBOARDING') || state === 'WAITING_FOR_PAYMENT' || state === 'INIT') return 'onboarding';
+  if (state.startsWith('PRODUCTS') || state.includes('SUPPLIER') || state.includes('SUPPLIERS')) return 'setup';
   if (state.startsWith('INVENTORY')) return 'inventory';
   if (state.startsWith('ORDER')) return 'order';
-  if (state.startsWith('DELIVERY')) return 'delivery';
-  if (state === 'IDLE') return 'idle';
+  if (state === 'IDLE' || state ==='RESTAURANT_FINISHED') return 'idle';
   return 'other';
 };
 
 const categoryNames: Record<string, string> = {
-  onboarding: 'רישום',
-  setup: 'הגדרות',
-  inventory: 'מלאי',
+  onboarding: 'רישום מסעדה',
+  setup: 'רישום ספקים',
+  // inventory: 'מלאי',
   order: 'הזמנות',
-  delivery: 'משלוחים',
-  idle: 'רגיל',
+  idle: 'תפריט ראשי',
   other: 'אחר'
 };
 
@@ -116,6 +114,7 @@ export default function ConversationsPage() {
   const [sortBy, setSortBy] = useState<'activity' | 'created' | 'messages'>('activity');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   const {theme} = useTheme();
   const isDark = theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
   const {toast} = useToast();
@@ -129,6 +128,11 @@ export default function ConversationsPage() {
     }
   }, [databaseLoading]);
   
+  // Function to scroll to the bottom of the chat container
+  const scrollToBottom = useCallback(() => {
+    chatContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, []);
+
 // Extract and enhance conversation data from the example database
 const enhancedConversations = useMemo((): EnhancedConversation[] => {
 
@@ -188,12 +192,12 @@ const enhancedConversations = useMemo((): EnhancedConversation[] => {
 
 const pivotAvatar = useMemo(() => {
   return (
-          <Avatar
-              size={32}
-              name={'P-vote'}
-              variant="beam"
-              colors={["#FFB9B9", "#FFDA77", "#B9E4FF", "#FFB9F1"]}
-            />
+    <Avatar
+        size={32}
+        name={'P-vote'}
+        variant="beam"
+        colors={["#FFB9B9", "#FFDA77", "#B9E4FF", "#FFB9F1"]}
+      />
       )
     }, []);
 
@@ -293,13 +297,13 @@ const filteredConversations = useMemo(() => {
   const getStateBadge = useCallback((state: BotState) => {
     const category = getStateCategory(state);
     const colors: Record<string, string> = {
-      onboarding: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-      setup: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-      inventory: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-      order: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-      delivery: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
-      idle: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200',
-      other: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200'
+      onboarding: 'bg-teal-200 text-black dark:bg-teal-200 dark:text-black',
+      setup: 'bg-violet-200 text-black dark:bg-violet-200 dark:text-black',
+      inventory: 'bg-amber-200 text-black dark:bg-amber-200 dark:text-black',
+      order: 'bg-emerald-200 text-black dark:bg-emerald-200 dark:text-black',
+      delivery: 'bg-orange-200 text-black dark:bg-orange-200 dark:text-black',
+      idle: 'bg-sky-200 text-black dark:bg-sky-200 dark:text-black',
+      other: 'bg-rose-200 text-black dark:bg-rose-200 dark:text-black'
     };
     
     return (
@@ -333,7 +337,10 @@ const filteredConversations = useMemo(() => {
   const openConversation = useCallback((conversation: EnhancedConversation) => {
     setSelectedConversation(conversation);
     setIsDialogOpen(true);
-  }, []);
+    setTimeout(() => {
+      scrollToBottom();
+    }, 100);
+  }, [scrollToBottom]);
 
   const ConversationCard = useCallback(({ conversation }: { conversation: EnhancedConversation }) => {
     const lastMessage = conversation.messages.length > 0 ?
@@ -380,11 +387,6 @@ const filteredConversations = useMemo(() => {
               <div className="p-2 bg-muted rounded-md">
                 <div className="text-xs text-muted-foreground mb-1">הודעה אחרונה:</div>
                 <div className="text-sm truncate flex items-center gap-1">
-                  {lastMessage.role === 'user' ? (
-                    <User className="w-3 h-3 text-blue-500 flex-shrink-0" />
-                  ) : (
-                    pivotAvatar
-                  )}
                   <span className="truncate">{lastMessage.body}</span>
                 </div>
               </div>
@@ -393,7 +395,7 @@ const filteredConversations = useMemo(() => {
         </CardContent>
       </Card>
     );
-  }, [getRelativeTime, getStateBadge, toast, openConversation, pivotAvatar]);
+  }, [getRelativeTime, getStateBadge, toast, openConversation, ]);
 
   const ConversationTable = useCallback(({ conversations }: { conversations: EnhancedConversation[] }) => {
     return (
@@ -482,6 +484,8 @@ const filteredConversations = useMemo(() => {
       </div>
     </div>
   )}, [sortBy, sortOrder, getRelativeTime, getStateBadge, openConversation]);
+
+
 
   const ChatBubble = useCallback(({ message, isBot, index }: { message: any; isBot: boolean, index: number }) => {
   // Ensure we have a proper date
@@ -632,7 +636,7 @@ const filteredConversations = useMemo(() => {
         </div>
 
         {/* Improved restaurant filter with proper labeling */}
-        <Select value={selectedRestaurant} onValueChange={setSelectedRestaurant}>
+        {/* <Select value={selectedRestaurant} onValueChange={setSelectedRestaurant}>
           <SelectTrigger className="w-48">
             <SelectValue placeholder="כל המסעדות" />
           </SelectTrigger>
@@ -642,28 +646,7 @@ const filteredConversations = useMemo(() => {
               <SelectItem key={id} value={id}>{restaurant.name}</SelectItem>
             ))}
           </SelectContent>
-        </Select>
-        <div className="flex items-center max-sm:flex-row-reverse gap-2">
-          <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
-          <Select 
-            value={`${sortBy}-${sortOrder}`}
-            onValueChange={(value) => {
-              const [field, order] = value.split('-');
-              setSortBy(field as any);
-              setSortOrder(order as any);
-            }}
-          >
-            <SelectTrigger className="w-44">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="activity-desc">הכי חדשות</SelectItem>
-              <SelectItem value="activity-asc">הכי ישנות</SelectItem>
-              <SelectItem value="messages-desc">הכי הרבה הודעות</SelectItem>
-              <SelectItem value="messages-asc">הכי מעט הודעות</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        </Select> */}
       </div>
 
       {/* Content: Table or Cards */}
@@ -724,9 +707,9 @@ const filteredConversations = useMemo(() => {
                   </div>
 
                   <TabsContent value="messages" className={`flex-1 whatsapp-chat-container h-[stretch]* chat-whatsApp h-fit max-h-[100vh] py-6 m-0`}>
-                    <div className={`h-full min-h-[90vh] overflow-y-auto flex flex-col pb-16`}>
+                    <div className={`h-full min-h-[90vh] overflow-y-auto flex flex-col`}>
                       {/* Chat Messages */}
-                      <div className={`flex-1 overflow-y-auto mb-8 p-6 space-y-1 chat-whatsApp ${isDark ? 'dark-chat' : 'light-chat'} min-h-[83vh]`}>
+                      <div className={`flex-1 overflow-y-auto pb-20 p-6 space-y-1 chat-whatsApp ${isDark ? 'dark-chat' : 'light-chat'} min-h-[83vh]`}>
                         {selectedConversation.messages.length > 0 ? (
                           selectedConversation.messages.map((message, index) => (
                             <ChatBubble 
@@ -742,6 +725,7 @@ const filteredConversations = useMemo(() => {
                             <p>אין הודעות בשיחה זו</p>
                           </div>
                         )}
+                        <div className='h-0' ref={chatContainerRef} />
                       </div>
                     </div>
                   </TabsContent>

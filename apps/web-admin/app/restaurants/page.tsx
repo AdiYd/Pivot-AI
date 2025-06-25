@@ -120,75 +120,75 @@ export default function RestaurantsPage() {
   };
 
   // Handle new restaurant creation
-  const handleCreateRestaurant = async () => {
-    const errors = validateNewRestaurant(newRestaurant);
-    setFormErrors(errors);
+  // const handleCreateRestaurant = async () => {
+  //   const errors = validateNewRestaurant(newRestaurant);
+  //   setFormErrors(errors);
 
-    if (Object.keys(errors).length > 0) {
-      toast({
-        title: "שגיאות בטופס",
-        description: "אנא תקן את השגיאות ונסה שוב",
-        variant: "destructive",
-      });
-      return;
-    }
+  //   if (Object.keys(errors).length > 0) {
+  //     toast({
+  //       title: "שגיאות בטופס",
+  //       description: "אנא תקן את השגיאות ונסה שוב",
+  //       variant: "destructive",
+  //     });
+  //     return;
+  //   }
 
-    try {
-      setIsLoading(true);
+  //   try {
+  //     setIsLoading(true);
 
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 500));
+  //     // Simulate API call delay
+  //     await new Promise(resolve => setTimeout(resolve, 500));
 
-      const newRestaurant : Restaurant = {
-        legalId: '',
-        legalName:  '',
-        name:  '',
-        contacts: {        
-        },
-        payment: {
-          provider: 'credit_card',
-          status: false // New restaurants start with pending payment
-        },
-        isActivated: false,
-        createdAt: Timestamp.now(),
-        suppliers: [],
-        orders: [],
-      };
+  //     const newRestaurant : Restaurant = {
+  //       legalId: '',
+  //       legalName:  '',
+  //       name:  '',
+  //       contacts: {        
+  //       },
+  //       payment: {
+  //         provider: 'credit_card',
+  //         status: false // New restaurants start with pending payment
+  //       },
+  //       isActivated: false,
+  //       createdAt: Timestamp.now(),
+  //       suppliers: [],
+  //       orders: [],
+  //     };
 
-      // Update local state (later this will be a Firestore create)
-      console.log('Creating new restaurant:', newRestaurant);
+  //     // Update local state (later this will be a Firestore create)
+  //     console.log('Creating new restaurant:', newRestaurant);
 
-      toast({
-        title: "מסעדה נוצרה",
-        description: `המסעדה "${newRestaurant.name}" נוצרה בהצלחה`,
-      });
+  //     toast({
+  //       title: "מסעדה נוצרה",
+  //       description: `המסעדה "${newRestaurant.name}" נוצרה בהצלחה`,
+  //     });
 
-      // Reset form and close dialog
-      setNewRestaurant({
-        name: '',
-        legalName: '',
-        legalId: '',
-        contacts:{},
-        payment: {
-          provider: 'credit_card',
-          status: false
-        },
-        createdAt: Timestamp.now(),
-      } as Restaurant);
-      setFormErrors({});
-      setIsCreateDialogOpen(false);
+  //     // Reset form and close dialog
+  //     setNewRestaurant({
+  //       name: '',
+  //       legalName: '',
+  //       legalId: '',
+  //       contacts:{},
+  //       payment: {
+  //         provider: 'credit_card',
+  //         status: false
+  //       },
+  //       createdAt: Timestamp.now(),
+  //     } as Restaurant);
+  //     setFormErrors({});
+  //     setIsCreateDialogOpen(false);
 
-    } catch (error) {
-      console.error('Error creating restaurant:', error);
-      toast({
-        title: "שגיאה",
-        description: "אירעה שגיאה ביצירת המסעדה",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  //   } catch (error) {
+  //     console.error('Error creating restaurant:', error);
+  //     toast({
+  //       title: "שגיאה",
+  //       description: "אירעה שגיאה ביצירת המסעדה",
+  //       variant: "destructive",
+  //     });
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
 
   // Handle restaurant edit with proper typing
   const handleEdit = async (restaurantId: string, updatedData: any) => {

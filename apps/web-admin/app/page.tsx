@@ -24,6 +24,7 @@ import exampleDatabase from "@/schema/example";
 import { BotState } from "@/schema/types";
 import { DebugButton, debugFunction } from "@/components/debug";
 import { ProtectedLayout } from "@/components/layout/protected-layout";
+import { useFirebase } from "@/lib/firebaseClient";
 
 // Helper function to get category name (previously imported from /schema/messages)
 function getCategoryName(category: string): string {
@@ -139,7 +140,7 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>)
 
 function DashboardPage() {
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState(exampleDatabase);
+  const {database} = useFirebase();
   const [activePieIndex, setActivePieIndex] = useState<number | null>(null);
   const [activeOrderPieIndex, setActiveOrderPieIndex] = useState<number | null>(null);
   const [activeConversationPieIndex, setActiveConversationPieIndex] = useState<number | null>(null);
@@ -148,9 +149,9 @@ function DashboardPage() {
   const stats = useMemo(() => {
     try {
       // Properly access the data structure from exampleDatabase
-      const restaurants = Object.values(data.restaurants || {});
-      const conversations = Object.values(data.conversations || {});
-      const orders = Object.values(data.orders || {});
+      const restaurants = Object.values(database.restaurants || {});
+      const conversations = Object.values(database.conversations || {});
+      const orders = Object.values(database.orders || {});
 
       // Restaurant stats
       const totalRestaurants = restaurants.length;
@@ -216,7 +217,7 @@ function DashboardPage() {
         onboardingConversations: 0
       };
     }
-  }, [data]);
+  }, [database]);
 
   // Generate recent activity from real data
   const recentActivity = useMemo(() => {
@@ -231,7 +232,7 @@ function DashboardPage() {
       }> = [];
 
       // Add order activities from the orders collection
-      const orders = Object.values(data.orders || {});
+      const orders = Object.values(database.orders || {});
       orders.forEach(order => {
         if (order.restaurant && order.supplier) {
           activities.push({
@@ -246,9 +247,9 @@ function DashboardPage() {
       });
 
       // Add conversation activities
-      Object.entries(data.conversations || {}).forEach(([phone, conversation]) => {
+      Object.entries(database.conversations || {}).forEach(([phone, conversation]) => {
         if (conversation.restaurantId) {
-          const restaurant = data.restaurants[conversation.restaurantId];
+          const restaurant = database.restaurants[conversation.restaurantId];
           if (restaurant && conversation.currentState !== "IDLE") {
             activities.push({
               id: `conv-${phone}`,
@@ -270,7 +271,7 @@ function DashboardPage() {
       console.error("Error generating activity:", error);
       return [];
     }
-  }, [data]);
+  }, [database]);
 
   // Generate alerts from real data
   const alerts = useMemo(() => {
@@ -341,7 +342,7 @@ function DashboardPage() {
   const supplierCategoryCounts: Record<string, number> = {};
   
   // Correct iteration over suppliers and their categories
-  Object.values(data.restaurants || {}).forEach(restaurant => {
+  Object.values(database.restaurants || {}).forEach(restaurant => {
     if (Array.isArray(restaurant.suppliers)) {
       restaurant.suppliers.forEach(supplier => {
         if (Array.isArray(supplier.category)) {
@@ -369,7 +370,7 @@ function DashboardPage() {
   }
   
   // Count orders per day using the orders collection
-  Object.values(data.orders || {}).forEach(order => {
+  Object.values(database.orders || {}).forEach(order => {
     if (order.createdAt) {
       const d = order.createdAt.toDate();
       const label = d.toLocaleDateString('he-IL', { month: 'short', day: 'numeric' });
@@ -380,13 +381,14 @@ function DashboardPage() {
 
   // Pie: Conversation state
   const conversationStateCounts: Record<string, number> = {};
-  Object.values(data.conversations || {}).forEach(c => {
+  Object.values(database.conversations || {}).forEach(c => {
     if (c.currentState) {
-      const state = c.currentState.startsWith("ONBOARDING") ? "רישום"
-        : c.currentState.startsWith("INVENTORY") ? "מלאי"
-        : c.currentState.startsWith("ORDER") ? "הזמנה"
-        : c.currentState === "IDLE" ? "רגיל"
-        : "אחר";
+      const state = c.currentState.startsWith('ONBOARDING') || c.currentState === 'WAITING_FOR_PAYMENT' || c.currentState === 'INIT' ? 'רישום מסעדה'
+        : c.currentState.startsWith('PRODUCTS') || c.currentState.includes('SUPPLIER') || c.currentState.includes('SUPPLIERS') ? 'רישום ספקים'
+        : c.currentState.startsWith('INVENTORY') ? 'מלאי'
+        : c.currentState.startsWith('ORDER') ? 'הזמנה'
+        : c.currentState === 'IDLE' || c.currentState === 'RESTAURANT_FINISHED' ? 'תפריט ראשי'
+        : 'אחר';
       conversationStateCounts[state] = (conversationStateCounts[state] || 0) + 1;
     }
   });
