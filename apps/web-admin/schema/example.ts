@@ -385,9 +385,11 @@ export const exampleOrders: Record<string, Order> = {
       contact: {
         whatsapp: "0501234567",
         name: "דוד כהן",
-        email: "david@labellecuisine.com"
+        email: "david@labellecuisine.com",
+        role: "owner"
       }
     },
+    timeToDeliver: '26.10.2023 14:00',
     supplier: {
       whatsapp: "0541111111",
       name: "תוצרת שדות טריים",
@@ -419,12 +421,14 @@ export const exampleOrders: Record<string, Order> = {
       contact: {
         whatsapp: "0501234567",
         name: "דוד כהן",
-        email: "david@labellecuisine.com"
+        email: "david@labellecuisine.com",
+        role: "owner"
       }
     },
+    timeToDeliver: '26.10.2023 14:00',
     supplier: {
       whatsapp: "0542222222",
-      name: "פירות ים תיכוניים"
+      name: "פירות ים תיכוניים",
     },
     category: ["fish"],
     status: "sent",
@@ -434,6 +438,8 @@ export const exampleOrders: Record<string, Order> = {
       { name: "פילה דג בס", unit: "kg", emoji: "🐟", qty: 4 }
     ],
     shortages: [],
+    restaurantNotes: "", 
+    supplierNotes: "",   
     createdAt: daysAgo(1),
     updatedAt: daysAgo(1),
     deliveredAt: daysAgo(0)
@@ -446,9 +452,11 @@ export const exampleOrders: Record<string, Order> = {
       contact: {
         whatsapp: "0501234567",
         name: "דוד כהן",
-        email: "david@labellecuisine.com"
+        email: "david@labellecuisine.com",
+        role: "owner"
       }
     },
+    timeToDeliver: '26.10.2023 14:00',
     supplier: {
       whatsapp: "0543333333",
       name: "בשרים מובחרים"
@@ -461,6 +469,8 @@ export const exampleOrders: Record<string, Order> = {
       { name: "צלעות טלה", unit: "kg", emoji: "🍖", qty: 4 }
     ],
     shortages: [],
+    restaurantNotes: "", 
+    supplierNotes: "",   
     createdAt: now,
     updatedAt: now,
     deliveredAt: now
@@ -473,13 +483,15 @@ export const exampleOrders: Record<string, Order> = {
       contact: {
         whatsapp: "0523456789",
         name: "שרה לוי",
-        email: "sarah@urbanbistro.com"
+        email: "sarah@urbanbistro.com",
+        role: "manager"
       }
     },
     supplier: {
       whatsapp: "0534444444",
       name: "מטרו תוצרת"
     },
+    timeToDeliver: '26.10.2023 14:00',
     category: ["vegetables"],
     status: "delivered",
     midweek: true,
@@ -488,6 +500,8 @@ export const exampleOrders: Record<string, Order> = {
       { name: "עגבניות", unit: "kg", emoji: "🍅", qty: 3 }
     ],
     shortages: [],
+    restaurantNotes: "", 
+    supplierNotes: "",   
     createdAt: daysAgo(5),
     updatedAt: daysAgo(4),
     deliveredAt: daysAgo(4),
@@ -501,7 +515,8 @@ export const exampleOrders: Record<string, Order> = {
       contact: {
         whatsapp: "0523456789",
         name: "שרה לוי",
-        email: "sarah@urbanbistro.com"
+        email: "sarah@urbanbistro.com",
+        role: "manager"
       }
     },
     supplier: {
@@ -509,6 +524,7 @@ export const exampleOrders: Record<string, Order> = {
       name: "תנובה",
       email: "orders@tnuva.com"
     },
+    timeToDeliver: '26.10.2023 14:00',
     category: ["dairy"],
     status: "sent",
     midweek: false,
@@ -517,6 +533,8 @@ export const exampleOrders: Record<string, Order> = {
       { name: "גבינה צהובה", unit: "kg", emoji: "🧀", qty: 2 }
     ],
     shortages: [],
+    restaurantNotes: "", 
+    supplierNotes: "",   
     createdAt: daysAgo(2),
     updatedAt: daysAgo(2),
     deliveredAt: daysAgo(0)
