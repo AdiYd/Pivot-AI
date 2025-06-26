@@ -91,15 +91,15 @@ export function FirebaseAppProvider({ children }: { children: ReactNode }) {
 
       // Parse orders with validation
       const orders: Record<string, Order> = {};
-      ordersSnap.forEach((doc) => {
-        try {
-          const data = {...doc.data() };
-          const parsed = OrderSchema.parse(data);
-          orders[doc.id] = parsed;
-        } catch (error) {
-          console.warn(`Failed to parse order ${doc.id}:`, error);
-        }
-      });
+      // ordersSnap.forEach((doc) => {
+      //   try {
+      //     const data = {...doc.data() };
+      //     const parsed = OrderSchema.parse(data);
+      //     orders[doc.id] = parsed;
+      //   } catch (error) {
+      //     console.warn(`Failed to parse order ${doc.id}:`, error);
+      //   }
+      // });
 
       // Parse conversations with validation
       const conversations: Record<string, Conversation> = {};

@@ -17,7 +17,7 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 
   // Define public routes that don't need protection
   const publicRoutes = ['/login'];
-  const isPublicRoute = publicRoutes.includes(pathname);
+  const isPublicRoute = publicRoutes.includes(pathname) || pathname.startsWith('/snapshots/');
 
   useEffect(() => {
     if (status === "unauthenticated" && !isPublicRoute) {

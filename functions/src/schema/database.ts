@@ -50,6 +50,7 @@
  *     │    contact: {
  *     │      whatsapp: string,
  *     │      name: string,
+ *     │      role: string,
  *     │      email: string (optional)
  *     │    }
  *     │ }
@@ -82,6 +83,7 @@
  *     │ ]
  *     ├─ restaurantNotes: string (optional)
  *     ├─ supplierNotes: string (optional)
+ *     ├─ timeToDeliver: string (optional)
  *     ├─ createdAt: Timestamp
  *     ├─ updatedAt: Timestamp
  *     ├─ deliveredAt: Timestamp (optional)

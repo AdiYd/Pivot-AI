@@ -12,7 +12,8 @@ import {
 import { stateObject } from '../schema/states';
 import { ProductSchema, restaurantLegalIdSchema, RestaurantSchema, SupplierSchema } from '../schema/schemas';
 import { callOpenAIDataAnalysis, callOpenAISchema } from '../utils/openAI';
-
+import { createOrderCollection, getRestaurant } from '../utils/firestore';
+import * as jwt from 'jsonwebtoken';
 /**
  * Interface for the state machine's result
  */
@@ -358,6 +359,7 @@ export async function conversationStateReducer(
     let userInput = message.body.trim();
     let validationResult = null;
     let nextState: BotState | null = null;
+    const isSimulator = conversation.context?.isSimulator;
 
     // Check if the message is one of the special commands (escapeDict)
     if (escapeDict[userInput.toLocaleLowerCase()] &&  !['IDLE', 'INIT'].includes(conversation.currentState)) {
@@ -375,7 +377,51 @@ export async function conversationStateReducer(
         result.actions.push(nextStateMessage);
         return result; // Return early with the new state and message
       }
+    } 
+
+    // Check if user input is "place_order" and if so, create new 'order' collection and send a link
+    if (userInput === "create_order") {
+      try {
+      const restaurantId = conversation.restaurantId|| conversation.context.legalId || conversation.context.restaurantId;
+      const restaurant = await getRestaurant(restaurantId, isSimulator);
+      const contact = restaurant?.contacts[conversation.context.contactNumber];
+      if (!restaurant || !contact) {
+        console.error(`[StateReducer] Restaurant or contact not found`);
+        throw new Error('Restaurant or contact not found');
+      }
+      const orderId = await createOrderCollection(conversation, isSimulator);
+      // Encode the object as jwt
+      
+      const token = jwt.sign(
+        { orderId, restaurantId, contact },
+        'pivot20205',
+        { expiresIn: '1h' }
+      );
+
+      const url = `https://pivot.webly.digital/snapshots/${token}`;
+      result.actions.push({
+        type: 'SEND_MESSAGE',
+        payload: {
+          to: message.from,
+          body: `מוכנים לבצע ספירת מלאי וליצור הזמנה? לחצו כאן 👇
+          ${url}`,
+          messageState: "ONBOARDING_LEGAL_ID"
+        }
+      });
+      return result;
+    } catch (error) {
+      console.error(`[StateReducer] Error creating order collection:`, error);
+      result.actions.push({
+        type: 'SEND_MESSAGE',
+        payload: {
+          to: message.from,
+          body: '⚠️ אירעה שגיאה ביצירת ההזמנה. אנא נסה שוב מאוחר יותר.',
+          messageState: conversation.currentState
+        }
+      });
+      return result;
     }
+  }
 
     if (['RESTAURANT_INFO', 'ORDERS_INFO'].includes(conversation.currentState)) {
 

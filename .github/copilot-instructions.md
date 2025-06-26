@@ -123,6 +123,7 @@ Copilot: keep this context in memory when suggesting code.
  *     │    contact: {
  *     │      whatsapp: string,
  *     │      name: string,
+ *     │      role: string,
  *     │      email: string (optional)
  *     │    }
  *     │ }
@@ -155,6 +156,7 @@ Copilot: keep this context in memory when suggesting code.
  *     │ ]
  *     ├─ restaurantNotes: string (optional)
  *     ├─ supplierNotes: string (optional)
+ *     ├─ timeToDeliver: string (optional)
  *     ├─ createdAt: Timestamp
  *     ├─ updatedAt: Timestamp
  *     ├─ deliveredAt: Timestamp (optional)

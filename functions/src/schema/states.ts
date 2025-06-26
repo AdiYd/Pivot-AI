@@ -107,6 +107,26 @@ export const CATEGORY_PRODUCTS: Record<string, Array<Partial<Product>>> = {
   ]
 };
 
+export const UNITS_DICT: Record<string, string> = {
+  kg: "ק\"ג",
+  g: "גרם",
+  l: "ליטר",
+  ml: "מיליליטר",
+  mg: "מיליגרם",
+  pcs: "יחידות",
+  box: "קופסאות",
+  pkg: "חבילות",
+  unit: "יח'",
+  bag: "שק",
+  barrel: "חבית",
+  jar: "צנצנת",
+  bottle: "בקבוק",
+  can: "פחית",
+  pack: "אריזה",
+  packet: "חבילה",
+  other: "אחר",
+};
+
 // Categories list for validation
 export const CATEGORY_LIST = ['vegetables', 'fruits', 'meats', 'fish', 'dairy', 'alcohol', 'eggs', 'oliveOil', 'disposables', 'desserts', 'juices'];
 
@@ -576,7 +596,7 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
           aiValidation: {
             prompt: `עליך לעזור למשתמש לרשום רשימת מוצרים ויחידות מידה מהספק. השלם פרטים חסרים לפי הסביר ביותר.
             אם לא צוינו יחידות מידה, הנח יחידות סטנדרטיות למוצר.
-            הנחה את המשתמש להשתמש רק ביחידות תקניות (ק"ג, גרם, ליטר, יח', ארגז) או "אחר".`,
+            הנחה את המשתמש להשתמש רק ביחידות תקניות (לדוגמה: ק"ג, גרם, פחית, בקבוק, חבית, ליטר, יח', חבילה, ארגז) או "אחר".`,
             schema: z.array(ProductSchema.pick({ name: true, unit: true, emoji: true }))
           },
           validator: z.array(ProductSchema.pick({ name: true, unit: true, emoji: true })),

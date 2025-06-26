@@ -80,10 +80,21 @@ export default function SimulatorPage() {
   const [isDark, setIsDark] = useState(false);
   const { textareaRef, resizeTextarea } = useAutoResizeTextarea();
 
+  useEffect(() => {
+    const storedPhoneNumber = localStorage.getItem('simulatorPhoneNumber');
+    if (storedPhoneNumber) {
+      setSession(prev => ({
+        ...prev,
+        phoneNumber: storedPhoneNumber,
+        context: { ...prev.context, contactNumber: storedPhoneNumber }
+      }));
+    }
+  }, []);
 
-useEffect(() => {
-  setIsDark(theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches));
-}, [theme]);
+  useEffect(() => {
+    setIsDark(theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches));
+  }, [theme]);
+
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     setTimeout(() => {
@@ -92,12 +103,13 @@ useEffect(() => {
     }, 100);
   }, [session.messages]);
 
-  // Focus input when connected
+    // Focus input when connected
   useEffect(() => {
     if (session.isConnected && textareaRef.current) {
       textareaRef.current.focus();
+      localStorage.setItem('simulatorPhoneNumber', session.phoneNumber);
     }
-  }, [session.isConnected, session.messages, textareaRef]);
+  }, [session.isConnected, session.messages, textareaRef, session.phoneNumber]);
 
   // Load available conversations on mount
   useEffect(() => {
@@ -144,7 +156,6 @@ useEffect(() => {
       isConnected: true,
       isLoading: false,
     }));
-
     toast({
       title: loadedSession ? "שיחה נטענה בהצלחה" : "התחברת בהצלחה",
       description: `מתחיל שיחה עם ${session.phoneNumber}${loadedSession ? ' (נטען היסטוריה)' : ''}`,
@@ -352,8 +363,9 @@ useEffect(() => {
       updatedAt: new Date(),
     });
     setNewMessage('');
-    setConvAnchor(null)
-    
+    localStorage.removeItem('simulatorPhoneNumber');
+    setConvAnchor(null);
+
     toast({
       title: "התנתקת",
       description: "הסימולטור נותק בהצלחה",
@@ -508,7 +520,7 @@ useEffect(() => {
     
                  <div className="flex flex-row-reverse items-center gap-2">
                    {session.isConnected && <div className="flex w-fit items-center gap-2">
-                      <Button title={convAnchor === 'start' ? 'מעבר לסוף השיחה' : 'מעבר להתחלת השיחה'} size="sm" onClick={() => {(convAnchor === 'start' ? messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }) : messagesStartRef.current?.scrollIntoView({ behavior: 'smooth' })); setConvAnchor(convAnchor === 'start' ? 'end' : 'start')}} variant="ghost" className="w-full bg-transparent border-none hover:bg-blue-500/50">
+                      <Button title={convAnchor === 'start' ? 'גלול לסוף השיחה' : 'גלול לתחילת השיחה'} size="sm" onClick={() => {(convAnchor === 'start' ? messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }) : messagesStartRef.current?.scrollIntoView({ behavior: 'smooth' })); setConvAnchor(convAnchor === 'start' ? 'end' : 'start')}} variant="ghost" className="w-full bg-transparent border-none hover:bg-blue-500/50">
                         <ArrowDownToLine className={`w-4 h-4 duration-700 transition-transform ${convAnchor === 'start'? '' : 'rotate-180'}`} />
                       </Button>
                       <Button title='מחיקת שיחה' size="sm" onClick={() => clearConversation(session.phoneNumber)} variant="ghost" className="w-full bg-transparent border-none hover:bg-red-500/50">
@@ -558,20 +570,50 @@ useEffect(() => {
                         
                        {!message.hasTemplate ? (
                         <div className={cn(
-                          "rounded-[10px] min-w-[30%]* shadow-md px-4 py-2 max-w-full break-words",
+                          "rounded-[10px] min-w-[30%]* max-w-3xl max-sm:max-w-[330px] shadow-md px-4 py-2 break-words",
                           message.role === 'assistant' 
                             ? "bg-white dark:bg-zinc-800 rounded-bl-none" 
                             : "text-start bg-[#DCF8C6] rounded-br-none backdrop-blur-md text-black dark:bg-[#005C4B] dark:text-[#E9EDEF]"
                         )}>
                           <p className="text-sm whitespace-pre-wrap">
-                           {
-                            (message.body || '').split(/(\*[^*]+\*)/g).map((part, index) => {
+                          {(() => {
+                            // First, replace URLs with placeholders to preserve them during bold processing
+                            const urlRegex = /(https?:\/\/[^\s]+)/g;
+                            const textWithPlaceholders = (message.body || '').replace(urlRegex, '###URL$1###');
+                            
+                            // Then process bold formatting
+                            const partsWithPlaceholders = textWithPlaceholders.split(/(\*[^*]+\*)/g);
+                            
+                            // Process each part, restoring URLs and applying formatting
+                            return partsWithPlaceholders.map((part, index) => {
+                              // First check if this is a bold text part
                               if (part.startsWith('*') && part.endsWith('*')) {
-                                return <strong key={index}>{part.slice(1, -1)}</strong>;
+                                // Still need to check for URLs within bold text
+                                const boldContent = part.slice(1, -1);
+                                const boldWithUrls = boldContent.replace(/###URL(https?:\/\/[^\s]+)###/g, (_, url) => {
+                                  return `<a href="${url}" style="color: #00BFFF !important; text-decoration: underline;" target="_blank" rel="noopener noreferrer">${url}</a>`;
+                                });
+                                
+                                // Use dangerouslySetInnerHTML only if there are URLs, otherwise just return the bold text
+                                if (boldWithUrls !== boldContent) {
+                                  return <strong key={index} dangerouslySetInnerHTML={{ __html: boldWithUrls }} />;
+                                }
+                                return <strong key={index}>{boldContent}</strong>;
+                              } 
+                              
+                              // Not bold text, check for URLs
+                              if (part.includes('###URL')) {
+                                // Replace URL placeholders with actual links
+                                const textWithLinks = part.replace(/###URL(https?:\/\/[^\s]+)###/g, (_, url) => {
+                                  return `<a href="${url}" style="color: #00BFFF !important; text-decoration: underline;" target="_blank" rel="noopener noreferrer">${url}</a>`;
+                                });
+                                return <span key={index} dangerouslySetInnerHTML={{ __html: textWithLinks }} />;
                               }
+                              
+                              // Regular text with no special formatting
                               return part;
-                            })
-                          }
+                            });
+                          })()}
                           </p>
                           <div className={cn(
                             "flex items-center gap-2 mt-1",
@@ -650,7 +692,7 @@ useEffect(() => {
 
               {/* Input Area */}
               {session.isConnected && (
-                <div className=" z-10 px-4 py-1 relative bottom-0* left-0* right-0* ">
+                <div className=" z-10 px-4 py-2 relative bottom-0* left-0* right-0* ">
                   <form  onSubmit={handleSendMessage} className="relative flex items-center gap-2">
                       {session.currentState === 'SUPPLIER_CONTACT'  &&
                       <button

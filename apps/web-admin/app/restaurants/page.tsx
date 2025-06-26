@@ -292,12 +292,12 @@ export default function RestaurantsPage() {
         // Calculate orders stats
         const orders = Object.values(restaurant.orders).map(order=>database.orders[order]);
         const totalOrders = orders.length;
-        const pendingOrders = orders.filter(o => o.status === 'pending').length;
-        const deliveredOrders = orders.filter(o => o.status === 'delivered').length;
+        const pendingOrders = orders.filter(o => o?.status === 'pending').length;
+        const deliveredOrders = orders.filter(o => o?.status === 'delivered').length;
 
         // Calculate recent activity
         const recentOrderDate = orders.length > 0 
-          ? Math.max(...orders.map(o => o.createdAt.toDate().getTime()))
+          ? Math.max(...orders.map(o => o?.createdAt.toDate().getTime()))
           : null;
 
         // Get conversation status

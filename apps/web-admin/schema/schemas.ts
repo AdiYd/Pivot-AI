@@ -28,7 +28,7 @@ export const contactRoleSchema = z.enum(["owner", "manager", "shift", "general",
 
 // Product types
 export const productUnitSchema = z.union([
-  z.enum(["kg", "g", "l", "ml", "mg", "pcs", "box", "pkg", "unit", "bag", "barrel", "bottle", "can","pack", "packet", "other"]),
+  z.enum(["kg", "g", "l", "ml", "mg", "pcs", "box", "pkg", "unit", "bag", "barrel", "jar", "bottle", "can","pack", "packet", "other"]),
   z.string().min(1, "יחידת המוצר חייבת להיות באורך של לפחות תו אחד")
 ]).default("other"); // Default unit is other, can be any string or predefined unit
 export const productNameSchema = z.string().min(2, "שם המוצר חייב להיות באורך של לפחות 2 תווים");
@@ -162,13 +162,12 @@ export const OrderSchema = z.object({
   id: orderIdSchema,
   category: z.array(supplierCategorySchema), // Only include necessary fields of the supplier
   supplier: SupplierSchema.pick({ whatsapp: true, name: true, email: true }), // Only include necessary fields of the supplier
+  timeToDeliver: z.string().min(5, "זמן אספקה לא תקין"), // Time to deliver the order, e.g., "20:00"
   restaurant: RestaurantSchema.pick({
     legalId: true,
     name: true,
   }).extend({
-    contact: ContactSchema.pick({
-      whatsapp: true, name: true, email: true
-    })
+    contact: ContactSchema,
   }), // Only include necessary fields of the restaurant
   status: orderStatusSchema,
   items: z.array(                                 // Array of product and their details to be ordered from the supplier
@@ -186,9 +185,9 @@ export const OrderSchema = z.object({
   ).default([]), 
   midweek: z.boolean(),                       // Whether the order is for midweek or weekend
   restaurantNotes: z.string()
-  .max(500, "הערות מהמסעדה לספק, עד 500 תווים").optional(),    // Optional notes from the restaurant to the supplier
+  .max(500, "הערות מהמסעדה לספק, עד 500 תווים").default(""),    // Optional notes from the restaurant to the supplier
   supplierNotes: z.string()
-  .max(500, "הערות מהספק למסעדה, עד 500 תווים").optional(),     // Optional notes for the supplier to the restaurant
+  .max(500, "הערות מהספק למסעדה, עד 500 תווים").default(""),     // Optional notes for the supplier to the restaurant
   createdAt: timestampSchema, // Timestamp of when the order was created
   updatedAt: timestampSchema,
   deliveredAt: timestampSchema,

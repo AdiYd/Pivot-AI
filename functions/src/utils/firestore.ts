@@ -133,7 +133,6 @@ export async function getRestaurantByPhone(
 }
 
 
-
 /**
  * Update restaurant activation status (both isActivated and payment status)
  * @param restaurantId Restaurant ID
@@ -774,4 +773,86 @@ function calculateProductRanking(orders: any[]): {name: string, count: number, e
     .map(([name, {count, emoji}]) => ({name, count, emoji}))
     .sort((a, b) => b.count - a.count);
 }
+
+
+/**
+ * Creates a new order collection document and returns its ID
+ * This is primarily used for generating snapshot/order links
+ * 
+ * @param conversation Current conversation with restaurant context
+ * @param isSimulator Whether to use simulator collections
+ * @returns The generated order collection ID
+ */
+export async function createOrderCollection(
+  conversation: Conversation,
+  isSimulator: boolean = false
+): Promise<string> {
+  try {
+    console.log(`[Firestore] Creating new order collection${isSimulator ? ' (simulator)' : ''}`);
+    
+    // Get the restaurant ID from the conversation
+    const restaurantId = conversation.restaurantId || conversation.context.legalId || conversation.context.restaurantId;
+    
+    if (!restaurantId) {
+      throw new Error('Missing restaurant ID in conversation context');
+    }
+    
+    // Get restaurant data to include in the order
+    const restaurant = await getRestaurant(restaurantId, conversation.context?.isSimulator);
+    if (!restaurant) {
+      throw new Error(`Restaurant with ID ${restaurantId} not found`);
+    }
+    
+    // Determine which contact to use (the one from the conversation)
+    const contactNumber = conversation.context.contactNumber;
+    const contact = restaurant.contacts[contactNumber] || 
+      Object.values(restaurant.contacts)[0]; // Fallback to first contact if specific one not found
+    
+    if (!contact) {
+      throw new Error('No contact found for this conversation');
+    }
+    
+    // Use the correct collection based on simulator mode
+    const ordersCollection = getCollectionName('orders', isSimulator);
+    
+    
+    // Create minimal order document with just the required fields
+    const orderDoc = {
+      restaurant: {
+        legalId: restaurantId,
+        name: restaurant.name,
+        contact: {
+          whatsapp: contact.whatsapp,
+          name: contact.name,
+          ...(contact.email && { email: contact.email })
+        }
+      },
+      status: 'pending',
+      items: [],
+      midweek: true, // Default to midweek, will be updated later
+      category: [], // Will be populated later
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp()
+    };
+    
+    // Create the order document
+    const orderRef = await firestore.collection(ordersCollection).add(orderDoc);
+    const orderId = orderRef.id;
+
+    // Add the order ID to the restaurant's orders array
+    await firestore.collection(getCollectionName('restaurants', isSimulator))
+      .doc(restaurantId)
+      .update({
+        orders: FieldValue.arrayUnion(orderId),
+        updatedAt: FieldValue.serverTimestamp()
+      });
+    
+    console.log(`[Firestore] ✅ Created order collection with ID: ${orderId}`);
+    return orderId;
+  } catch (error) {
+    console.error(`[Firestore] ❌ Error creating order collection:`, error);
+    throw new Error(`Failed to create order collection: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 // ==== SYSTEM CONFIGURATION ====

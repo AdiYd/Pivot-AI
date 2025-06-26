@@ -503,21 +503,51 @@ const filteredConversations = useMemo(() => {
           )}
         </div>
           <div dir='rtl' className={cn(
-            "rounded-[10px] min-w-[30%]* shadow-md px-2 py-2 overflow-visible max-w-full break-words",
+            "rounded-[10px] min-w-[30%]* shadow-md px-2 py-2 overflow-visible max-w-3xl max-sm:max-w-[340px] break-words",
             isBot
               ? "bg-white dark:bg-zinc-800 rounded-bl-none" 
               : "text-start bg-[#DCF8C6] rounded-br-none backdrop-blur-md text-black dark:bg-[#005C4B] dark:text-[#E9EDEF]"
           )}>
             {message.hasTemplate ? <WhatsAppTemplateRenderer message={message} context={{}} onSelect={()=>{}} /> : 
               <p className="text-sm whitespace-pre-wrap">
-                    {
-                    (message.body || '').split(/(\*[^*]+\*)/g).map((part: string, index: number) => {
-                      if (part.startsWith('*') && part.endsWith('*')) {
-                        return <strong key={index}>{part.slice(1, -1)}</strong>;
-                      }
-                      return part;
-                    })
-                  }
+                     {(() => {
+                            // First, replace URLs with placeholders to preserve them during bold processing
+                            const urlRegex = /(https?:\/\/[^\s]+)/g;
+                            const textWithPlaceholders = (message.body || '').replace(urlRegex, '###URL$1###');
+                            
+                            // Then process bold formatting
+                            const partsWithPlaceholders = textWithPlaceholders.split(/(\*[^*]+\*)/g);
+                            
+                            // Process each part, restoring URLs and applying formatting
+                            return partsWithPlaceholders.map((part: string, index: number) => {
+                              // First check if this is a bold text part
+                              if (part.startsWith('*') && part.endsWith('*')) {
+                                // Still need to check for URLs within bold text
+                                const boldContent = part.slice(1, -1);
+                                const boldWithUrls = boldContent.replace(/###URL(https?:\/\/[^\s]+)###/g, (_, url) => {
+                                  return `<a href="${url}" target="_blank" style="color: #00BFFF; text-decoration: underline;">${url}</a>`;
+                                });
+                                
+                                // Use dangerouslySetInnerHTML only if there are URLs, otherwise just return the bold text
+                                if (boldWithUrls !== boldContent) {
+                                  return <strong key={index} dangerouslySetInnerHTML={{ __html: boldWithUrls }} />;
+                                }
+                                return <strong key={index}>{boldContent}</strong>;
+                              } 
+                              
+                              // Not bold text, check for URLs
+                              if (part.includes('###URL')) {
+                                // Replace URL placeholders with actual links
+                                const textWithLinks = part.replace(/###URL(https?:\/\/[^\s]+)###/g, (_, url) => {
+                                  return `<a href="${url}" style="color: #00BFFF !important; text-decoration: underline;" target="_blank" rel="noopener noreferrer">${url}</a>`;
+                                });
+                                return <span key={index} dangerouslySetInnerHTML={{ __html: textWithLinks }} />;
+                              }
+                              
+                              // Regular text with no special formatting
+                              return part;
+                            });
+                          })()}
               </p>}
           <div className={`text-xs mt-1 ${
             isBot ? "text-muted-foreground text-start" : "text-gray-800/80 dark:text-gray-400 text-end"
