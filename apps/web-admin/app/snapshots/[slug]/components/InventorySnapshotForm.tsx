@@ -51,6 +51,7 @@ export default function InventorySnapshotForm({
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isFormValid, setIsFormValid] = useState(false);
+  const isMobile = window.innerWidth < 768; // Check if the screen is mobile size
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
@@ -89,6 +90,7 @@ export default function InventorySnapshotForm({
       e.preventDefault();
       const nextIndex = index + 1;
       if (inputRefs.current[nextIndex]) {
+        console.log('Moving focus to next input:', nextIndex, inputRefs.current[nextIndex]);
         inputRefs.current[nextIndex]?.focus();
         // Select the text in the input
         inputRefs.current[nextIndex]?.select();
@@ -98,9 +100,10 @@ export default function InventorySnapshotForm({
       e.preventDefault();
       const nextIndex = e.key === "ArrowDown" ? index + 1 : index - 1;
       if (inputRefs.current[nextIndex]) {
-        inputRefs.current[nextIndex]?.focus();
+        // inputRefs.current[nextIndex]?.focus();
+        inputRefs.current[nextIndex]?.select(); 
+        console.log('Focus moved to input:', nextIndex, inputRefs.current[nextIndex]);
         // Select the text in the input
-        inputRefs.current[nextIndex]?.select();
       }
     }
     
@@ -123,6 +126,12 @@ export default function InventorySnapshotForm({
     
     setIsFormValid(hasAllValues && hasNoErrors);
   }, [formValues, formErrors, selectedSupplier]);
+
+
+  useEffect(() => {
+  // Debug check to verify refs are properly populated
+  console.log('Input refs count:', inputRefs.current.filter(Boolean).length, inputRefs.current);
+}, [selectedSupplier]);
 
   // Handle form submission
   const handleSubmit = (e: React.FormEvent) => {
@@ -155,16 +164,19 @@ export default function InventorySnapshotForm({
   const handleCompleteMissingProducts = () => {
     // This function can be used to handle missing products
     let formValuesCopy = { ...formValues };
+    let formsErrors = { ...formErrors };
     selectedSupplier?.products.forEach((product, index) => {
       const productId = product.name; // Using name as ID for simplicity
-      const productBaseQty = product.parMidweek || product.parWeekend || '0';
+      const productBaseQty = isMidweekOrder ? product.parMidweek || '0' : product.parWeekend || '0';
       if (!formValues[productId]) {
         // If the product is missing, set a default value or handle it accordingly
         formValuesCopy[productId] = productBaseQty.toString();
         inputRefs.current[index]?.focus();
+        delete formsErrors[productId]; // Clear any error for this product
       }
     });
     setFormValues(formValuesCopy);
+    setFormErrors(formsErrors);
     localStorage.setItem(`inventory_snapshot_${selectedSupplier?.whatsapp}`, JSON.stringify(formValuesCopy));
   };
 
@@ -400,6 +412,7 @@ export default function InventorySnapshotForm({
                 
                 {selectedSupplier.products.length > 0 ? (
                   <>
+                 {!isMobile ?
                   <div className="grid grid-cols-2 max-sm:hidden gap-2">
                     {selectedSupplier.products.map((product, index) => {
                       const productId = product.name; // Using name as ID for simplicity
@@ -457,7 +470,7 @@ export default function InventorySnapshotForm({
                       );
                     })}
                   </div>
-                   {/* Mobile view table */}
+                  :
                    <div className="bg-card hidden max-sm:block rounded-lg shadow-sm overflow-auto">
                     <table className="w-full text-sm">
                       <thead className="bg-muted text-muted-foreground">
@@ -513,7 +526,7 @@ export default function InventorySnapshotForm({
                         })}
                       </tbody>
                     </table>
-                  </div>
+                  </div>}
                   </>
                 ) : (
                   <div className="text-center p-8 bg-muted rounded-lg">
@@ -532,7 +545,7 @@ export default function InventorySnapshotForm({
                     onClick={handleCompleteMissingProducts}
                     >
                     <CheckCheck className="h-4 w-4" />
-                    השלמת פריטים חוסרים
+                    השלמת פריטים חסרים
                   </Button>
                   <Button
                   title="איפוס שדות"

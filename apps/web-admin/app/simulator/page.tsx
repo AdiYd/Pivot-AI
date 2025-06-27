@@ -473,7 +473,7 @@ export default function SimulatorPage() {
           </Card>
           {/* Conversation State */}
           {session.currentState && (
-            <Card className='max-h-[62vh] h-[stretch] justify-start gap-2  overflow-y-hidden'>
+            <Card className='max-h-[62vh] h-[stretch] justify-start gap-2 overflow-y-hidden'>
               <CardHeader className='py-1'>
                 <CardTitle className="text-lg">נתוני השיחה</CardTitle>
               </CardHeader>

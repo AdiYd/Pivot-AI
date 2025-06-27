@@ -122,17 +122,51 @@ export default function OrderPage() {
     });
 
     // Calculate next delivery date - always 10:00 AM next day
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(10, 0, 0, 0);
+    const today = new Date();
+    const currentDay = today.getDay(); // 0: Sun, 1: Mon, ..., 6: Sat
+    const deliveryDate = new Date(today);
+    let daysToAdd = 1; // Default to tomorrow
+    let deliveryTime = "10:00"; // Default time
+    
+    if (isMidweekOrder) {
+      // Midweek order (sun-thu)
+      if (currentDay >= 0 && currentDay <= 3) {
+        // Sun-Wed: deliver tomorrow at 10:00
+        daysToAdd = 1;
+        deliveryTime = "10:00";
+      } else if (currentDay >= 4 && currentDay <= 5) {
+        // Thu-Fri: deliver Sunday at 10:00
+        daysToAdd = (7 - currentDay) + 0; // Days until Sunday
+        deliveryTime = "10:00";
+      } else if (currentDay === 6) {
+        // Saturday: deliver Sunday at 10:00
+        daysToAdd = 1;
+        deliveryTime = "10:00";
+      }
+    } else {
+      // Weekend order (thu-sat)
+      if (currentDay === 4 || currentDay === 5) {
+        // Thu-Fri: deliver tomorrow at 8:00
+        daysToAdd = 1;
+        deliveryTime = "08:00";
+      } else {
+        // Sat-Wed: deliver Friday at 8:00
+        daysToAdd = (5 - currentDay + 7) % 7;
+        if (daysToAdd === 0) daysToAdd = 7; // If today is Friday, schedule for next Friday
+        deliveryTime = "08:00";
+      }
+    }
+    
+    deliveryDate.setDate(deliveryDate.getDate() + daysToAdd);
+    deliveryDate.setHours(0, 0, 0, 0); // Reset time part
     
     // Get day name for context
-    const dayOfWeek = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][tomorrow.getDay()];
+    const dayOfWeek = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][deliveryDate.getDay()];
 
     const dateToDeliver = {
       day: dayOfWeek,
-      date: tomorrow.toISOString().split('T')[0],
-      time: '10:00'
+      date: deliveryDate.toISOString().split('T')[0],
+      time: deliveryTime
     };
 
     const calculatedOrderData = {
