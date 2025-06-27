@@ -179,29 +179,29 @@ export default function InventorySnapshotForm({
         <Card className="mb-6">
           <CardHeader>
             <CardTitle className="text-2xl font-bold text-center">ספירת מלאי</CardTitle>
-            <CardDescription className="text-center">בחר ספק לביצוע ספירת מלאי והזמנה</CardDescription>
+            <CardDescription className="text-center">בחר זמן לביצוע ספירת מלאי והזמנה</CardDescription>
 
             {/* Add order type selection */}
             <div className="mt-4 flex justify-center items-center gap-4">
               <div 
-                className={`flex items-center gap-2 p-3 rounded-lg cursor-pointer transition-colors ${isMidweekOrder ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80'}`}
+                className={`flex items-baseline gap-2 p-3 rounded-lg cursor-pointer transition-colors ${isMidweekOrder ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80'}`}
                 onClick={() => !isMidweekOrder && toggleOrderType()}
               >
-                <Sun size={18} />
-                <div>
-                  <p className="font-medium">אמצע שבוע</p>
-                  <p className="text-xs opacity-80">א׳-ד׳</p>
+                <Sun className='relative top-1' size={18} />
+                <div className='flex justify-between gap-2 max-sm:flex-col'>
+                  <p className="font-medium text-nowrap">אמצע שבוע</p>
+                  <p className="text-xs self-end opacity-80">(א׳-ד׳)</p>
                 </div>
               </div>
               
               <div 
-                className={`flex items-center gap-2 p-3 rounded-lg cursor-pointer transition-colors ${!isMidweekOrder ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80'}`}
+                className={`flex items-baseline gap-2 p-3 rounded-lg cursor-pointer transition-colors ${!isMidweekOrder ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80'}`}
                 onClick={() => isMidweekOrder && toggleOrderType()}
               >
-                <Calendar size={18} />
-                <div>
-                  <p className="font-medium">סוף שבוע</p>
-                  <p className="text-xs opacity-80">ה׳-ש׳</p>
+                <Calendar className='relative top-1' size={18} />
+                <div className='flex justify-between gap-2 max-sm:flex-col'>
+                  <p className="font-medium text-nowrap">סוף שבוע</p>
+                  <p className="text-xs self-end opacity-80">(ה׳-ש׳)</p>
                 </div>
               </div>
             </div>
@@ -239,7 +239,7 @@ export default function InventorySnapshotForm({
           </CardContent>
         </Card>
 
-        <h2 className="text-xl font-semibold mb-4 text-center">בחר ספק</h2>
+        <h2 className="text-xl font-semibold mb-4 text-center">בחר ספק לביצוע ספירת המלאי</h2>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {suppliers.map((supplier, index) => (
@@ -302,8 +302,8 @@ export default function InventorySnapshotForm({
       >
         <form onSubmit={handleSubmit}>
           <Card className="mb-6 p-2 max-sm:p-0">
-            <CardHeader>
-              <div className="flex items-center mb-4">
+            <CardHeader className='max-sm:!px-2'>
+              <div className="flex justify-between items-center mb-4">
                 <Button
                   type="button"
                   variant="ghost"
@@ -316,22 +316,28 @@ export default function InventorySnapshotForm({
                 </Button>
                 
                 {/* Order type indicator and toggle */}
-                <div className="mr-auto flex items-center gap-2">
-                  <div 
-                    className={`flex items-center gap-1 px-3 py-1.5 rounded-md cursor-pointer ${isMidweekOrder ? 'bg-primary/10' : ''}`}
+                <div className="mr-auto justify-end flex flex-wrap items-center gap-2">
+                  <Button
+                   size={"sm"}
+                  type='button'
+                  variant={isMidweekOrder ? "default" : "ghost"}
+                    className={`flex items-center gap-1 px-3 py-1.5 rounded-md`}
                     onClick={() => !isMidweekOrder && toggleOrderType()}
                   >
                     <Sun size={16} />
                     <span className="text-sm">אמצע שבוע</span>
-                  </div>
-                  
-                  <div 
-                    className={`flex items-center gap-1 px-3 py-1.5 rounded-md cursor-pointer ${!isMidweekOrder ? 'bg-primary/10' : ''}`}
+                  </Button>
+
+                  <Button
+                  size={"sm"}
+                  type='button'
+                  variant={!isMidweekOrder ? "default" : "ghost"}
+                    className={`flex items-center gap-1 px-3 py-1.5 rounded-md`}
                     onClick={() => isMidweekOrder && toggleOrderType()}
                   >
                     <Calendar size={16} />
                     <span className="text-sm">סוף שבוע</span>
-                  </div>
+                  </Button>
                 </div>
               </div>
               
@@ -340,11 +346,6 @@ export default function InventorySnapshotForm({
                 הזן את כמות המלאי הנוכחית של כל מוצר
               </CardDescription>
               
-              {/* Add delivery time information */}
-              <p className="text-center text-sm mt-1 bg-muted/50 py-1 rounded-md">
-                הזמנה עבור {isMidweekOrder ? 'אמצע שבוע' : 'סוף שבוע'}, 
-                אספקה מתוכננת - מחר בשעה 10:00
-              </p>
             </CardHeader>
             
             <CardContent className='!px-3'>
@@ -392,7 +393,7 @@ export default function InventorySnapshotForm({
               <div className="space-y-6">
                 <h3 className="text-lg font-semibold flex items-center justify-between">
                   <span>רשימת מוצרים</span>
-                  <Badge variant={isMidweekOrder ? "default" : "secondary"}>
+                  <Badge variant="gradient2">
                     {isMidweekOrder ? 'בסיס אמצע שבוע' : 'בסיס סוף שבוע'}
                   </Badge>
                 </h3>

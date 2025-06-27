@@ -16,7 +16,8 @@
     "deploy": "npm run build && firebase deploy --only functions",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "git-amend": "git add . && git commit --amend --no-edit && git push --force"
+    "git-amend": "git add . && git commit --amend --no-edit && git push --force",
+    "git": "git add . && git commit -m \"add some changes\" && git push"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
