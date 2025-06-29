@@ -4,12 +4,19 @@ import {SupplierSchema, ConversationSchema, MessageSchema, RestaurantSchema} fro
 import { Conversation, Supplier,SupplierCategory, Restaurant, Contact, Message, ContactMap } from '../schema/types';
 import { FieldValue, DocumentReference } from 'firebase-admin/firestore';
 
+// CRITICAL: This ensures functions running in emulator connect to production Firestore
+if (process.env.FUNCTIONS_EMULATOR === 'true') {
+  console.log('🔄 Functions running in emulator but connecting to PRODUCTION Firestore');
+  
+  // Make sure we DON'T connect to any Firestore emulator
+  delete process.env.FIRESTORE_EMULATOR_HOST;
+}
 
 
 if (!admin.apps?.length) {
   admin.initializeApp();
 }
-const firestore = admin.firestore();
+export const firestore = admin.firestore();
 // Enable ignoreUndefinedProperties to handle undefined fields gracefully
 firestore.settings({
   // ignoreUndefinedProperties: true

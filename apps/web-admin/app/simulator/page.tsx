@@ -159,6 +159,7 @@ export default function SimulatorPage() {
     toast({
       title: loadedSession ? "שיחה נטענה בהצלחה" : "התחברת בהצלחה",
       description: `מתחיל שיחה עם ${session.phoneNumber}${loadedSession ? ' (נטען היסטוריה)' : ''}`,
+      variant: "success"
     });
     
     // Remove the auto-init message code that was here

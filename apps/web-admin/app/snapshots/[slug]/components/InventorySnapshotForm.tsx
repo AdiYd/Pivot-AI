@@ -128,11 +128,6 @@ export default function InventorySnapshotForm({
   }, [formValues, formErrors, selectedSupplier]);
 
 
-  useEffect(() => {
-  // Debug check to verify refs are properly populated
-  console.log('Input refs count:', inputRefs.current.filter(Boolean).length, inputRefs.current);
-}, [selectedSupplier]);
-
   // Handle form submission
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -202,7 +197,7 @@ export default function InventorySnapshotForm({
                 <Sun className='relative top-1' size={18} />
                 <div className='flex justify-between gap-2 max-sm:flex-col'>
                   <p className="font-medium text-nowrap">אמצע שבוע</p>
-                  <p className="text-xs self-end opacity-80">(א׳-ד׳)</p>
+                  <p className="text-xs self-center opacity-80">(א׳-ד׳)</p>
                 </div>
               </div>
               
@@ -213,7 +208,7 @@ export default function InventorySnapshotForm({
                 <Calendar className='relative top-1' size={18} />
                 <div className='flex justify-between gap-2 max-sm:flex-col'>
                   <p className="font-medium text-nowrap">סוף שבוע</p>
-                  <p className="text-xs self-end opacity-80">(ה׳-ש׳)</p>
+                  <p className="text-xs self-center opacity-80">(ה׳-ש׳)</p>
                 </div>
               </div>
             </div>
@@ -266,24 +261,16 @@ export default function InventorySnapshotForm({
                 onClick={() => onSelectSupplier(supplier)}
               >
                 <CardContent className="pt-6">
-                  <div className="flex items-center gap-3 mb-3">
+                  <div className="flex justify-between items-center gap-3 mb-3">
                     <div>
                       <h3 className="font-semibold text-lg">{supplier.name}</h3>
                       <p className="text-sm text-muted-foreground">{supplier.whatsapp}</p>
                     </div>
-                  </div>
-                  
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {supplier.category.map(cat => (
-                      getCategoryBadge(cat)
-                    ))}
-                  </div>
-                  
-                  <div className="text-sm text-muted-foreground flex items-center justify-between">
-                    <span>{supplier.products.length} מוצרים</span>
-                    <Button variant="default" size="sm" className="gap-1">
-                      בחר
-                    </Button>
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {supplier.category.map(cat => (
+                        getCategoryBadge(cat)
+                      ))}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -394,9 +381,6 @@ export default function InventorySnapshotForm({
                   <p className="font-medium">{new Date().toLocaleDateString('he-IL')}</p>
                   <p className="text-sm text-muted-foreground">
                     {new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-                  </p>
-                  <p className="text-sm mt-2 text-primary font-medium">
-                    אספקה: מחר בשעה 10:00
                   </p>
                 </div>
               </div>

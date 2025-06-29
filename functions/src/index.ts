@@ -3,9 +3,9 @@ import * as admin from "firebase-admin";
 import { FieldValue } from 'firebase-admin/firestore';
 
 import { conversationStateReducer, processActions } from "./botEngine";
-import { Conversation, IncomingMessage, Message, Restaurant } from "./schema/types";
-import { validateTwilioWebhook } from "./utils/twilio";
-import { getCollectionName } from "./utils/firestore";
+import { Conversation, IncomingMessage, Message, Order, Restaurant } from "./schema/types";
+import { validateTwilioWebhook, sendWhatsAppMessage } from "./utils/twilio";
+import { getCollectionName, getRestaurant } from "./utils/firestore";
 import { ConversationSchema } from "./schema/schemas";
 
 // Initialize Firebase Admin only if not already initialized
@@ -263,6 +263,241 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
     });
   }
 });
+
+
+
+/**
+ * Send order confirmation notifications to supplier and restaurant
+ */
+async function sendOrderConfirmationNotifications(order: Order, restaurant: Restaurant, orderUrl: string) {
+  try {
+    // 1. Send notification to restaurant owner
+    const ownerContact = Object.values(restaurant.contacts)
+      .find((contact: any) => contact.role === 'owner');
+    
+    if (ownerContact) {
+      const ownerMessage = `שלום ${ownerContact.name},
+ההזמנה שלך מ${order.supplier.name} אושרה. 
+סטטוס: אושר
+מספר הזמנה: ${order.id}
+לצפייה בהזמנה: ${orderUrl}`;
+
+      await sendWhatsAppMessage(
+        `whatsapp:${ownerContact.whatsapp}`, 
+        ownerMessage
+      );
+      
+      console.log(`[OrderSync] ✅ Sent order confirmation to restaurant owner: ${ownerContact.whatsapp}`);
+    }
+    
+    // 2. Send notification to supplier (using template)
+    const supplierNumber = order.supplier.whatsapp;
+    
+    if (supplierNumber) {
+      // Build detailed order message for supplier
+      let supplierMessage = `שלום ${order.supplier.name},
+התקבלה הזמנה חדשה ממסעדת ${restaurant.name}.
+
+פרטי ההזמנה:
+מספר הזמנה: ${order.id}
+סטטוס: אושר
+
+מוצרים:
+`;
+
+      // Add ordered items
+      order.items.forEach((item: any) => {
+        supplierMessage += `${item.emoji} ${item.name}: ${item.qty} ${item.unit}\n`;
+      });
+      
+      supplierMessage += `\nהערות: ${order.restaurantNotes || 'אין'}
+
+לצפייה ולעדכון ההזמנה: ${orderUrl}
+
+תודה!`;
+
+      await sendWhatsAppMessage(
+        `whatsapp:${supplierNumber}`, 
+        supplierMessage
+      );
+      
+      console.log(`[OrderSync] ✅ Sent detailed order to supplier: ${supplierNumber}`);
+    }
+  } catch (error) {
+    console.error("[OrderSync] Error sending confirmation notifications:", error);
+    throw error;
+  }
+}
+
+/**
+ * Send order sent notifications
+ */
+async function sendOrderSentNotifications(order: Order, restaurant: Restaurant, orderUrl: string) {
+  try {
+    // Notification to restaurant owner that order is on its way
+    const ownerContact = Object.values(restaurant.contacts)
+      .find((contact: any) => contact.role === 'owner');
+    
+    if (ownerContact) {
+      const ownerMessage = `שלום ${ownerContact.name},
+ההזמנה שלך מ${order.supplier.name} נשלחה ובדרך אליכם.
+סטטוס: נשלח
+צפי הגעה: ${order.timeToDeliver || 'לא צוין'}
+מספר הזמנה: ${order.id}
+לצפייה בהזמנה: ${orderUrl}`;
+
+      await sendWhatsAppMessage(
+        `whatsapp:${ownerContact.whatsapp}`, 
+        ownerMessage
+      );
+      
+      console.log(`[OrderSync] ✅ Sent order sent notification to restaurant owner: ${ownerContact.whatsapp}`);
+    }
+  } catch (error) {
+    console.error("[OrderSync] Error sending order sent notifications:", error);
+    throw error;
+  }
+}
+
+/**
+ * Send delivery completed notifications
+ */
+async function sendDeliveryCompletedNotifications(order: Order, restaurant: Restaurant, orderUrl: string) {
+  try {
+    const ownerContact = Object.values(restaurant.contacts)
+      .find((contact: any) => contact.role === 'owner');
+    
+    if (ownerContact) {
+      let ownerMessage = `שלום ${ownerContact.name},
+ההזמנה שלך מ${order.supplier.name} התקבלה במסעדה.
+סטטוס: התקבל
+מספר הזמנה: ${order.id}`;
+
+      // Add shortages information if any
+      if (order.shortages && order.shortages.length > 0) {
+        ownerMessage += `\n\nחוסרים:`;
+        order.shortages.forEach((shortage: any) => {
+          ownerMessage += `\n${shortage.emoji} ${shortage.name}: התבקש: ${shortage.requestedQty}, סופק: ${shortage.deliveredQty}`;
+        });
+      }
+      
+      ownerMessage += `\n\nלצפייה בהזמנה: ${orderUrl}`;
+
+      await sendWhatsAppMessage(
+        `whatsapp:${ownerContact.whatsapp}`, 
+        ownerMessage
+      );
+      
+      console.log(`[OrderSync] ✅ Sent delivery completion to restaurant owner: ${ownerContact.whatsapp}`);
+    }
+  } catch (error) {
+    console.error("[OrderSync] Error sending delivery notifications:", error);
+    throw error;
+  }
+}
+
+/**
+ * Send order cancelled notifications
+ */
+async function sendOrderCancelledNotifications(order: Order, restaurant: Restaurant, orderUrl: string) {
+  try {
+    const ownerContact = Object.values(restaurant.contacts)
+      .find((contact: any) => contact.role === 'owner');
+    
+    if (ownerContact) {
+      const ownerMessage = `שלום ${ownerContact.name},
+ההזמנה שלך מ${order.supplier.name} בוטלה.
+סטטוס: בוטל
+מספר הזמנה: ${order.id}
+לצפייה בהזמנה: ${orderUrl}`;
+
+      await sendWhatsAppMessage(
+        `whatsapp:${ownerContact.whatsapp}`, 
+        ownerMessage
+      );
+      
+      console.log(`[OrderSync] ✅ Sent cancellation notification to restaurant owner: ${ownerContact.whatsapp}`);
+    }
+  } catch (error) {
+    console.error("[OrderSync] Error sending cancellation notifications:", error);
+    throw error;
+  }
+}
+
+function createOrderHandler(collectionPath: string) {
+  return functions.firestore
+    .document(`${collectionPath}/{orderId}`)
+    .onWrite(async (change, context) => {
+      const isSimulator = collectionPath.includes('simulator');
+      console.log(`[OrderSync${isSimulator ? '-Simulator' : ''}] Order change detected for ${context.params.orderId}`);
+      try {
+        const { orderId } = context.params;
+        const newValue = change.after.data() as Order;
+        const previousValue = change.before?.data();
+
+      console.log(`[OrderSync${isSimulator ? '-Simulator' : ''}] Order ${orderId} changed from status "${previousValue?.status}" to "${newValue.status}"`);
+
+      // Only process specific status changes
+      if (newValue.status !== previousValue?.status || !previousValue) {
+        // Get restaurant data
+        const restaurantId = newValue.restaurant.legalId;
+        const restaurantData = await getRestaurant(restaurantId);
+        
+        if (!restaurantData) {
+          console.error(`[OrderSync] Restaurant ${restaurantId} not found for order ${orderId}`);
+          return null;
+        }
+
+        // Define the order URL (for tracking)
+        const orderUrl = `https://pivot-restaurant.web.app/order/${orderId}`;
+
+        // Different notification based on status change
+        switch(newValue.status) {
+          case "confirmed":
+            await sendOrderConfirmationNotifications(
+              newValue, 
+              restaurantData, 
+              orderUrl
+            );
+            break;
+          
+          case "sent":
+            await sendOrderSentNotifications(
+              newValue, 
+              restaurantData, 
+              orderUrl
+            );
+            break;
+            
+          case "delivered":
+            await sendDeliveryCompletedNotifications(
+              newValue, 
+              restaurantData, 
+              orderUrl
+            );
+            break;
+            
+          case "cancelled":
+            await sendOrderCancelledNotifications(
+              newValue, 
+              restaurantData, 
+              orderUrl
+            );
+            break;
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      console.error("Error processing order status change:", error);
+      return null;
+    }
+  });
+}
+
+
+exports.orderCreated = createOrderHandler('orders');
+exports.orderSimulatorCreated = createOrderHandler('orders_simulator');
 
 // Generate inventory reminders hourly
 // exports.generateReminders = functions.pubsub.schedule("every 1 hours")

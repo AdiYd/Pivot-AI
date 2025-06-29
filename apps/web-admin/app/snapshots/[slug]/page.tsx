@@ -2,17 +2,17 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
-import { jwtDecode } from 'jwt-decode';
-import { doc, getDoc } from 'firebase/firestore';
+import { arrayUnion, collection, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebaseClient';
-import { Restaurant, Supplier} from '@/schema/types';
+import { Order, Restaurant, Supplier} from '@/schema/types';
 import InventorySnapshotForm from './components/InventorySnapshotForm';
 import ErrorState from './components/ErrorState';
-import { Button, Input } from '@/components/ui';
+import { Button, Input, useToast } from '@/components/ui';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, ArrowLeft, Send, ArrowRight, SendHorizonal, Check, Calendar, ChevronDown, ChevronUp, Plus } from 'lucide-react';
+import { Loader2, ArrowRight, SendHorizonal, Check, Calendar, ChevronDown, ChevronUp, Plus } from 'lucide-react';
 import { UNITS_DICT } from '@/schema/states';
 import { OrderSchema } from '@/schema/schemas';
+import { set } from 'zod';
 
 // Hebrew translations for contact fields
 const hebrewFields = {
@@ -51,7 +51,8 @@ export default function OrderPage() {
   const [jwtData, setJwtData] = useState<JWTPayload | null>(null);
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
   const [calculatedOrder, setCalculatedOrder] = useState<any | null>(null);
-  
+  const [order, setOrder] = useState<Order | null>(null);
+  const { toast } = useToast();
   // Add state for midweek/weekend distinction
   const [isMidweekOrder, setIsMidweekOrder] = useState<boolean>(() => {
     // Default based on current day (Sat-Wed: midweek, Thu-Fri: weekend)
@@ -68,9 +69,33 @@ export default function OrderPage() {
         if (!slug || typeof slug !== 'string') {
           throw new Error('קישור לא תקין');
         }
-        // Decode the JWT
-        const decoded = jwtDecode(slug) as JWTPayload;
-        // console.log('Decoded JWT:', decoded);
+        // Fetch order link data from Firestore
+        const orderLinkDoc = await getDoc(doc(db, 'orderLinks', slug));
+        if (!orderLinkDoc.exists()) {
+          throw new Error('קישור לא תקין');
+        }
+        const orderLinkData = orderLinkDoc.data();
+        // Check if there is a collection under the 'orderLinks.orderid' path
+        if (!orderLinkData || !orderLinkData.restaurantId || !orderLinkData.contact || !orderLinkData.orderId) {
+          throw new Error('קישור לא תקין');
+        }
+        const isSimulator = orderLinkData.orderId?.endsWith('smltr') || false;
+        const hasOrder = await getDoc(doc(db, isSimulator ? 'orders_simulator' : 'orders', orderLinkData.orderId));
+        if (hasOrder.exists()) {
+          const orderData = hasOrder.data();
+          toast({
+            title: 'ההזמנה נמצאה',
+            description: `ההזמנה שלך עם ID ${orderData.id} נמצאה בהצלחה.`,
+            variant: 'success',
+          });
+          setOrder(orderData as Order);
+        }
+
+        const decoded: JWTPayload = {
+          restaurantId: orderLinkData.restaurantId,
+          contact: orderLinkData.contact,
+          orderId: orderLinkData.orderId,
+        };
         setJwtData(decoded);
 
         if (!decoded.restaurantId || !decoded.orderId) {
@@ -78,7 +103,7 @@ export default function OrderPage() {
         }
 
         // Fetch restaurant data from Firestore
-        const restaurantDoc = await getDoc(doc(db, 'restaurants_simulator', decoded.restaurantId));
+        const restaurantDoc = await getDoc(doc(db, isSimulator ? 'restaurants_simulator' : 'restaurants', decoded.restaurantId));
         if (!restaurantDoc.exists()) {
           throw new Error('לא נמצאה מסעדה מתאימה');
         }
@@ -86,14 +111,20 @@ export default function OrderPage() {
         setRestaurant(restaurantDoc.data() as Restaurant);
         setLoading(false);
       } catch (err) {
-        console.error('Error fetching data:', err);
         setError(err instanceof Error ? err.message : 'אירעה שגיאה בטעינת הנתונים');
         setLoading(false);
       }
     }
 
     fetchData();
-  }, [slug]);
+    
+  }, [slug, toast]);
+
+  useEffect(() => {
+    if (error) {
+      toast({ title: 'אירעה שגיאה', description: error, variant: 'destructive' });
+    }
+  }, [error, toast]);
 
   const handleSelectSupplier = (supplier: Supplier) => {
     setSelectedSupplier(supplier);
@@ -156,7 +187,7 @@ export default function OrderPage() {
         deliveryTime = "08:00";
       }
     }
-    
+
     deliveryDate.setDate(deliveryDate.getDate() + daysToAdd);
     deliveryDate.setHours(0, 0, 0, 0); // Reset time part
     
@@ -194,6 +225,20 @@ export default function OrderPage() {
           <p className="text-lg font-medium">טוען נתונים...</p>
           <p className="text-sm text-muted-foreground">אנא המתן</p>
         </motion.div>
+      </div>
+    );
+  }
+
+  if (order && restaurant) {
+    const supplier = restaurant.suppliers?.find(s => s.whatsapp === order.supplier?.whatsapp);
+    console.log('Supplier data:', supplier);
+    return (
+      <div className="min-h-screen p-8 max-sm:px-2">
+      <OrderConfirmation 
+        orderData={order} 
+        restaurant={restaurant}
+        supplier={supplier!}
+      />
       </div>
     );
   }
@@ -251,9 +296,13 @@ function OrderSummary({
   const [addingProduct, setAddingProduct] = useState(false);
   const [editedOrder, setEditedOrder] = useState({ ...calculatedOrder });
   const [newProduct, setNewProduct] = useState({ name: '', emoji: '📦', unit: 'pcs', orderQty: 1 });
-  
+  const { toast } = useToast();
   // Input refs for keyboard navigation
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  
+  // Add state for order submission success
+  const [orderSubmitted, setOrderSubmitted] = useState(false);
+  const [submittedOrderData, setSubmittedOrderData] = useState<Order | null>(null);
   
   // Filter products that have order quantities > 0 (for display in non-edit mode)
   const productsToOrder = isEditing 
@@ -386,7 +435,6 @@ function OrderSummary({
     calculatedOrder.dateToDeliver = editedOrder.dateToDeliver;
     calculatedOrder.restaurantNotes = editedOrder.restaurantNotes;
     calculatedOrder.products = filteredProducts;
-    console.log('Order saved:', calculatedOrder.products);
     
     setIsEditing(false);
     setAddingProduct(false);
@@ -437,8 +485,9 @@ function OrderSummary({
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setHours(10, 0, 0, 0);
-    
-    const timeToDeliver = `${tomorrow.toLocaleDateString('he-IL')} בשעה 10:00`;
+
+    const timeToDeliver = `${editedOrder.dateToDeliver.date}, ${editedOrder.dateToDeliver.time || '10:00'}`;
+    console.log('Time to deliver:', timeToDeliver, editedOrder.dateToDeliver);
     
     if (!timeToDeliver) {
       throw new Error('חסר זמן אספקה');
@@ -489,32 +538,71 @@ function OrderSummary({
     };
   };
 
-  const handleSendOrder = () => {
+  const sendOrderToFirestore = async (orderData: Order) => {
+    try {
+      const collectionName = orderData.id.endsWith('smltr') ? 'orders_simulator' : 'orders';
+      const restaurantCollectionName = orderData.id.endsWith('smltr') ? 'restaurants_simulator' : 'restaurants';
+      const docRef = doc(collection(db, collectionName), orderData.id);
+      await setDoc(docRef, orderData);
+
+      // Update the restaurant's orders array
+      await updateDoc(doc(collection(db, restaurantCollectionName), orderData.restaurant?.legalId), {
+        orders: arrayUnion(orderData.id),
+        updatedAt: new Date(),
+      });
+    
+      localStorage.removeItem(`inventory_snapshot_${orderData.supplier?.whatsapp}`); // Clear local storage after sending
+      
+      // Set the order as submitted and store the submitted order data
+      setOrderSubmitted(true);
+      setSubmittedOrderData(orderData);
+    } catch (error) {
+      console.error('Error sending order to Firestore:', error);
+      throw error; // Re-throw the error to be caught in the handleSendOrder function
+    }
+  };
+
+  const handleSendOrder = async () => {
     try {
       // Transform the order data to match the OrderSchema
       const orderData = prepareOrderData();
       const parsedOrderData = OrderSchema.parse(orderData);
       // Log the prepared order data
-      console.log('Sending order:', parsedOrderData);
-      
-      // Here you would send the order data to your backend
-      // For example:
-      // sendOrderToFirestore(orderData).then(() => {
-      //   // Show success message
-      //   toast.success('ההזמנה נשלחה בהצלחה');
-      //   onBack(); // Navigate back to inventory form
-      // }).catch(error => {
-      //   console.error('Error sending order:', error);
-      //   toast.error('אירעה שגיאה בשליחת ההזמנה');
-      // });
-      
-      // For now, just show a success message
-      alert('ההזמנה נשלחה בהצלחה (הודעה לצורך הדגמה)');
+      try {
+        await sendOrderToFirestore(parsedOrderData);
+        toast({
+          title: `הזמנה לספק ${supplier.name} הוגדרה בהצלחה`, 
+          description: 'ההזמנה נשלחה בהצלחה.', 
+          variant: "success"
+        });
+      } catch (error) {
+        console.error('Error sending order:', error);
+        toast({
+          title: 'אירעה שגיאה בשליחת ההזמנה',
+          description: 'נסה שנית מאוחר יותר.',
+          variant: "destructive"
+        });
+      }
     } catch (error) {
       console.error('Error preparing order:', error);
-      alert(error instanceof Error ? error.message : 'אירעה שגיאה בהכנת ההזמנה');
+      toast({
+        title: 'אירעה שגיאה בהכנת ההזמנה', 
+        description: error instanceof Error ? error.message : 'אירעה שגיאה בהכנת ההזמנה', 
+        variant: "destructive"
+      });
     }
   };
+
+  // If order is submitted, show the confirmation component
+  if (orderSubmitted && submittedOrderData) {
+    return (
+      <OrderConfirmation 
+        orderData={submittedOrderData}
+        restaurant={restaurant}
+        supplier={supplier}
+      />
+    );
+  }
 
   return (
     <motion.div
@@ -712,13 +800,15 @@ function OrderSummary({
                   >
                     <td className="p-3">
                       {!addingProduct ? 
-                      <div 
+                      <Button
+                      variant="ghost"
+                      size={"sm"}
                       onClick={()=>setAddingProduct(true)}
-                      className="flex items-center justify-center gap-1 h-full">
+                      className="flex items-center justify-center cursor-pointer hover:opacity-80 gap-1 h-full">
                           <Plus  className="h-4 w-4 text-muted-foreground" />
                         <span className="text-muted-foreground">הוסף מוצר חדש
-                        </span>
-                      </div> :
+                        </span> 
+                      </Button> :
                       <div className="flex items-center gap-2">
                         {/* <span className="text-lg">{newProduct.emoji}</span> */}
                           <select
@@ -875,6 +965,148 @@ function OrderSummary({
             שמור שינויים
           </Button>
         )}
+      </div>
+    </motion.div>
+  );
+}
+
+// New OrderConfirmation component
+function OrderConfirmation({ 
+  orderData, 
+  restaurant, 
+  supplier 
+}: { 
+  orderData: Order;
+  restaurant: Restaurant;
+  supplier: Supplier;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.4 }}
+      className="space-y-6"
+    >
+      {/* Success header */}
+      <div className="p-4 text-center">
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: "spring", stiffness: 300, damping: 15 }}
+          className="mx-auto bg-green-100 w-24 h-24 rounded-full flex items-center justify-center mb-4"
+        >
+          <Check className="h-12 w-12 text-green-600" />
+        </motion.div>
+        
+        <h1 className="text-2xl font-bold text-green-800 mb-2">
+          ההזמנה נשלחה בהצלחה!
+        </h1>
+        <p className="text-green-700">
+          מספר הזמנה: <span className="font-semibold">{orderData.id}</span>
+        </p>
+        <p className="text-gray-600 mt-2">
+          הזמנתך נשלחה ל{supplier.name} והיא בתהליך טיפול
+        </p>
+      </div>
+
+      {/* Order details section */}
+      <div className="border-b pb-4">
+        <h2 className="text-xl font-semibold">פרטי הזמנה</h2>
+      </div>
+      
+      {/* Restaurant and supplier info */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Restaurant info */}
+        <div className="space-y-2">
+          <h3 className="text-base font-medium text-muted-foreground">פרטי מסעדה</h3>
+          <div className="bg-card p-4 rounded-lg shadow-sm*">
+            <p className="font-medium">{restaurant.name}</p>
+            <p className="text-sm text-muted-foreground">{restaurant.legalName}</p>
+            <p className="text-sm text-muted-foreground">מספר ח.פ: {restaurant.legalId}</p>
+            
+            {/* Contact info */}
+            <div className="mt-3 pt-3 border-t">
+              <p className="text-xs text-muted-foreground mb-1">איש קשר</p>
+              <p className="text-sm">{orderData.restaurant.contact.name}</p>
+              <p className="text-sm">{hebrewFields.role}: {hebrewFields.roles[orderData.restaurant.contact.role as keyof typeof hebrewFields.roles] || orderData.restaurant.contact.role}</p>
+              <p className="text-sm">{orderData.restaurant.contact.whatsapp}</p>
+              {orderData.restaurant.contact.email && <p className="text-sm">{orderData.restaurant.contact.email}</p>}
+            </div>
+          </div>
+        </div>
+        
+        {/* Supplier info */}
+        <div className="space-y-2">
+          <h3 className="text-base font-medium text-muted-foreground">פרטי ספק</h3>
+          <div className="bg-card p-4 rounded-lg shadow-sm*">
+            <p className="font-medium">{supplier.name}</p>
+            <p className="text-sm">{supplier.whatsapp}</p>
+            {supplier.email && <p className="text-sm">{supplier.email}</p>}
+            <p className="text-sm text-muted-foreground">{supplier.category.join(', ')}</p>
+            
+            {/* Delivery info */}
+            <div className="mt-3 pt-3 border-t">
+              <p className="text-xs text-muted-foreground mb-1">מועד אספקה מתוכנן</p>
+              <p className="text-sm font-medium">
+                {orderData.timeToDeliver ? orderData.timeToDeliver : 'לא צוין מועד אספקה'}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {orderData.midweek ? 'הזמנה לאמצע השבוע' : 'הזמנה לסוף השבוע'}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Products table */}
+      <div className="mt-6">
+        <h3 className="text-base font-medium text-muted-foreground mb-2">מוצרים שהוזמנו</h3>
+        
+        <div className="bg-card rounded-lg shadow-sm overflow-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-muted text-muted-foreground">
+              <tr>
+                <th className="p-3 text-right whitespace-nowrap font-medium">מוצר</th>
+                <th className="p-3 text-right whitespace-nowrap">כמות</th>
+                <th className="p-3 text-right whitespace-nowrap">יחידה</th>
+              </tr>
+            </thead>
+            <tbody>
+              {orderData.items.map((item, index) => (
+                <tr 
+                  key={`${item.name}-${index}`} 
+                  className="border-b last:border-b-0 hover:bg-muted/20 transition-colors"
+                >
+                  <td className="p-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{item.emoji}</span>
+                      <span>{item.name}</span>
+                    </div>
+                  </td>
+                  <td className="p-3 font-medium">{item.qty}</td>
+                  <td className="p-3">{UNITS_DICT[item.unit] || item.unit}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      {/* Notes section if there are any */}
+      {orderData.restaurantNotes && (
+        <div className="bg-muted/20 p-4 rounded-lg">
+          <h3 className="text-base font-medium mb-2">הערות להזמנה</h3>
+          <p className="text-sm whitespace-pre-wrap">{orderData.restaurantNotes}</p>
+        </div>
+      )}
+      
+      {/* Timestamp info */}
+      <div className="text-center mt-8 pt-4 border-t text-muted-foreground text-sm">
+        <p>הזמנה נוצרה ב-{new Date(orderData.createdAt).toLocaleDateString('he-IL')}, {new Date(orderData.createdAt).toLocaleTimeString('he-IL')}</p>
+        <div className="flex items-center justify-center mt-2 gap-2">
+          <Calendar className="h-4 w-4" />
+          <p>סטטוס: ממתין לאישור ספק</p>
+        </div>
       </div>
     </motion.div>
   );

@@ -1392,6 +1392,7 @@ export default function RestaurantsPage() {
                       {Object.values(selectedRestaurant.orders).length > 0 ? (
                         Object.values(selectedRestaurant.orders).map((orderId: string, index: number) => {
                           const order = database.orders[orderId] as Order;
+                          if (!order) return null; // Skip if order not found
                           const supplier = selectedRestaurant.suppliers.find((s) => s.whatsapp === order.supplier.whatsapp);
                           return (
                             <Card className='!min-w-[300px] max-sm:!min-w-fit' key={index}>

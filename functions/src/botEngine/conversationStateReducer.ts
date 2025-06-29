@@ -12,8 +12,8 @@ import {
 import { stateObject } from '../schema/states';
 import { ProductSchema, restaurantLegalIdSchema, RestaurantSchema, SupplierSchema } from '../schema/schemas';
 import { callOpenAIDataAnalysis, callOpenAISchema } from '../utils/openAI';
-import { createOrderCollection, getRestaurant } from '../utils/firestore';
-import * as jwt from 'jsonwebtoken';
+import { firestore, getRestaurant } from '../utils/firestore';
+import { FieldValue } from 'firebase-admin/firestore';
 /**
  * Interface for the state machine's result
  */
@@ -389,16 +389,18 @@ export async function conversationStateReducer(
         console.error(`[StateReducer] Restaurant or contact not found`);
         throw new Error('Restaurant or contact not found');
       }
-      const orderId = await createOrderCollection(conversation, isSimulator);
-      // Encode the object as jwt
-      
-      const token = jwt.sign(
-        { orderId, restaurantId, contact },
-        'pivot20205',
-        { expiresIn: '1h' }
-      );
+      const orderId = `${restaurantId}_${Date.now()}${conversation.context.isSimulator ? 'smltr':''}`; // Generate a unique order ID
+      const shortId = crypto.getRandomValues(new Uint32Array(1))[0].toString(8); // Generate a short ID
+      // Store the data in Firestore or other storage
+      await firestore.collection(`orderLinks`).doc(shortId).set({
+        restaurantId,
+        contact,
+        orderId,
+        createdAt: FieldValue.serverTimestamp(),
+      });
 
-      const url = `https://pivot.webly.digital/snapshots/${token}`;
+      // const url = `https://pivot.webly.digital/snapshots/${shortId}`;
+      const url = `https://pivot.webly.digital/snapshots/${shortId}`;
       result.actions.push({
         type: 'SEND_MESSAGE',
         payload: {

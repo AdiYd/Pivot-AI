@@ -30,6 +30,16 @@ const toastVariants = cva(
     variants: {
       variant: {
         default: "border bg-gradient-to-r from-blue-600/40 to-blue-400/40 backdrop-blur-md text-foreground",
+        success:
+          "border bg-gradient-to-r from-green-600/40 to-green-400/40 backdrop-blur-md text-foreground",
+        info: "border bg-gradient-to-r from-cyan-600/40 to-cyan-400/40 backdrop-blur-md text-foreground",
+        warning:
+          "border bg-gradient-to-r from-yellow-600/40 to-yellow-400/40 backdrop-blur-md text-foreground",
+        error: "border bg-gradient-to-r from-red-600/40 to-red-400/40 backdrop-blur-md text-foreground",
+        neutral:
+          "border bg-gradient-to-r from-gray-600/40 to-gray-400/40 backdrop-blur-md text-foreground",
+        primary:
+          "border bg-gradient-to-r from-purple-600/40 to-purple-400/40 backdrop-blur-md text-foreground",
         destructive:
           "destructive group border-destructive bg-gradient-to-r from-red-600/40 to-red-400/40 backdrop-blur-md text-black",
       },
