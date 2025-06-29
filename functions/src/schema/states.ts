@@ -566,7 +566,7 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
               { name: "כל יום ב-12:00", id: "כל יום ב-12:00" },
             ]
           },
-          description: "Capture the supplier's order cutoff times to properly schedule reminders before deadlines.",
+          description: "Capture the supplier order cutoff times to properly schedule reminders before deadlines. You should collect the days and times when the supplier stops accepting orders. Reminders will be set based on this information.",
           validator: SupplierSchema.pick({ reminders: true }),
           aiValidation: {
             prompt: "עליך לבקש מהמשתמש לציין את זמני הסגירה המדויקים (cut-off) של הספק - היום והשעה האחרונים שבהם ניתן לשלוח הזמנות. המערכת תשתמש במידע זה לתזכר את המשתמש לפני מועדי הסגירה. אם מציינים 'עד שעה מסוימת', יש להתייחס לזו כשעת הסגירה. לא ניתן להגדיר יותר מזמן סגירה אחד ביום.",

@@ -14,7 +14,7 @@ import {
   Search, Filter, Package, ShoppingCart, CheckCircle, Clock, 
   TrendingUp, Truck, Store, X, Eye, ArrowUpDown, 
   Calendar, User, PackageOpen,
-  RefreshCw
+  RefreshCw, ExternalLink, MessageSquare, Phone, Mail
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { format } from 'date-fns';
@@ -304,8 +304,8 @@ export default function OrdersPage() {
     </div>
   );
 
-  const OrderCard = ({ order }: { order: EnhancedOrder }) => (
-    <Card className="hover:shadow-lg transition-shadow">
+  const OrderCard = ({ order, handleOrderClick }: { order: EnhancedOrder, handleOrderClick: (order: EnhancedOrder) => void }) => (
+    <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => handleOrderClick(order)}>
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -320,8 +320,9 @@ export default function OrdersPage() {
               </CardDescription>
             </div>
           </div>
-          <div>
+          <div className="flex items-center gap-2">
             {getStatusBadge(order.status)}
+            <ExternalLink className="w-4 h-4 text-muted-foreground" />
           </div>
         </div>
       </CardHeader>
@@ -331,19 +332,45 @@ export default function OrdersPage() {
             <Calendar className="w-4 h-4" />
             <span>{getRelativeTime(order.createdAt)}</span>
           </div>
+          
+          {/* Delivery time */}
+          {order.timeToDeliver && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Truck className="w-4 h-4" />
+              <span>משלוח: {order.timeToDeliver}</span>
+            </div>
+          )}
+          
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Package className="w-4 h-4" />
             <span>{order.totalItems} פריטים ({order.totalProducts} מוצרים)</span>
           </div>
+          
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Icon icon="mdi:tag-multiple" className="w-4 h-4" />
             <span>{order.category.map(cat => CATEGORIES_DICT[cat]?.name || cat).join(', ')}</span>
+          </div>
+          
+          {/* Contact information */}
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <User className="w-4 h-4" />
+            <span>{order.restaurant.contact.name}</span>
+            <Phone className="w-3 h-3" />
+            <span>{order.restaurant.contact.whatsapp}</span>
           </div>
           
           {order.hasShortages && (
             <div className="flex items-center gap-2 text-sm text-red-500">
               <X className="w-4 h-4" />
               <span>{order.shortages.length} פריטים חסרים</span>
+            </div>
+          )}
+
+          {/* Notes indicators */}
+          {(order.restaurantNotes || order.supplierNotes) && (
+            <div className="flex items-center gap-2 text-sm text-blue-500">
+              <MessageSquare className="w-4 h-4" />
+              <span>יש הערות</span>
             </div>
           )}
 
@@ -372,7 +399,8 @@ export default function OrdersPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   setSelectedOrder(order);
                   setIsDialogOpen(true);
                 }}
@@ -414,6 +442,7 @@ export default function OrdersPage() {
                 </div>
               </TableHead>
               <TableHead className="text-right">ספק</TableHead>
+              <TableHead className="text-right">איש קשר</TableHead>
               <TableHead className="text-right">קטגוריה</TableHead>
               <TableHead className="text-right">
                 <div className="flex items-center cursor-pointer" onClick={() => {
@@ -428,6 +457,7 @@ export default function OrdersPage() {
                   <ArrowUpDown className="mr-2 h-4 w-4" />
                 </div>
               </TableHead>
+              <TableHead className="text-right">משלוח</TableHead>
               <TableHead className="text-right">
                 <div className="flex items-center cursor-pointer" onClick={() => {
                   if (sortBy === 'items') {
@@ -459,10 +489,7 @@ export default function OrdersPage() {
           <TableBody>
             {orders.map((order) => (
               <TableRow   
-                onClick={() => {
-                    setSelectedOrder(order);
-                    setIsDialogOpen(true);
-                  }} 
+                onClick={() => handleOrderClick(order)} 
                 key={order.id} className="hover:bg-gray-50 cursor-pointer dark:hover:bg-gray-900/50">
                 <TableCell className="font-mono min-w-[150px] text-xs">{order.id.substring(0, 8)}</TableCell>
                 <TableCell>
@@ -473,6 +500,15 @@ export default function OrdersPage() {
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <span>{order.supplier.name}</span>
+                    {(order.restaurantNotes || order.supplierNotes) && (
+                      <MessageSquare className="w-3 h-3 text-blue-500" />
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="text-sm">
+                    <div className="font-medium">{order.restaurant.contact.name}</div>
+                    <div className="text-muted-foreground text-xs">{order.restaurant.contact.whatsapp}</div>
                   </div>
                 </TableCell>
                 <TableCell>
@@ -489,6 +525,9 @@ export default function OrdersPage() {
                 </TableCell>
                 <TableCell>
                   <div className="text-sm">{getRelativeTime(order.createdAt)}</div>
+                </TableCell>
+                <TableCell>
+                  <div className="text-sm">{order.timeToDeliver || 'לא צוין'}</div>
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center">
@@ -509,7 +548,7 @@ export default function OrdersPage() {
             
             {orders.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} className="h-24 text-center">
+                <TableCell colSpan={9} className="h-24 text-center">
                   <div className="flex flex-col items-center justify-center">
                     <ShoppingCart className="w-12 h-12 text-muted-foreground mb-2" />
                     <h3 className="text-lg font-medium mb-1">לא נמצאו הזמנות</h3>
@@ -548,6 +587,12 @@ export default function OrdersPage() {
       </div>
     );
   }
+
+  const handleOrderClick = (order: EnhancedOrder) => {
+    setSelectedOrder(order);
+    setIsDialogOpen(true);
+    window.open(`https://pivot.webly.digital/orders/${order.id}`, '_blank');
+  };
 
 
   return (
@@ -657,7 +702,7 @@ export default function OrdersPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredOrders.length > 0 ? (
               filteredOrders.map((order) => (
-                <OrderCard key={order.id} order={order} />
+                <OrderCard key={order.id} order={order} handleOrderClick={handleOrderClick} />
               ))
             ) : (
               <div className="col-span-full text-center py-12">
@@ -692,6 +737,15 @@ export default function OrdersPage() {
                   <div>
                     {getStatusBadge(selectedOrder.status)}
                   </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleOrderClick(selectedOrder)}
+                    className="flex items-center gap-2"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    פתח בטאב חדש
+                  </Button>
                 </div>
                 <Button
                   variant="ghost"
@@ -705,9 +759,10 @@ export default function OrdersPage() {
               
               <div className="flex-1 overflow-y-auto p-6 pt-4">
                 <Tabs defaultValue="details" className="w-full">
-                  <TabsList className="grid w-full grid-cols-2">
+                  <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="details">פרטי הזמנה</TabsTrigger>
                     <TabsTrigger value="products">מוצרים</TabsTrigger>
+                    <TabsTrigger value="communication">תקשורת</TabsTrigger>
                   </TabsList>
                   
                   <TabsContent dir='rtl' value="details" className="space-y-4 mt-6">
@@ -719,10 +774,26 @@ export default function OrdersPage() {
                             <Store className="ml-2 h-5 w-5 text-muted-foreground" />
                             <span className="font-medium">{selectedOrder.restaurant.name}</span>
                           </div>
-                          <div className="text-sm text-muted-foreground">
+                          <div className="text-sm text-muted-foreground space-y-1">
                             <p>מזהה: {selectedOrder.restaurant.legalId}</p>
-                            <p>איש קשר: {data.restaurants[selectedOrder.restaurant.legalId]?.contacts[0]?.name || 'לא זמין'}</p>
-                            <p>טלפון: {data.restaurants[selectedOrder.restaurant.legalId]?.contacts[0]?.whatsapp || 'לא זמין'}</p>
+                            <div className="flex items-center gap-2">
+                              <User className="w-3 h-3" />
+                              <span>איש קשר: {selectedOrder.restaurant.contact.name}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Phone className="w-3 h-3" />
+                              <span>טלפון: {selectedOrder.restaurant.contact.whatsapp}</span>
+                            </div>
+                            {selectedOrder.restaurant.contact.email && (
+                              <div className="flex items-center gap-2">
+                                <Mail className="w-3 h-3" />
+                                <span>אימייל: {selectedOrder.restaurant.contact.email}</span>
+                              </div>
+                            )}
+                            <div className="flex items-center gap-2">
+                              <Icon icon="mdi:badge-account" className="w-3 h-3" />
+                              <span>תפקיד: {selectedOrder.restaurant.contact.role}</span>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -734,9 +805,18 @@ export default function OrdersPage() {
                             <Truck className="ml-2 h-5 w-5 text-muted-foreground" />
                             <span className="font-medium">{selectedOrder.supplier.name}</span>
                           </div>
-                          <div className="text-sm text-muted-foreground">
+                          <div className="text-sm text-muted-foreground space-y-1">
                             <p>קטגוריה: {selectedOrder.category.map(cat => CATEGORIES_DICT[cat]?.name || cat).join(', ')}</p>
-                            <p>טלפון: {selectedOrder.supplier.whatsapp}</p>
+                            <div className="flex items-center gap-2">
+                              <Phone className="w-3 h-3" />
+                              <span>טלפון: {selectedOrder.supplier.whatsapp}</span>
+                            </div>
+                            {selectedOrder.supplier.email && (
+                              <div className="flex items-center gap-2">
+                                <Mail className="w-3 h-3" />
+                                <span>אימייל: {selectedOrder.supplier.email}</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -762,25 +842,14 @@ export default function OrdersPage() {
                             <p className="text-sm text-muted-foreground">יום בשבוע</p>
                             <p className="font-medium">{selectedOrder.midweek ? 'אמצע שבוע' : 'סוף שבוע'}</p>
                           </div>
+                          
+                          {selectedOrder.timeToDeliver && (
+                            <div>
+                              <p className="text-sm text-muted-foreground">זמן משלוח מבוקש</p>
+                              <p className="font-medium">{selectedOrder.timeToDeliver}</p>
+                            </div>
+                          )}
                         </div>
-                        
-                        {(selectedOrder.restaurantNotes || selectedOrder.supplierNotes) && (
-                          <div className="border-t pt-2 mt-2">
-                            {selectedOrder.restaurantNotes && (
-                              <div className="mb-2">
-                                <p className="text-sm text-muted-foreground">הערות המסעדה</p>
-                                <p className="text-sm">{selectedOrder.restaurantNotes}</p>
-                              </div>
-                            )}
-                            
-                            {selectedOrder.supplierNotes && (
-                              <div>
-                                <p className="text-sm text-muted-foreground">הערות הספק</p>
-                                <p className="text-sm">{selectedOrder.supplierNotes}</p>
-                              </div>
-                            )}
-                          </div>
-                        )}
                         
                         {selectedOrder.invoiceUrl && (
                           <div className="border-t pt-2 mt-2">
@@ -789,8 +858,9 @@ export default function OrdersPage() {
                               href={selectedOrder.invoiceUrl} 
                               target="_blank" 
                               rel="noopener noreferrer" 
-                              className="text-blue-500 hover:underline"
+                              className="text-blue-500 hover:underline flex items-center gap-1"
                             >
+                              <ExternalLink className="w-3 h-3" />
                               צפייה בחשבונית
                             </a>
                           </div>
@@ -854,6 +924,44 @@ export default function OrdersPage() {
                               </TableBody>
                             </Table>
                           </div>
+                        </div>
+                      )}
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent dir='rtl' value="communication">
+                    <div className="space-y-4 mt-6">
+                      {(selectedOrder.restaurantNotes || selectedOrder.supplierNotes) ? (
+                        <div className="space-y-4">
+                          {selectedOrder.restaurantNotes && (
+                            <div className="rounded-md border p-4">
+                              <h3 className="font-medium mb-2 flex items-center gap-2">
+                                <Store className="w-4 h-4" />
+                                הערות המסעדה
+                              </h3>
+                              <p className="text-sm bg-blue-50 dark:bg-blue-950 p-3 rounded-md">
+                                {selectedOrder.restaurantNotes}
+                              </p>
+                            </div>
+                          )}
+                          
+                          {selectedOrder.supplierNotes && (
+                            <div className="rounded-md border p-4">
+                              <h3 className="font-medium mb-2 flex items-center gap-2">
+                                <Truck className="w-4 h-4" />
+                                הערות הספק
+                              </h3>
+                              <p className="text-sm bg-green-50 dark:bg-green-950 p-3 rounded-md">
+                                {selectedOrder.supplierNotes}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8">
+                          <MessageSquare className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                          <h3 className="text-lg font-medium mb-2">אין הערות להזמנה זו</h3>
+                          <p className="text-muted-foreground">לא נוספו הערות ממסעדה או ספק</p>
                         </div>
                       )}
                     </div>
