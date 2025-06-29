@@ -476,7 +476,7 @@ export default function InventorySnapshotForm({
                           return (
                             <motion.tr 
                               key={index} 
-                              className="border-b last:border-b-0 hover:bg-gray-50 transition-colors"
+                              className="border-b last:border-b-0 hover:bg-muted/30 transition-colors"
                               initial={{ opacity: 0 }}
                               animate={{ opacity: 1 }}
                               transition={{ duration: 0.2, delay: 0.1 + index * 0.05 }}
