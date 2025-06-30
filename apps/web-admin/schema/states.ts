@@ -852,7 +852,7 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
       case "IDLE": {
         stateObject = {
           whatsappTemplate: {
-            id: "TEMPLATE_IDLE_MENU",
+            id: "template_idle_menu",
             type: "list",
             body: "👋 *שלום {contactName}!*\n\nמה תרצה לעשות היום?\n\nבחר אחת מהאפשרויות:",
             options: [
