@@ -253,13 +253,16 @@ function createMessageAction(
     
     // Replace placeholders in template body with context values
     let body = template.body;
-    
-    Object.keys(context).forEach(key => {
-      const placeholder = `{${key}}`;
-      if (body.includes(placeholder)) {
-        body = body.replace(new RegExp(placeholder, 'g'), String(context[key] || ''));
-      }
-    });
+    if (context.isSimulator){
+      Object.keys(context).forEach(key => {
+        const placeholder = `{${key}}`;
+        if (body.includes(placeholder)) {
+          body = body.replace(new RegExp(placeholder, 'g'), String(context[key] || ''));
+        }
+      });
+    } else {
+
+    }
     
     // Set options if dynamic options are required
     let options = template.options;
@@ -271,9 +274,11 @@ function createMessageAction(
         to,
         template: {
           ...template,
-          body,
-          options
+         ...(context.isSimulator &&
+           {body,
+          options})
         },
+       ...(!context.isSimulator &&  {context}),
         messageState: currentState
       }
     };

@@ -228,6 +228,7 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
         stateObject = {
           whatsappTemplate: {
             id: "init_template",
+            sid: 'HX397f201cb42563786ffbba32d3838932',
             type: "button",
             body: `🍽️ *ברוכים הבאים ל ✨ P-vot ✨, מערכת ניהול המלאי וההזמנות!*
             בכמה צעדים פשוטים נרשום את המסעדה שלך ונגדיר את הספקים והזמנות המומלצות עבורך.
@@ -324,6 +325,7 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
         stateObject = {
           whatsappTemplate: {
             id: "contact_email_template",
+            sid: 'HX5cb05efffa2a9b02dafd21e0ffd0149e',
             type: "button",
             body: "📧 מה כתובת האימייל שלך? (אופציונלי - לחץ 'דלג' להמשך)",
             options: [
@@ -350,6 +352,7 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
         stateObject = {
           whatsappTemplate: {
             id: "payment_options_template",
+            sid: 'HX1762d8ffacc9ab97e825137a7a5e4c0c',
             type: "list",
             body: `💳 *בחר שיטת תשלום*
             המערכת זמינה בתשלום חודשי. בחר את האופציה המועדפת עליך:`,
@@ -420,6 +423,7 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
         stateObject = {
           whatsappTemplate: {
             id: "supplier_setup_start_template",
+            sid: 'HX8bd05f7fb3a9691fdcdda3aec675cd46',
             type: "button",
             body: `🚚 *הגדרת ספקים ומוצרים*
             כעת נגדיר את הספקים שעובדים עם המסעדה שלך. זה יעזור למערכת לנהל את המלאי, לתזכר אותך ולשלוח הזמנות לספק באופן אוטומטי.
@@ -441,6 +445,7 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
         stateObject = {
           whatsappTemplate: {
             id: "supplier_setup_additional_template",
+            sid: 'HX0ba222120174fc1dcea74419b842bdec',
             type: "button",
             body: "🏪 *האם יש עוד ספקים שתרצו להגדיר?*",
             options: [
@@ -477,6 +482,7 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
         stateObject = {
           whatsappTemplate: {
             id: "restaurant_finished_template",
+            sid: "HX7b36caa14a30424eaeb1a368d9ce1c03",
             type: "text",
             body: `🎉 *הגדרת המסעדה {restaurantName} הושלמה!*
             תודה על שהקדשתם זמן להגדיר את המסעדה שלכם. כעת תוכלו להתחיל להשתמש במערכת לניהול המלאי וההזמנות שלכם.`,
@@ -499,6 +505,7 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
         stateObject = {
           whatsappTemplate: {
             id: "supplier_category_template",
+            sid: 'HX284aa3db82ae7c6298ff6f49a51a8f5c',
             type: "list",
             body: `🚚 *הגדרת ספק חדש למסעדה*
             בחרו קטגוריה לספק זה מתוך האפשרויות , *או* כתבו את שם הקטגוריה.
@@ -551,6 +558,7 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
         stateObject = {
           whatsappTemplate: {
             id: "supplier_reminders_template",
+            sid: "HX3b67c67b7191adee20289fd437a27fd4",
             type: "list",
             body: `⏰ *הגדרת זמני סגירת הזמנות (CUT-OFF) של הספק*
             
@@ -852,7 +860,8 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
       case "IDLE": {
         stateObject = {
           whatsappTemplate: {
-            id: "TEMPLATE_IDLE_MENU",
+            id: "template_idle_menu",
+            sid: 'HX52a024279652d2247cb7c1f11fea4728',
             type: "list",
             body: "👋 *שלום {contactName}!*\n\nמה תרצה לעשות היום?\n\nבחר אחת מהאפשרויות:",
             options: [

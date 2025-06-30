@@ -60,9 +60,28 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
     const from = isSimulator ? 
       req.body.phone : // Admin app format
       req.body.From;  // Twilio format
-    const body = isSimulator ? 
-      req.body.message : // Admin app format
-      req.body.Body || ''; // Twilio format
+        // Handle template button/list responses 
+    let body = '';
+    
+    if (isSimulator) {
+      body = req.body.message;
+    } else {
+      // Check for template button responses
+      if (req.body.ButtonText) {
+        // This is a button click - use the button ID as the message body
+        // Find the original button ID based on text
+        const buttonText = req.body.ButtonText;
+        // Extract ButtonPayload if available, otherwise use ButtonText
+        body = req.body.ButtonPayload || buttonText;
+      } else if (req.body.ListTitle) {
+        // This is a list selection - use the list item ID
+        // Extract ListPayload if available, otherwise use ListTitle
+        body = req.body.ListPayload || req.body.ListTitle;
+      } else {
+        // Regular message
+        body = req.body.Body || '';
+      }
+    }
     const mediaUrl = isSimulator ?
       req.body.mediaUrl : // Admin app format
       req.body.MediaUrl0; // Twilio format

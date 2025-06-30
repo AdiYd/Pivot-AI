@@ -10,6 +10,7 @@ const SendMessagePayloadSchema = z.object({
   body: z.string().min(1).optional(),
   template: z.object({
     id: z.string(),
+    sid: z.string().optional(),
     type: z.string(),
     body: z.string(),
     options: z.any(),
@@ -54,8 +55,21 @@ export async function processActions(
               responses.push(validPayload);
               console.log(`[BotActions] 📱 Simulator message: ${validPayload.body?.substring(0, 50) || validPayload.template?.body?.substring(0, 50) || ''}...`);
             } else {
-              // Real Twilio messages for production
-              await sendWhatsAppMessage(validPayload.to, validPayload.body || '');
+               // Extract context variables from the message for template processing
+              const context = action.payload?.context || {};
+              
+              if (validPayload.template) {
+                // For template messages
+                await sendWhatsAppMessage(
+                  validPayload.to, 
+                  '', 
+                  validPayload.template,
+                  context
+                );
+              } else {
+                // For regular text messages
+                await sendWhatsAppMessage(validPayload.to, validPayload.body || '');
+              }
             }
             
             // Log outgoing message
