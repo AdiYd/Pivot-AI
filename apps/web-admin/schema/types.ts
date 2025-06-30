@@ -126,6 +126,7 @@ export interface StateObject {
   whatsappTemplate?: {
     id: string;                // Template ID registered with WhatsApp Business API
     sid?: string;             // Optional SID for tracking in Twilio
+    contentVariables?: string;
     type: "text" | "button" | "list" | "card";  // Template type
     body: string ;              // Main message body
     options?: Array<{         // Response options

@@ -23,6 +23,7 @@ export const escapeDict: Record<string, BotState> = {
  'תפריט': 'IDLE',
  'עזרה': 'IDLE',
  'help': 'IDLE',
+ 'reset_conversation_pivot': 'INIT',
 };
 
 /**
@@ -274,11 +275,9 @@ function createMessageAction(
         to,
         template: {
           ...template,
-         ...(context.isSimulator &&
-           {body,
-          options})
+          ...(context.isSimulator ? { body, options } : {}),
         },
-       ...(!context.isSimulator &&  {context}),
+       ...(!context.isSimulator ? {context} : {}),
         messageState: currentState
       }
     };
@@ -428,7 +427,7 @@ export async function conversationStateReducer(
       });
       return result;
     }
-  }
+    }
 
     if (['RESTAURANT_INFO', 'ORDERS_INFO'].includes(conversation.currentState)) {
 
@@ -555,25 +554,25 @@ export async function conversationStateReducer(
           && validationResult.meta 
           && validationResult.meta?.is_data_final_and_confirmed 
         ) {
-          const approvalMessage = validationResult.meta?.approval_message;
+          const approvalMessage = validationResult.meta?.approval_message.trim();
           if (approvalMessage) {          
              const approvalMessageWrapper = `
               ✅ אנא אשר את הפרטים הבאים לפני ההמשך:
-              \n
               -------------------------------------------------
-              \n
-             ${approvalMessage}
-              \n
+            ${approvalMessage}
               -------------------------------------------------
-              \n
-              יש לאשר את הנתונים על ידי לחיצה על כפתור "אישור" למטה.
-              *במידה ויש צורך בתיקונים או תוספות, יש לכתוב הודעה עם ההערות המתאימות.*`  
+            יש לאשר את הנתונים על ידי לחיצה על כפתור "אישור" למטה.
+            *במידה ויש צורך בתיקונים או תוספות, יש לכתוב הודעה עם ההערות המתאימות.*`  
               // Send the approval Template message for whatsapp card with button to approve
               const approvalAction = createMessageAction(
                 {
                   whatsappTemplate: {
                     id: 'approval_template',
                     type: 'button',
+                    sid:'HXbb68da1428e3402364d9832f53a54730',
+                    contentVariables: JSON.stringify({
+                      '1': approvalMessageWrapper || "שגיאה בקבלת נתונים מהסוכן החכם (AI validation)",
+                    }),
                     body: approvalMessageWrapper,
                     options: [
                       { name: 'אישור', id: 'user_confirmed' },

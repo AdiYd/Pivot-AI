@@ -235,7 +235,7 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
             בחר מה ברצונך לעשות:`,
             options: [
               { name: "📋 רישום מסעדה חדשה", id: "new_restaurant" },
-            ...(conversation.context.isSimulator && [{ name: "⚡ רישום מסעדה מהיר (סימולטור)", id: "new_restaurant_fast" }]),
+            ...(conversation.context?.isSimulator ? [{ name: "⚡ רישום מסעדה מהיר (סימולטור)", id: "new_restaurant_fast" }] : []),
               { name: "❓ עזרה והסבר", id: "help" }
             ]
           },
@@ -862,6 +862,9 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
           whatsappTemplate: {
             id: "template_idle_menu",
             sid: 'HX52a024279652d2247cb7c1f11fea4728',
+            contentVariables: JSON.stringify({
+              '1': conversation.context?.contactName || "",
+              }),
             type: "list",
             body: "👋 *שלום {contactName}!*\n\nמה תרצה לעשות היום?\n\nבחר אחת מהאפשרויות:",
             options: [

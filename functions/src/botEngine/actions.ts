@@ -11,6 +11,7 @@ const SendMessagePayloadSchema = z.object({
   template: z.object({
     id: z.string(),
     sid: z.string().optional(),
+    contentVariables: z.string().optional(),
     type: z.string(),
     body: z.string(),
     options: z.any(),

@@ -235,7 +235,7 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
             בחר מה ברצונך לעשות:`,
             options: [
               { name: "📋 רישום מסעדה חדשה", id: "new_restaurant" },
-            ...(conversation.context.isSimulator && [{ name: "⚡ רישום מסעדה מהיר (סימולטור)", id: "new_restaurant_fast" }]),
+            ...(conversation.context?.isSimulator ? [{ name: "⚡ רישום מסעדה מהיר (סימולטור)", id: "new_restaurant_fast" }] : []),
               { name: "❓ עזרה והסבר", id: "help" }
             ]
           },
@@ -484,6 +484,9 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
             id: "restaurant_finished_template",
             sid: "HX7b36caa14a30424eaeb1a368d9ce1c03",
             type: "text",
+            contentVariables:JSON.stringify({
+              '1': conversation.context?.restaurantName || 'שלך',
+            }),
             body: `🎉 *הגדרת המסעדה {restaurantName} הושלמה!*
             תודה על שהקדשתם זמן להגדיר את המסעדה שלכם. כעת תוכלו להתחיל להשתמש במערכת לניהול המלאי וההזמנות שלכם.`,
           },
@@ -507,6 +510,30 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
             id: "supplier_category_template",
             sid: 'HX284aa3db82ae7c6298ff6f49a51a8f5c',
             type: "list",
+            contentVariables: JSON.stringify({
+              '1': `${CATEGORIES_DICT.vegetables.name} ${CATEGORIES_DICT.vegetables.emoji}`,
+              '2': 'vegetables',
+              '3': `${CATEGORIES_DICT.fruits.name} ${CATEGORIES_DICT.fruits.emoji}`,
+              '4': 'fruits',
+              '5': `${CATEGORIES_DICT.meats.name} ${CATEGORIES_DICT.meats.emoji}`,
+              '6': 'meats',
+              '7': `${CATEGORIES_DICT.fish.name} ${CATEGORIES_DICT.fish.emoji}`,
+              '8': 'fish',
+              '9': `${CATEGORIES_DICT.dairy.name} ${CATEGORIES_DICT.dairy.emoji}`,
+              '10': 'dairy',
+              '11': `${CATEGORIES_DICT.alcohol.name} ${CATEGORIES_DICT.alcohol.emoji}`,
+              '12': 'alcohol',
+              '13': `${CATEGORIES_DICT.eggs.name} ${CATEGORIES_DICT.eggs.emoji}`,
+              '14': 'eggs',
+              '15': `${CATEGORIES_DICT.oliveOil.name} ${CATEGORIES_DICT.oliveOil.emoji}`,
+              '16': 'oliveOil',
+              '17': `${CATEGORIES_DICT.disposables.name} ${CATEGORIES_DICT.disposables.emoji}`,
+              '18': 'disposables',
+              '19': `${CATEGORIES_DICT.desserts.name} ${CATEGORIES_DICT.desserts.emoji}`,
+              '20': 'desserts',
+              '21': `${CATEGORIES_DICT.juices.name} ${CATEGORIES_DICT.juices.emoji}`,
+              '22': 'juices'
+            }),
             body: `🚚 *הגדרת ספק חדש למסעדה*
             בחרו קטגוריה לספק זה מתוך האפשרויות , *או* כתבו את שם הקטגוריה.
 
@@ -559,6 +586,11 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
           whatsappTemplate: {
             id: "supplier_reminders_template",
             sid: "HX3b67c67b7191adee20289fd437a27fd4",
+            contentVariables: JSON.stringify({
+              '1': 'ראשון וחמישי ב 11:00',
+              '2': 'שני ושישי ב 10:00',
+              '3': 'כל יום ב 12:00'
+            }),
             type: "list",
             body: `⏰ *הגדרת זמני סגירת הזמנות (CUT-OFF) של הספק*
             
@@ -862,6 +894,9 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
           whatsappTemplate: {
             id: "template_idle_menu",
             sid: 'HX52a024279652d2247cb7c1f11fea4728',
+            contentVariables: JSON.stringify({
+              '1': conversation.context?.contactName || "",
+              }),
             type: "list",
             body: "👋 *שלום {contactName}!*\n\nמה תרצה לעשות היום?\n\nבחר אחת מהאפשרויות:",
             options: [

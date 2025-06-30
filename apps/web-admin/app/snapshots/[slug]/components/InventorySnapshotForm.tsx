@@ -194,7 +194,7 @@ export default function InventorySnapshotForm({
                 className={`flex items-baseline gap-2 p-3 rounded-lg cursor-pointer transition-colors ${isMidweekOrder ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80'}`}
                 onClick={() => !isMidweekOrder && toggleOrderType()}
               >
-                <Sun className='relative top-1' size={18} />
+                {/* <Sun className='relative top-1' size={18} /> */}
                 <div className='flex justify-between gap-2 max-sm:flex-col'>
                   <p className="font-medium text-nowrap">אמצע שבוע</p>
                   <p className="text-xs self-center opacity-80">(א׳-ד׳)</p>
@@ -205,7 +205,7 @@ export default function InventorySnapshotForm({
                 className={`flex items-baseline gap-2 p-3 rounded-lg cursor-pointer transition-colors ${!isMidweekOrder ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80'}`}
                 onClick={() => isMidweekOrder && toggleOrderType()}
               >
-                <Calendar className='relative top-1' size={18} />
+                {/* <Calendar className='relative top-1' size={18} /> */}
                 <div className='flex justify-between gap-2 max-sm:flex-col'>
                   <p className="font-medium text-nowrap">סוף שבוע</p>
                   <p className="text-xs self-center opacity-80">(ה׳-ש׳)</p>
@@ -323,7 +323,7 @@ export default function InventorySnapshotForm({
                     className={`flex items-center gap-1 px-3 py-1.5 rounded-md`}
                     onClick={() => !isMidweekOrder && toggleOrderType()}
                   >
-                    <Sun size={16} />
+                    {/* <Sun size={16} /> */}
                     <span className="text-sm">אמצע שבוע</span>
                   </Button>
 
@@ -334,7 +334,7 @@ export default function InventorySnapshotForm({
                     className={`flex items-center gap-1 px-3 py-1.5 rounded-md`}
                     onClick={() => isMidweekOrder && toggleOrderType()}
                   >
-                    <Calendar size={16} />
+                    {/* <Calendar size={16} /> */}
                     <span className="text-sm">סוף שבוע</span>
                   </Button>
                 </div>

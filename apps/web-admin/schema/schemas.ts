@@ -162,7 +162,7 @@ export const OrderSchema = z.object({
   id: orderIdSchema,
   category: z.array(supplierCategorySchema), // Only include necessary fields of the supplier
   supplier: SupplierSchema.pick({ whatsapp: true, name: true, email: true }), // Only include necessary fields of the supplier
-  timeToDeliver: z.string().min(2, "זמן אספקה לא תקין"), // Time to deliver the order, e.g., "20:00"
+  timeToDeliver: z.string().min(5, "זמן אספקה לא תקין"), // Time to deliver the order, e.g., "20:00"
   restaurant: RestaurantSchema.pick({
     legalId: true,
     name: true,

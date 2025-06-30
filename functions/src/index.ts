@@ -4,7 +4,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 
 import { conversationStateReducer, processActions } from "./botEngine";
 import { Conversation, IncomingMessage, Message, Order, Restaurant } from "./schema/types";
-import { validateTwilioWebhook, sendWhatsAppMessage } from "./utils/twilio";
+import { validateTwilioWebhook, sendWhatsAppMessage, fetchContactFromVCard } from "./utils/twilio";
 import { getCollectionName, getRestaurant } from "./utils/firestore";
 import { ConversationSchema } from "./schema/schemas";
 
@@ -46,7 +46,6 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
 
     // Check if this is a simulator request from admin app
     const isSimulator = req.headers['x-simulator-api-key'] === ADMIN_API_KEY;
-
     // For regular Twilio requests, validate the webhook signature
     // Skip validation for simulator requests with valid API key
     if (!isSimulator && !validateTwilioWebhook(req)) {
@@ -62,24 +61,43 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
       req.body.From;  // Twilio format
         // Handle template button/list responses 
     let body = '';
-    
     if (isSimulator) {
       body = req.body.message;
     } else {
       // Check for template button responses
+      console.log(`[WhatsApp] Processing Twilio message:`, req.body);
       if (req.body.ButtonText) {
         // This is a button click - use the button ID as the message body
-        // Find the original button ID based on text
-        const buttonText = req.body.ButtonText;
-        // Extract ButtonPayload if available, otherwise use ButtonText
-        body = req.body.ButtonPayload || buttonText;
+        // Twilio passes button ID in ButtonPayload field
+        body = req.body.ButtonPayload || req.body.ButtonText;
+        console.log(`[WhatsApp] Button response received - Text: "${req.body.ButtonText}", Payload: "${body}"`);
       } else if (req.body.ListTitle) {
         // This is a list selection - use the list item ID
-        // Extract ListPayload if available, otherwise use ListTitle
-        body = req.body.ListPayload || req.body.ListTitle;
-      } else {
-        // Regular message
+        // Twilio passes list item ID in ListId field
+        body = req.body.ListId || req.body.ListTitle;
+        console.log(`[WhatsApp] List selection received - Title: "${req.body.ListTitle}", Payload: "${body}"`);
+      } else if (req.body.MessageType === 'contacts' && req.body.MediaUrl0) {
+         try {
+          console.log(`[WhatsApp] Contact vCard received: ${req.body.MediaUrl0}`);
+          
+          // Fetch and parse the contact data using our utility function
+          const contactData = await fetchContactFromVCard(req.body.MediaUrl0);
+          
+          // Store structured contact data in the message body
+          body = JSON.stringify(contactData);
+          
+          console.log(`[WhatsApp] Contact data processed: Name=${contactData.name}, Phone=${contactData.phone}`);
+        } catch (error) {
+          console.error(`[WhatsApp] Error handling contact attachment:`, error);
+          body = 'CONTACT_ATTACHMENT_ERROR';
+        }
+    } else if (req.body.SmsMessageSid) {
+        // Regular Twilio WhatsApp message
         body = req.body.Body || '';
+      } else {
+        // Fallback case (shouldn't normally happen)
+        console.warn(`[WhatsApp] Unexpected message format:`, req.body);
+        body = req.body.Body || req.body.text || '';
       }
     }
     const mediaUrl = isSimulator ?
@@ -94,7 +112,7 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
 
     // Extract phone number without whatsapp: prefix for document ID
     // For simulator, the phone number should already be in clean format
-    const phoneNumber = isSimulator ? from : from.replace("whatsapp:", "");
+    const phoneNumber = isSimulator ? from : from.replace("whatsapp:", "").replace('+972', '0'); // Convert +972 to 0 for local format
     const conversationsCollection = getCollectionName('conversations', isSimulator);
     const conversationRef = firestore.collection(conversationsCollection).doc(phoneNumber);
     const conversationDoc = await conversationRef.get();
