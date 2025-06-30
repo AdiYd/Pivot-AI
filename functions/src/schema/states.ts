@@ -488,7 +488,8 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
               '1': conversation.context?.restaurantName || 'שלך',
             }),
             body: `🎉 *הגדרת המסעדה {restaurantName} הושלמה!*
-            תודה על שהקדשתם זמן להגדיר את המסעדה שלכם. כעת תוכלו להתחיל להשתמש במערכת לניהול המלאי וההזמנות שלכם.`,
+            תודה על שהקדשתם זמן להגדיר את המסעדה שלכם. כעת תוכלו להתחיל להשתמש במערכת לניהול המלאי וההזמנות שלכם.
+            כתבו "תפריט" כדי לראות את האפשרויות הזמינות`,
           },
           description: "Final message indicating the restaurant setup is complete.",
           validator: textSchema,
