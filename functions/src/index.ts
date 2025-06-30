@@ -7,6 +7,7 @@ import { Conversation, IncomingMessage, Message, Order, Restaurant } from "./sch
 import { validateTwilioWebhook, sendWhatsAppMessage, fetchContactFromVCard } from "./utils/twilio";
 import { getCollectionName, getRestaurant } from "./utils/firestore";
 import { ConversationSchema } from "./schema/schemas";
+import { UNITS_DICT } from "./schema/states";
 
 // Initialize Firebase Admin only if not already initialized
 if (!admin.apps?.length) {
@@ -129,7 +130,7 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
 
     // Create the incoming message object
     const message: IncomingMessage = {
-      from: isSimulator ? `whatsapp:${from}` : from, // Ensure from has whatsapp: prefix for state machine
+      from: isSimulator ? from : from, // Ensure from has whatsapp: prefix for state machine
       body,
       mediaUrl
     };
@@ -304,6 +305,68 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
 
 
 /**
+ * Send order request notifications to supplier and restaurant
+ */
+async function sendOrderRequestNotifications(order: Order, restaurant: Restaurant, orderUrl: string) {
+  try {
+    // 1. Send notification to restaurant owner
+    const ownerContact = Object.values(restaurant.contacts)
+      .find((contact: any) => contact.role === 'owner');
+    
+    if (ownerContact) {
+      const ownerMessage = `שלום ${ownerContact.name},
+ההזמנה שלך מ${order.supplier.name} נשלחה לספק. 
+סטטוס: ממתין לאישור
+מספר הזמנה: ${order.id}
+לצפייה בהזמנה: ${orderUrl}`;
+
+      await sendWhatsAppMessage(
+        `whatsapp:${ownerContact.whatsapp.replace(/^05/, '+9725')}`, // Convert local format to international
+        ownerMessage
+      );
+
+      console.log(`[OrderSync] ✅ Sent order confirmation to restaurant owner: ${ownerContact.whatsapp}`);
+    }
+
+    // 2. Send notification to supplier (using template)
+    const supplierNumber = order.supplier.whatsapp;
+
+    if (supplierNumber) {
+      // Build detailed order message for supplier
+      let supplierMessage = `שלום ${order.supplier.name},
+התקבלה הזמנה חדשה ממסעדת ${restaurant.name}.
+
+*פרטי ההזמנה*:
+מספר הזמנה: ${order.id}
+מסעדה: ${restaurant.name}
+סטטוס: ממתין לאישור
+מוצרים:
+`;
+      // Add ordered items
+      order.items.forEach((item: any) => {
+        supplierMessage += `${item.emoji} ${item.name}: ${item.qty} ${UNITS_DICT[item.unit] || item.unit}\n`;
+      });
+
+      supplierMessage += `\nהערות: ${order.restaurantNotes || 'אין'}
+
+לצפייה ולעדכון ההזמנה: ${orderUrl}
+
+תודה!`;
+
+      await sendWhatsAppMessage(
+        `whatsapp:${supplierNumber.replace(/^05/, '+9725')}`, // Convert local format to international
+        supplierMessage
+      );
+
+      console.log(`[OrderSync] ✅ Sent detailed order to supplier: ${supplierNumber}`);
+    }
+  } catch (error) {
+    console.error("[OrderSync] Error sending confirmation notifications:", error);
+    throw error;
+  }
+}
+
+/**
  * Send order confirmation notifications to supplier and restaurant
  */
 async function sendOrderConfirmationNotifications(order: Order, restaurant: Restaurant, orderUrl: string) {
@@ -320,7 +383,7 @@ async function sendOrderConfirmationNotifications(order: Order, restaurant: Rest
 לצפייה בהזמנה: ${orderUrl}`;
 
       await sendWhatsAppMessage(
-        `whatsapp:${ownerContact.whatsapp}`, 
+        `whatsapp:${ownerContact.whatsapp.replace(/^05/, '+9725')}`, // Convert local format to international
         ownerMessage
       );
       
@@ -344,7 +407,7 @@ async function sendOrderConfirmationNotifications(order: Order, restaurant: Rest
 
       // Add ordered items
       order.items.forEach((item: any) => {
-        supplierMessage += `${item.emoji} ${item.name}: ${item.qty} ${item.unit}\n`;
+        supplierMessage += `${item.emoji} ${item.name}: ${item.qty} ${UNITS_DICT[item.unit] || item.unit}\n`;
       });
       
       supplierMessage += `\nהערות: ${order.restaurantNotes || 'אין'}
@@ -354,7 +417,7 @@ async function sendOrderConfirmationNotifications(order: Order, restaurant: Rest
 תודה!`;
 
       await sendWhatsAppMessage(
-        `whatsapp:${supplierNumber}`, 
+        `whatsapp:${supplierNumber.replace(/^05/, '+9725')}`, 
         supplierMessage
       );
       
@@ -384,7 +447,7 @@ async function sendOrderSentNotifications(order: Order, restaurant: Restaurant, 
 לצפייה בהזמנה: ${orderUrl}`;
 
       await sendWhatsAppMessage(
-        `whatsapp:${ownerContact.whatsapp}`, 
+        `whatsapp:${ownerContact.whatsapp.replace(/^05/, '+9725')}`, // Convert local format to international
         ownerMessage
       );
       
@@ -421,7 +484,7 @@ async function sendDeliveryCompletedNotifications(order: Order, restaurant: Rest
       ownerMessage += `\n\nלצפייה בהזמנה: ${orderUrl}`;
 
       await sendWhatsAppMessage(
-        `whatsapp:${ownerContact.whatsapp}`, 
+        `whatsapp:${ownerContact.whatsapp.replace(/^05/, '+9725')}`, 
         ownerMessage
       );
       
@@ -449,7 +512,7 @@ async function sendOrderCancelledNotifications(order: Order, restaurant: Restaur
 לצפייה בהזמנה: ${orderUrl}`;
 
       await sendWhatsAppMessage(
-        `whatsapp:${ownerContact.whatsapp}`, 
+        `whatsapp:${ownerContact.whatsapp.replace(/^05/, '+9725')}`, 
         ownerMessage
       );
       
@@ -486,10 +549,18 @@ function createOrderHandler(collectionPath: string) {
         }
 
         // Define the order URL (for tracking)
-        const orderUrl = `https://pivot-restaurant.web.app/order/${orderId}`;
+        const orderUrl = `https://pivot.webly.digital/orders/${orderId}`;
 
         // Different notification based on status change
         switch(newValue.status) {
+          case "pending":
+            await sendOrderRequestNotifications(
+              newValue,
+              restaurantData,
+              orderUrl
+            );
+            break;
+
           case "confirmed":
             await sendOrderConfirmationNotifications(
               newValue, 

@@ -126,7 +126,9 @@ export async function sendWhatsAppMessage(
   try {
     const twilioClient = getTwilioClient();
     const twilioFrom = `whatsapp:${process.env.TWILIO_WHATSAPP_NUMBER}`;
-    
+    if (to.startsWith('05')){
+      to = to.replace(/^05/, '+9725'); // Convert local format to international
+    }
     if (!to.startsWith('whatsapp:')) {
       to = `whatsapp:${to}`;
     }
@@ -224,8 +226,8 @@ export async function sendWhatsAppMessage(
     throw error;
   }
 }
-// Rest of the file remains unchanged
-export function validateTwilioWebhook(request: Request): boolean {
+
+export function validateTwilioWebhookOld(request: Request): boolean {
   // Check if this is a simulator request with the API key header
   const simulatorApiKey = request.headers['x-simulator-api-key'];
   const adminApiKey = process.env.ADMIN_SIMULATOR_API_KEY || 'simulator-dev-key';
@@ -303,5 +305,101 @@ export function validateTwilioWebhook(request: Request): boolean {
       stack: error instanceof Error ? error.stack : undefined
     });
     return false;
+  }
+}
+
+export function validateTwilioWebhook(request: Request): boolean {
+  // Check if this is a simulator request with the API key header
+  const simulatorApiKey = request.headers['x-simulator-api-key'];
+  const adminApiKey = process.env.ADMIN_SIMULATOR_API_KEY || 'simulator-dev-key';
+  
+  if (simulatorApiKey === adminApiKey) {
+    console.log('[Twilio] 🔓 Admin simulator request - bypassing Twilio validation');
+    return true;
+  }
+  
+  console.log(`[Twilio] Validating webhook request from ${request.ip}`);
+  
+  // For development environments, you might want to bypass validation
+  if (process.env.NODE_ENV === 'development') {
+    return true;
+  }
+
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  if (!authToken) {
+    console.error('[Twilio] ❌ TWILIO_AUTH_TOKEN not configured');
+    return false;
+  }
+
+  // The X-Twilio-Signature header
+  const signature = request.get('X-Twilio-Signature');
+  if (!signature) {
+    console.error('[Twilio] ❌ Missing X-Twilio-Signature header');
+    return false;
+  }
+
+  try {
+    console.log(`[Twilio] Validating signature...`);
+    if (request.hostname.includes('ngrok')){
+      return true; // Bypass validation for ngrok requests
+    }
+    
+    // FIX: Construct the correct validation URL with the complete path
+    const url = `https://${request.hostname}${request.originalUrl}whatsappWebhook`;
+    console.log(`[Twilio] Validation URL: ${url}`);
+    
+    // Convert request.body to a simple key-value object
+    const params: {[key: string]: string} = {};
+    Object.keys(request.body || {}).forEach(key => {
+      params[key] = String(request.body[key]);
+    });
+
+    console.log(`[Twilio] Request params count: ${Object.keys(params).length}`);
+
+    // Use Twilio's validateRequest function if available (cleaner approach)
+    // If you have access to the twilio helper library's validateRequest method
+    try {
+      const twilioClient = getTwilioClient();
+      // @ts-ignore - Using Twilio's built-in validation if available
+      if (twilioClient.validateRequest) {
+        // @ts-ignore
+        const isValid = twilioClient.validateRequest(authToken, signature, url, params);
+        console.log(`[Twilio] ${isValid ? '✅' : '❌'} Signature validation ${isValid ? 'passed' : 'failed'} (using Twilio helper)`);
+        return isValid;
+      }
+    } catch (validationError) {
+      console.warn('[Twilio] Could not use Twilio helper for validation, falling back to manual validation');
+    }
+
+    // Manual validation as fallback
+    // Sort the POST parameters alphabetically by key
+    const sortedParams = Object.keys(params).sort();
+    
+    // Append key/value pairs to the URL
+    let data = url;
+    sortedParams.forEach(key => {
+      data += key + params[key];
+    });
+    
+    // Generate HMAC-SHA1 hash of the data using the auth token
+    const hmac = crypto.createHmac('sha1', authToken);
+    hmac.update(data, 'utf8');
+    const calculatedSignature = hmac.digest('base64');
+    
+    console.log(`[Twilio] Calculated signature: ${calculatedSignature.substring(0, 10)}...`);
+    console.log(`[Twilio] Received signature: ${signature.substring(0, 10)}...`);
+    
+    // Compare signatures using timing-safe comparison
+    const isValid = crypto.timingSafeEqual(
+      Buffer.from(calculatedSignature, 'base64'),
+      Buffer.from(signature, 'base64')
+    );
+    
+    console.log(`[Twilio] ${isValid ? '✅' : '❌'} Signature validation ${isValid ? 'passed' : 'failed'}`);
+    return isValid;
+  } catch (error) {
+    console.error('[Twilio] ❌ Error validating Twilio webhook:', error);
+    // In production, fail closed for security
+    return process.env.NODE_ENV === 'production' ? false : true;
   }
 }
