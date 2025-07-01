@@ -366,7 +366,25 @@ export async function conversationStateReducer(
     const isSimulator = conversation.context?.isSimulator;
 
     // Check if the message is one of the special commands (escapeDict)
-    if (escapeDict[userInput.toLocaleLowerCase()] &&  !['IDLE', 'INIT'].includes(conversation.currentState)) {
+    if (userInput === 'reset_pivot') {
+      console.log(`[StateReducer] User input is a special command: ${userInput}`);
+      result.newState.currentState = 'INIT';
+      const nextStateDefinition = stateObject(result.newState);
+      if (nextStateDefinition) {
+        // Create message action for the next state
+        const nextStateMessage = createMessageAction(
+          nextStateDefinition,
+          message.from,
+          result.newState.context,
+          result.newState.currentState
+        );
+        result.actions.push(nextStateMessage);
+        return result; // Return early with the new state and message
+      }
+    } 
+
+    // Check if the message is one of the special commands (escapeDict)
+    if (escapeDict[userInput.toLocaleLowerCase()] &&  !['INIT'].includes(conversation.currentState)) {
       console.log(`[StateReducer] User input is a special command: ${userInput}`);
       result.newState.currentState = escapeDict[userInput.toLocaleLowerCase()];
       const nextStateDefinition = stateObject(result.newState);

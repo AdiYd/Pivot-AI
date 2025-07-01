@@ -84,9 +84,7 @@ export function getTwilioClient(): Twilio {
     
     const name = nameMatch ? nameMatch[1].trim() : '';
     let phone = phoneMatch ? phoneMatch[1].trim() : '';
-    phone = phone.replace(/[^0-9]/g, ''); // Clean phone number to digits only
-    phone = phone.replace('+972', '0'); // Convert +972 to 0 for local format
-    phone = phone.replace(' ', '').trim();
+    phone = normalizePhoneNumber(phone);
     console.log(`[Twilio] Parsed contact: Name=${name}, Phone=${phone}`);
     
     return { name, phone };
@@ -126,12 +124,7 @@ export async function sendWhatsAppMessage(
   try {
     const twilioClient = getTwilioClient();
     const twilioFrom = `whatsapp:${process.env.TWILIO_WHATSAPP_NUMBER}`;
-    if (to.startsWith('05')){
-      to = to.replace(/^05/, '+9725'); // Convert local format to international
-    }
-    if (!to.startsWith('whatsapp:')) {
-      to = `whatsapp:${to}`;
-    }
+    to = formatPhoneForWhatsApp(to);
     
     // If we have a template, use the template API
     if (template && template.id && template.sid) {
@@ -202,7 +195,6 @@ export async function sendWhatsAppMessage(
       console.log(`[Twilio] ✅ Template message sent successfully:`, {
         to: to,
         templateId: template.id,
-        componentCount: components.length
       });
     } else {
       // For regular text messages
@@ -402,4 +394,48 @@ export function validateTwilioWebhook(request: Request): boolean {
     // In production, fail closed for security
     return process.env.NODE_ENV === 'production' ? false : true;
   }
+}
+
+/**
+ * Normalizes a phone number by removing any WhatsApp prefix and standardizing format
+ * @param phone Phone number potentially with whatsapp: prefix
+ * @returns Clean phone number without prefix
+ */
+export function normalizePhoneNumber(phone: string): string {
+  let normalizedPhone = phone;
+  
+  // Remove WhatsApp prefix if present
+  if (normalizedPhone.startsWith('whatsapp:')) {
+    normalizedPhone = normalizedPhone.replace('whatsapp:', '');
+  }
+  
+  // Convert +972 to 0 for Israeli numbers
+  if (normalizedPhone.startsWith('+972')) {
+    normalizedPhone = '0' + normalizedPhone.substring(4);
+  }
+  
+  // Remove any non-digit characters
+  normalizedPhone = normalizedPhone.replace(/[^\d]/g, '');
+  
+  return normalizedPhone;
+}
+
+/**
+ * Formats a phone number for sending via WhatsApp
+ * @param phone Clean phone number
+ * @returns Phone number with whatsapp: prefix and proper international format
+ */
+export function formatPhoneForWhatsApp(phone: string): string {
+  // If already has the prefix, return as is
+  if (phone.startsWith('whatsapp:')) {
+    return phone;
+  }
+  
+  // Handle Israeli numbers (convert 05x to international +9725x)
+  if (phone.startsWith('05')) {
+    return `whatsapp:+9725${phone.substring(2)}`;
+  }
+  
+  // Add whatsapp: prefix to other numbers
+  return `whatsapp:${phone}`;
 }

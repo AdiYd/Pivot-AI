@@ -18,7 +18,7 @@ type AIModel = {
 }
 
 const ai_models: AIModel = {
-  model: "gpt-4o",
+  model: "gpt-4o-mini",
   temperature: 0.2, // Lower temperature for more predictable, structured output
   max_tokens: 3000,
 }

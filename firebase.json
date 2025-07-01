@@ -3,7 +3,7 @@
     {
       "source": "functions",
       "codebase": "default",
-      "region": "me-west1",
+      "region": "europe-central2",
       "ignore": [
         "node_modules",
         ".git",

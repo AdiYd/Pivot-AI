@@ -637,7 +637,8 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
           aiValidation: {
             prompt: `עליך לעזור למשתמש לרשום רשימת מוצרים ויחידות מידה מהספק. השלם פרטים חסרים לפי הסביר ביותר.
             אם לא צוינו יחידות מידה, הנח יחידות סטנדרטיות למוצר.
-            הנחה את המשתמש להשתמש רק ביחידות תקניות (לדוגמה: ק"ג, גרם, פחית, בקבוק, חבית, ליטר, יח', חבילה, ארגז) או "אחר".`,
+            הנחה את המשתמש להשתמש רק ביחידות תקניות (לדוגמה: ק"ג, גרם, פחית, בקבוק, חבית, ליטר, יח', חבילה, ארגז) או "אחר".
+            יש לאסוף ולהציג נתונים על המוצרים (שם ואימוג'י) ויחידות המידה שלהם בלבד! אם הלקוח שיתף מידע נוסף (למשל כמויות), יש להתעלם ממנו בשלב זה.`,
             schema: z.array(ProductSchema.pick({ name: true, unit: true, emoji: true }))
           },
           validator: z.array(ProductSchema.pick({ name: true, unit: true, emoji: true })),
@@ -658,11 +659,10 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
             כדי שנוכל ליעל את תהליך ההזמנה, נגדיר כמות בסיס לכל מוצר. כמות זו תעזור לנו לחשב את ההזמנה המומלצת שלך אוטומטית.
             עבור כל מוצר, הזן את הכמות הבסיסית הנדרשת למסעדה לאמצע שבוע, ואת הכמות הנדרשת לסוף שבוע בפורמט:
             *[שם מוצר] - [כמות אמצע שבוע], [כמות סוף שבוע]*
-            
-            לדוגמה:
-            עגבניות - 15, 20
-            מלפפון - 10, 15
-            חסה - 5, 10`,
+           
+            ניתן להעתיק את הרשימה ולמלא כמויות בהתאם:
+            ${conversation.context.supplierProducts.map((product : any) => `*${product.name}(${UNITS_DICT[product.unit] || product.unit})* - `).join("\n") }
+            `,
           description: "Iterate over the defined products and ask for their base quantity in the specified unit, for midweek and for weekend.",
           aiValidation: {
             prompt: "עליך לבקש מהמשתמש להזין את הכמות הבסיסית הנדרשת ליחידה אחת של כל מוצר ברשימה, עבור כל מוצר יש להזין כמות בסיס לשימוש באמצע השבוע ובסוף השבוע.",
@@ -894,7 +894,7 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
         stateObject = {
           whatsappTemplate: {
             id: "template_idle_menu",
-            sid: 'HX52a024279652d2247cb7c1f11fea4728',
+            sid: 'HX89e737deef1421fe099e202051d36f41',
             contentVariables: JSON.stringify({
               '1': conversation.context?.contactName || "",
               }),
@@ -902,9 +902,9 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
             body: "👋 *שלום {contactName}!*\n\nמה תרצה לעשות היום?\n\nבחר אחת מהאפשרויות:",
             options: [
               { name: "🛒 יצירת הזמנה חדשה", id: "create_order" },
+              { name: "🚚 הוספת ספק חדש", id: "add_supplier" },
               { name: "🏪 נתוני מסעדה", id: "restaurant_data" },
               { name: "📊 נתוני הזמנות", id: "order_data" },
-              { name: "🚚 הוספת/עריכת ספק חדש", id: "add_supplier" },
               { name: "❓ שאלות ותמיכה", id: "help" }
             ]
           },
