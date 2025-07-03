@@ -109,6 +109,7 @@ exports.whatsappWebhook = functions.region('europe-central2').https.onRequest(as
       res.status(400).send('Bad Request: Missing sender phone number');
       return;
     }
+    
 
     // Extract phone number without whatsapp: prefix for document ID
     // For simulator, the phone number should already be in clean format

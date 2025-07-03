@@ -77,118 +77,10 @@ export default function RestaurantsPage() {
   const [sortBy, setSortBy] = useState<'name' | 'status' | 'suppliers' | 'orders'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'pending' | 'inactive'>('all');
-  const [newRestaurant, setNewRestaurant] = useState<Restaurant>({
-    name: '',
-    legalName: '',
-    legalId: '',
-    contacts: {
-    },
-    payment: {
-      provider: 'credit_card',
-      status: false
-    },
-    createdAt: Timestamp.now(),
-  } as Restaurant);
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const editingRestaurantRef = useRef<Restaurant | null>(null);
   const { toast } = useToast();
 
 
-  // Validation function for new restaurant
-  const validateNewRestaurant = (form: Restaurant): Record<string, string> => {
-    const errors: Record<string, string> = {};
-
-    if (!form.name.trim()) errors.name = 'שם המסעדה נדרש';
-    if (!form.legalName.trim()) errors.legalName = 'שם עסקי נדרש';
-    if (!form.legalId.trim()) errors.legalId = 'מספר חברה נדרש';
-    if (!/^\d{9}$/.test(form.legalId)) errors.legalId = 'מספר חברה חייב להיות 9 ספרות';
-    if (!form.contacts[0].name.trim()) errors.contactName = 'שם איש קשר נדרש';
-    if (!form.contacts[0].whatsapp.trim()) errors.contactPhone = 'מספר טלפון נדרש';
-    if (!/^\+972-?\d{9}$/.test(form.contacts[0].whatsapp.replace(/\s/g, ''))) {
-      errors.contactPhone = 'מספר טלפון לא תקין (צריך להתחיל ב +972)';
-    }
-    if (form.contacts[0].email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.contacts[0].email)) {
-      errors.contactEmail = 'כתובת אימייל לא תקינה';
-    }
-
-    // Check if restaurant already exists
-    if (database.restaurants[form.legalId]) {
-      errors.legalId = 'מסעדה עם מספר חברה זה כבר קיימת';
-    }
-
-    return errors;
-  };
-
-  // Handle new restaurant creation
-  // const handleCreateRestaurant = async () => {
-  //   const errors = validateNewRestaurant(newRestaurant);
-  //   setFormErrors(errors);
-
-  //   if (Object.keys(errors).length > 0) {
-  //     toast({
-  //       title: "שגיאות בטופס",
-  //       description: "אנא תקן את השגיאות ונסה שוב",
-  //       variant: "destructive",
-  //     });
-  //     return;
-  //   }
-
-  //   try {
-  //     setIsLoading(true);
-
-  //     // Simulate API call delay
-  //     await new Promise(resolve => setTimeout(resolve, 500));
-
-  //     const newRestaurant : Restaurant = {
-  //       legalId: '',
-  //       legalName:  '',
-  //       name:  '',
-  //       contacts: {        
-  //       },
-  //       payment: {
-  //         provider: 'credit_card',
-  //         status: false // New restaurants start with pending payment
-  //       },
-  //       isActivated: false,
-  //       createdAt: Timestamp.now(),
-  //       suppliers: [],
-  //       orders: [],
-  //     };
-
-  //     // Update local state (later this will be a Firestore create)
-  //     console.log('Creating new restaurant:', newRestaurant);
-
-  //     toast({
-  //       title: "מסעדה נוצרה",
-  //       description: `המסעדה "${newRestaurant.name}" נוצרה בהצלחה`,
-  //     });
-
-  //     // Reset form and close dialog
-  //     setNewRestaurant({
-  //       name: '',
-  //       legalName: '',
-  //       legalId: '',
-  //       contacts:{},
-  //       payment: {
-  //         provider: 'credit_card',
-  //         status: false
-  //       },
-  //       createdAt: Timestamp.now(),
-  //     } as Restaurant);
-  //     setFormErrors({});
-  //     setIsCreateDialogOpen(false);
-
-  //   } catch (error) {
-  //     console.error('Error creating restaurant:', error);
-  //     toast({
-  //       title: "שגיאה",
-  //       description: "אירעה שגיאה ביצירת המסעדה",
-  //       variant: "destructive",
-  //     });
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // };
 
   // Handle restaurant edit with proper typing
   const handleEdit = async (restaurantId: string, updatedData: any) => {
@@ -228,7 +120,7 @@ export default function RestaurantsPage() {
       setIsLoading(true);
       console.log('Deleting restaurant:', restaurantId);
       const restaurantName = database.restaurants[restaurantId]?.name || 'מסעדה לא מזוהה';
-      const userConfirm = window.confirm(`האם אתה בטוח שברצונך למחוק את המסעדה ${restaurantName} עם ח.פ ${restaurantId}?`);
+      const userConfirm = window.confirm(`האם אתה בטוח שברצונך למחוק את המסעדה ${restaurantName} עם ח.פ ${restaurantId}?\nפעולה זו לא ניתנת לשחזור.`);
       if (!userConfirm) {
         setIsLoading(false);
         return;
@@ -667,7 +559,7 @@ export default function RestaurantsPage() {
                 <TableCell>
                   <div className="flex gap-2">
                     
-                    <Tooltip>
+                    {/* <Tooltip>
                       <TooltipTrigger asChild>
                         <Button 
                           variant="outline" 
@@ -686,7 +578,7 @@ export default function RestaurantsPage() {
                       <TooltipContent>
                         <p>עריכה</p>
                       </TooltipContent>
-                    </Tooltip>
+                    </Tooltip> */}
                     
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
@@ -1026,7 +918,7 @@ export default function RestaurantsPage() {
                     {isEditing ? 'עריכת מסעדה' : selectedRestaurant.name}
                   </DialogTitle>
                   <div className="flex items-center gap-2">
-                    {!isEditing && (
+                    {/* {!isEditing && (
                       <>
                         <Button
                           variant="outline"
@@ -1047,7 +939,7 @@ export default function RestaurantsPage() {
                           {selectedRestaurant.isActivated ? 'השהה' : 'הפעל'}
                         </Button>
                       </>
-                    )}
+                    )} */}
                     <Button
                       variant="ghost"
                       size="sm"

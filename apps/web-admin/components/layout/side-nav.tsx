@@ -243,6 +243,12 @@ export function SideNav() {
                 title="סימולטור צ'אט"
                 isCollapsed={isCollapsed}
               />
+              <NavItem 
+                href="/settings" 
+                icon={<Icon icon='ic:baseline-settings' width={16} height={16} />}
+                title="הגדרות"
+                isCollapsed={isCollapsed}
+              />
             </div>
           </nav>
           
@@ -348,6 +354,12 @@ export function SideNav() {
               href="/simulator" 
               icon={<Icon icon='ic:baseline-whatsapp' width={16} height={16} />}
               title="סימולטור צ'אט" 
+              isCollapsed={false}
+            />
+            <NavItem 
+              href="/settings" 
+              icon={<Icon icon='ic:baseline-settings' width={16} height={16} />}
+              title="הגדרות" 
               isCollapsed={false}
             />
           </nav>

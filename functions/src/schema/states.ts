@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { emailSchema, nameSchema, ProductSchema, restaurantLegalIdSchema, restaurantLegalNameSchema, restaurantNameSchema, SupplierSchema } from './schemas';
 import {  Conversation,StateObject } from './types';
+import { getAIConfigurations } from '../utils/firestore';
 
 // Supplier categories for WhatsApp template (max 24 chars, 1 emoji, concise names)
 
@@ -217,8 +218,9 @@ const getRandomRestaurant = (): RandomRestaurant => {
  * Main state machine messages mapping
  * Each key corresponds to a value from BotState enum
  */
-export const stateObject: (conversation: Conversation) => StateObject = (conversation) => {
+export const stateObject: (conversation: Conversation) => Promise<StateObject> = async (conversation) => {
   const { currentState } = conversation;
+  const AI_CONFIGURATIONS = await getAIConfigurations();
   let stateObject: StateObject;
   try {
     switch (currentState) {
@@ -668,11 +670,7 @@ ${Object.values(CATEGORIES_DICT).find((cat) => (cat.name.includes(conversation.c
 יח': חסה, כרוב
 ארגז: תפוחים, בננות`}`,
           aiValidation: {
-            prompt: `עליך לעזור למשתמש לרשום רשימת מוצרים ויחידות מידה מהספק. השלם פרטים חסרים לפי הסביר ביותר.
-            אם לא צוונו יחידות מידה, הנח יחידות סטנדרטיות למוצר.
-            הנחה את המשתמש להעדיף להשתמש ביחידות תקניות (לדוגמה: ק"ג (ולא קילוגרם), גרם, פחית, בקבוק, חבית, ליטר, יח', חבילה, ארגז, שקית, קופסה וכו'.) או "אחר".
-            יש לאסוף ולהציג נתונים על המוצרים (שם ולידו אימוג'י) ויחידות המידה שלהם בלבד! אם הלקוח שיתף מידע נוסף (למשל כמויות), יש להתעלם ממנו בשלב זה.
-            את התשובה יש להחזיר בצורה ברורה ותמיד לכלול את שם המוצר, האימוג'י שלו והיחידות שלו.`,
+            prompt: AI_CONFIGURATIONS.prompts.productsListValidation.prompt,
             schema: z.array(ProductSchema.pick({ name: true, unit: true, emoji: true }))
           },
           validator: z.array(ProductSchema.pick({ name: true, unit: true, emoji: true })),

@@ -335,7 +335,7 @@ export async function conversationStateReducer(
   
   try {
     // Get current state definition
-    const currentStateObject = stateObject(result.newState);
+    const currentStateObject = await stateObject(result.newState);
     
     if (!currentStateObject) {
       console.error(`[StateReducer] No state definition found for state: ${conversation.currentState}`);
@@ -366,7 +366,7 @@ export async function conversationStateReducer(
       console.log(`[StateReducer] User input is a special command: ${userInput}`);
       result.newState.currentState = 'INIT';
       result.newState.context = {};
-      const nextStateDefinition = stateObject(result.newState);
+      const nextStateDefinition = await stateObject(result.newState);
       if (nextStateDefinition) {
         // Create message action for the next state
         const nextStateMessage = createMessageAction(
@@ -384,7 +384,7 @@ export async function conversationStateReducer(
     if (escapeDict[userInput.toLocaleLowerCase()] &&  !onBoradingList.includes(conversation.currentState)) {
       console.log(`[StateReducer] User input is a special command: ${userInput}`);
       result.newState.currentState = escapeDict[userInput.toLocaleLowerCase()];
-      const nextStateDefinition = stateObject(result.newState);
+      const nextStateDefinition = await stateObject(result.newState);
       if (nextStateDefinition) {
         // Create message action for the next state
         const nextStateMessage = createMessageAction(
@@ -521,7 +521,7 @@ export async function conversationStateReducer(
               }
             }
             const nextStateMessage = createMessageAction(
-              stateObject(result.newState), message.from, result.newState.context, nextState
+              await stateObject(result.newState), message.from, result.newState.context, nextState
             );
             result.actions.push(nextStateMessage);
               // Create action if defined in the state
@@ -738,7 +738,7 @@ ${approvalMessage}
       result.newState.currentState = nextState;
       
       // Get the next state definition
-      const nextStateDefinition = stateObject(result.newState);
+      const nextStateDefinition = await stateObject(result.newState);
       
       if (nextStateDefinition) {
         // Create and add message action for the next state

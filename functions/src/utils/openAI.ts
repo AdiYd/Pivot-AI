@@ -5,23 +5,12 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 import { getConfig } from "./config";
 import { stateObject } from "../schema/states";
 import { ChatCompletionMessageParam } from "openai/resources/index";
-import { getOrdersDatafromDb, getRestaurantDatafromDb } from "./firestore";
+import { getAIConfigurations, getOrdersDatafromDb, getRestaurantDatafromDb } from "./firestore";
 // Load environment variables for local development
 if (process.env.NODE_ENV !== 'production' && process.env.FUNCTIONS_EMULATOR === 'true') {
   require('dotenv').config();
 }
 
-type AIModel = {
-  model: string;
-  temperature: number;
-  max_tokens: number;
-}
-
-const ai_models: AIModel = {
-  model: "gpt-4o",
-  temperature: 0.2, // Lower temperature for more predictable, structured output
-  max_tokens: 3000,
-}
 
 // Initialize OpenAI client lazily to avoid initialization errors during build
 let openaiClient: OpenAI | null = null;
@@ -53,9 +42,10 @@ function getOpenAIClient(): OpenAI {
 export async function callOpenAISchema(userInput: string, conversation: Conversation, messagesHistory: string): Promise<any> {
   try {
     const openai = getOpenAIClient();
+    const AI_CONFIGURATIONS = await getAIConfigurations();
     const { currentState } = conversation;
     // Convert to JSON schema
-    const currentStateDefinition = stateObject(conversation);
+    const currentStateDefinition = await stateObject(conversation);
     if (!currentStateDefinition) {
       throw new Error(`State definition not found for current state: ${currentState}`);
     }
@@ -108,32 +98,12 @@ export async function callOpenAISchema(userInput: string, conversation: Conversa
     }
 
     const response = await openai.chat.completions.create({
-      ...ai_models,
+      ...AI_CONFIGURATIONS.params,
       messages: [
         { role: "system", content: `
-        אתה סוכן חכם ויעיל בעל אפליקציה לבעלי מסעדות, תפקידך לנהל מערכת ניהול הזמנות ומלאי.
-        תפקידך הוא לעזור לבעל המסעדה לנהל את ההזמנות והמלאי בצורה היעילה ביותר.
-        עליך להבין את ההקשר של השיחה ולספק תשובות מדויקות ומועילות.
-        עליך לעבד את ההודעה של המשתמש ולספק תשובות מובנות אך ורק על המערכת.
-        
-        שם האפליקציה: P-vot
-        תיאור האפליקציה: מערכת ניהול הזמנות ומלאי מתקדמת לבעלי מסעדות מבוססת בינה מלאכותית המחברת בין ספקים למסעדות
-
-
-        ****   חשוב    ****
-        כל שאלה שאינה במסגרת המערכת, רישום פרטי המסעדה, הספקים, המוצרים וכו'... או שאינה נוגעת להזמנות או למלאי או לנתוני המסעדה, יש להחזיר תשובה קצרה וסגורה בסגנון
-        'תפקידי לעזור בכל מה שקשור ל P-vot, האם יש לך שאלות לגבי המערכת?'
-
-        אין לענות על שאלות שאינן קשורות למערכת או לשלבי ההרשמה ואינן במסגרת תפקידך
-        
-        תמיד השב בשפה העברית, אלא אם המשתמש ביקש אחרת.
-        *******************
-
-        תכונות עיקריות:
-        1. ניהול הזמנות: אפשרות ליצור, לעדכן ולנהל הזמנות מספקים.
-        2. חיבור בין מסעדן לרשת הספקים בצורה אחידה, אוטומטית וחכמה דרך הווצאפ
-        
-        ### הוראות למערכת ###
+        ${AI_CONFIGURATIONS.prompts.systemCorePrompt?.prompt}
+        ${AI_CONFIGURATIONS.prompts.menuOptionsPrompt?.prompt}
+        ### הוראות נוספות למערכת ###
         בכל שלב שבו תתבקש, תקבל את הודעות המשתמש יחד עם תיאור השלב ומה נדרש ממך לעשות.
         לרוב, תצטרך לוודא את ההודעה של המשתמש, לעבד אותה ולספק תשובה מובנית או לבצע פעולה במערכת.
         כאשר מצורף \`schema\`, עליך לוודא שהתשובה שלך תואמת למבנה הנתונים שניתן לך.
@@ -208,6 +178,7 @@ export async function callOpenAIDataAnalysis(
 ): Promise<DataAnalysisResponse> {
   try {
     const openai = getOpenAIClient();
+    const AI_CONFIGURATIONS = await getAIConfigurations();
     const restaurantId = conversation.restaurantId  || conversation.context.legalId || conversation.context?.restaurantId;
     let mainData = {}; 
       if (analysisType === 'restaurant') {
@@ -248,78 +219,14 @@ export async function callOpenAIDataAnalysis(
     };
 
     const contextualInstructions = analysisType === 'restaurant' 
-      ? "You're analyzing the restaurant data including details about the restaurant, its contacts, orders, suppliers, and products.\n For each order id in the restaurant orders list - you can re-direct the client to the full document at: https://pivot.webly.digital/orders/${orderId}" 
-      : "You're analyzing the restaurant order data including order history, statuses, and performance metrics. \n For each order id in the restaurant orders list - you can re-direct the client to the full document at: https://pivot.webly.digital/orders/${orderId}";
+      ? AI_CONFIGURATIONS.prompts.restaurantDataContext.prompt
+      : AI_CONFIGURATIONS.prompts.ordersDataContext.prompt;
 
     const systemMessages = [
-      { role: "system", content: `
-        אתה סוכן חכם ויעיל המנהל אפליקציה לבעלי מסעדות, תפקידך לנהל מערכת ניהול הזמנות ומלאי.
-        תפקידך הוא לעזור לבעלי מסעדות לנהל את ההזמנות והמלאי בצורה היעילה ביותר.
-        עליך להבין את ההקשר של השיחה ולספק תשובות מדויקות ומועילות.
-        עליך להציג נתונים בצורה ברורה, ויזואלית ומעניינת.
-        
-        שם האפליקציה: P-vot
-        תיאור האפליקציה: מערכת ניהול הזמנות ומלאי מתקדמת לבעלי מסעדות מבוססת בינה מלאכותית המחברת בין ספקים למסעדות
-
-        ****   חשוב    ****
-        כל שאלה שאינה במסגרת המערכת, רישום פרטי המסעדה, הספקים, המוצרים וכו', או שאינה נוגעת להזמנות או למלאי או לנתוני המסעדה, יש להחזיר תשובה קצרה וסגורה בסגנון
-        'תפקידי לעזור בכל מה שקשור ל P-vot, האם יש לך שאלות לגבי המערכת?'
-
-        אין לענות על שאלות שאינן קשורות למערכת או לשלבי ההרשמה ואינן במסגרת תפקידך
-        
-        תמיד השב בשפה העברית, אלא אם המשתמש ביקש אחרת.
-        *******************
-      ` },
-      { role: "system", content: `
-        ${contextualInstructions}
-
-        ### הנחיות לניתוח והצגת נתונים ###
-        אתה אנליסט נתונים מומחה ובעל ידע רחב בתחום המסעדנות. תפקידך לנתח, להסביר ולהציג את הנתונים בצורה ברורה, מדויקת ואסתטית.
-
-        1. בכל תשובה, נתח את הנתונים באופן מעמיק ומדויק. חלץ תובנות רלוונטיות מהנתונים הגולמיים.
-        
-        2. הצג את הנתונים בצורה ויזואלית ברורה, באמצעות:
-           - סימני פיסוק וסמלים (אמוג'י) לחלוקה והדגשה
-           - רווחים וסידור חזותי נכון
-           - כותרות וחלוקה לקטגוריות
-           - טבלאות טקסטואליות ( באמצעות סימני | ,- ,+ )
-           - רשימות מוגדרות בכוכביות או מספרים
-           - הדגשות טקסט ( *מודגש* )
-           - טקסט נטוי ( _נטוי_ )
-           - קווים תחתונים להפרדה ( ─────────── )
-           - קטעי קוד טקסטואליים ( \`code\` )
-        
-        3. התאם את הפורמט לפלטפורמת וואטסאפ - הודעות קצרות אך מקיפות, מחולקות לחלקים קריאים.
-
-        4. אם השאלה אינה ברורה מספיק, הנחה בעדינות את המשתמש לחדד את שאלתו. הצע אפשרויות ספציפיות.
-        
-        5. תמיד הסק מסקנות ותובנות עסקיות מהנתונים. הדגש מגמות, חריגים, או נקודות מעניינות.
-        
-        6. שמור על שפה מקצועית, חברותית וברורה. הימנע מז'רגון מיותר.
-
-        ניתן להשתמש בכלים הבאים לעיצוב ויזואלי ברור ומושך:
-        • סמלים רלוונטיים 📊 📈 💰 🥩 🍅 🧾 לפי הנושא
-        • כוכביות וסימני פריטים: *•◦-
-        • הפרדת מקטעים עם קווים או סמלים: ───────────
-        • שימוש במרווחים להיררכיה ברורה
-        • הדגשות בולטות למספרים או נתונים חשובים
-        
-        בסיום הניתוח, שאל אם יש עוד מידע שהמשתמש מעוניין לדעת. סמן את השיחה כמסתיימת רק אם המשתמש ציין במפורש שהוא קיבל את כל המידע הנדרש, או הודה לך והביע רצון לסיים.
-        * חשוב *
-        :למערכת יש תפריט ראשי (יש להקליד "תפריט" על מנת להגיע אליו בכל שלב) ובו יכולת לספק מידע באופן הבא בלבד:
-        1.באפשרות של "יצירת הזמנה" - ניתן לקבל קישור ולבצע ספירת מלאי ולאחר מכן הזמנה
-        2.באפשרות "הוספת ספק" (האפשרות קיימת לבעלי החשבון בלבד ולא לכל אנשי הקשר השייכים למסעדה) - ניתן להגדיר ספקים חדשים למסעדה
-        3.באפשרות "נתוני מסעדה" ניתן לצפות ולשאול שאלות על נתוני המסעדה, ספקים, מוצרים, אנשי קשר וכו'
-        4.באפשרות "נתוני הזמנות" ניתן לצפות ולשאול שאלות על ההזמנות האחרונות של המסעדה
-        5.באפשרות "שאלות ועזרה" - ניתן לקבל תשובות לשאלות כלליות על המערכת, תהליך ההרשמה, יצירת הזמנות, ניהול מלאי, ספקים ועוד.
-
-        בכל שאלה אחרת, בקשות מיוחדות, בקשות שאינן במסגרת התפריט, או רצון לשנות, לערוך או למחוק מידע מעבר לזה הניתן בתפריט - יש להפנות את הלקוח אל בעלי הממשק בהודעה הבאה:
-        *******************
-        כאן ניתן לצפות בנתונים ולבצע פעולות מסוימות, על מנת לבצע שינויים בנתוני בסיס ניתן לפנות למנהל הממשק:
-         *לידור זינו*,  054-751-3346
-         או במייל: lidor.zenou@gmail.com
-        *******************
-        ` },
+      { role: "system", content: AI_CONFIGURATIONS.prompts.systemCorePrompt.prompt },
+      { role: "system", content: AI_CONFIGURATIONS.prompts.menuOptionsPrompt.prompt },
+      { role: "system", content: contextualInstructions },
+      { role: "system", content: AI_CONFIGURATIONS.prompts.dataVisualizationInstructions.prompt },
       { role: "system", content: `נתונים רלוונטיים שנאספו בשיחות קודמות: \n\n ${JSON.stringify(conversation.context, null, 2)}` },
       { role: "system", content: `היסטוריית השיחות הקודמות:\n\n ${messagesHistory || "אין היסטוריה"}` },
       { role: 'system', content: `השלב הנוכחי הוא:\n\n ${conversation.currentState}` },
@@ -334,7 +241,7 @@ export async function callOpenAIDataAnalysis(
 
     // Initial API call to determine if we need additional data
     const initialResponse = await openai.chat.completions.create({
-      ...ai_models,
+      ...AI_CONFIGURATIONS.params,
       messages,
       tools: [
         { type: "function", function: dataAnalysisFunction },
@@ -419,7 +326,7 @@ export async function callOpenAIDataAnalysis(
           }
         // Make second call with the enriched context
         const secondResponse = await openai.chat.completions.create({
-         ...ai_models,
+         ...AI_CONFIGURATIONS.params,
           messages,
           tools: [
             { type: "function", function: dataAnalysisFunction }

@@ -65,6 +65,7 @@ const getCategoryBadge = (category: string) => {
       'קינוחים 🍰': 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200',
       'תבלינים 🌶️': 'bg-red-200 text-red-900 dark:bg-red-900 dark:text-red-100',
       'שימורים 🥫': 'bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200',
+      'שימורים ותיבול 🫘🧂': 'bg-zinc-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200',
       'משקאות 🥤': 'bg-blue-50 text-blue-900 dark:bg-blue-950 dark:text-blue-100',
       'אלכוהול 🍷': 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
       'שתייה קלה 🥤': 'bg-blue-50 text-blue-900 dark:bg-blue-950 dark:text-blue-100',
