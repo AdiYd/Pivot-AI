@@ -58,7 +58,7 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
         <Button
         variant="outline"
         size={"icon"}
-        className="absolute top-4 hover:scale-110 left-4 shadow-lg shadow-teal-500 hover:shadow-pink-400 rounded-xl bg-orange-400/80 backdrop-blur-xl hover:bg-teal-500/80 transition-all duration-500 z-[99999]"
+        className="absolute bottom-4 hover:scale-110 left-4 shadow-lg shadow-teal-500 hover:shadow-pink-400 rounded-xl bg-orange-400/80 backdrop-blur-xl hover:bg-teal-500/80 transition-all duration-500 z-[99999]"
         onClick={toggleSource}
       >
         <Icon icon="carbon:debug"  />

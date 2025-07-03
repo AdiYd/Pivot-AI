@@ -41,7 +41,7 @@ export const debugFunction = () => {
       <Button
         variant="outline"
         size={"icon"}
-        className="absolute bottom-3 hover:scale-110 left-4 shadow-lg shadow-teal-500 hover:shadow-pink-400 rounded-xl bg-pink-400/80 backdrop-blur-xl hover:bg-teal-500/80 transition-all duration-500 z-[99999]"
+        className="absolute bottom-1/3 hover:scale-110 left-4 shadow-lg shadow-teal-500 hover:shadow-pink-400 rounded-xl bg-pink-400/80 backdrop-blur-xl hover:bg-teal-500/80 transition-all duration-500 z-[99999]"
         onClick={debugFunction}
       >
         <Icon icon="carbon:debug"  />

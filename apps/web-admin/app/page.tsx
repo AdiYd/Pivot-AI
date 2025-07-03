@@ -412,7 +412,6 @@ function DashboardPage() {
   return (
     <div className="space-y-6 p-2 pt-6">
       <DebugButton debugFunction={debugFunction} />
-      <Icon icon="icon-park-outline:switch" className="absolute top-2 left-4 cursor-pointer hover:scale-110 transition-transform" onClick={toggleSource} />
       {/* Header */}
       <div style={{marginTop: '0px'}}>
         <div className="w-full flex justify-center">
