@@ -26,6 +26,17 @@ interface AIConfigurationsInterface {
     [key: string]: AIPrompt;
   };
 }
+
+const orderedPrompts = [
+    "systemCorePrompt",
+    "dataVisualizationInstructions",
+    "helpMenu",
+    "interestedMenu",
+    "menuOptionsPrompt",
+    "productsListValidation",
+    "ordersDataContext",
+    "restaurantDataContext",
+];
 // --- End types ---
 
 export default function SettingsPage() {
@@ -143,7 +154,7 @@ export default function SettingsPage() {
       {/* Model Params */}
       <Card>
         <CardHeader>
-          <CardTitle>הגדרות מודל</CardTitle>
+          <CardTitle className='text-xl text-transparent bg-clip-text bg-gradient-to-r from-amber-500 via-orange-500 to-red-600'>הגדרות מודל</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-3 gap-4">
           <div>
@@ -186,18 +197,18 @@ export default function SettingsPage() {
       {/* Prompts */}
       <Card>
         <CardHeader>
-          <CardTitle>הגדרות פרומפטים</CardTitle>
+          <CardTitle className='text-xl text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-purple-500 to-orange-600'>הגדרות פרומפטים</CardTitle>
         </CardHeader>
         <CardContent className="space-y-8">
-          {Object.entries(config.prompts).map(([key, prompt]) => (
-            <div key={key} className="border-b pb-6 mb-4">
-              <Label className="font-bold">{prompt.name} 
+          {orderedPrompts.map((key, index) => (
+            <div key={index} className="border-b pb-6 mb-4">
+              <Label className="font-bold">{config.prompts[key].name} 
                 {/* <span className="text-xs text-muted-foreground">({key})</span> */}
                 </Label>
-              <div className="text-xs text-muted-foreground mb-2">{prompt.description}</div>
+              <div className="text-xs text-muted-foreground mb-2">{config.prompts[key].description}</div>
               <Textarea
                 className="w-full min-h-[80px] font-mono"
-                value={prompt.prompt.trim()}
+                value={config.prompts[key].prompt.trim()}
                 onChange={e => handlePromptChange(key, 'prompt', e.target.value)}
                 rows={8}
               />

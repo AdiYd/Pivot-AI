@@ -245,8 +245,8 @@ export function SideNav() {
               />
               <NavItem 
                 href="/settings" 
-                icon={<Icon icon='ic:baseline-settings' width={16} height={16} />}
-                title="הגדרות"
+                icon={<Icon icon='lineicons:open-ai' width={16} height={16} />}
+                title="הגדרות AI"
                 isCollapsed={isCollapsed}
               />
             </div>
@@ -358,8 +358,8 @@ export function SideNav() {
             />
             <NavItem 
               href="/settings" 
-              icon={<Icon icon='ic:baseline-settings' width={16} height={16} />}
-              title="הגדרות" 
+              icon={<Icon icon='lineicons:open-ai' width={16} height={16} />}
+              title="הגדרות AI" 
               isCollapsed={false}
             />
           </nav>
