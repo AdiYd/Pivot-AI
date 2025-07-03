@@ -772,11 +772,35 @@ ${Object.values(CATEGORIES_DICT).find((cat) => (cat.name.includes(conversation.c
             add_supplier: "SUPPLIER_CATEGORY",
             restaurant_data: "RESTAURANT_INFO", // Assuming this shows restaurant data
             order_data: "ORDERS_INFO",         // Assuming this shows order data
-            help: "IDLE" // Redirect to help state or show help message
+            help: "HELP" // Redirect to help state or show help message
           }
         };
         break;
       }
+
+      case "HELP": {
+        stateObject = {
+          message: `❓ *איך אפשר לעזור לך?*\n\nאנא פרט את השאלה או הבעיה שלך ואנו נשמח לעזור.`,
+          description: "User is seeking help or support.",
+          nextState: {
+            success: "IDLE", // Redirect to idle state on success
+            ai_finished: "IDLE" // Redirect to idle state on AI finish
+          }
+        };
+        break;
+      }
+      case "INTERESTED": {
+        stateObject = {
+          message: `💡 *נשמע שאתה מעוניין לשמוע עוד!*\n\n מה תרצה לשאול או לדעת?`,
+          description: "User is expressing interest in a topic.",
+          nextState: {
+            success: "INIT", // Redirect to init state on success
+            ai_finished: "INIT" // Redirect to init state on AI finish
+          }
+        };
+        break;
+      }
+
       default: {
         throw new Error(`Unhandled state: ${currentState}`);
       }

@@ -23,7 +23,6 @@ export const escapeDict: Record<string, BotState> = {
  'תפריט': 'IDLE',
  'תפריט ראשי': 'IDLE',
  'עזרה': 'IDLE',
- 'help': 'IDLE',
  'reset_conversation_pivot': 'INIT',
 };
 
@@ -452,7 +451,6 @@ export async function conversationStateReducer(
         conversation.currentState === "HELP" ? 'help' : 'interested',
         conversation.messages.map((msg : Message) => `${msg.role}: ${msg.body || ''}`).slice(-10).join('\n'),
         );
-        console.log(`[StateReducer] AI analysis result:`, response);
         
         if (response) {
           result.actions.push({

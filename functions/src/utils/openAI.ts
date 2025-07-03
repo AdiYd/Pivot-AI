@@ -389,8 +389,12 @@ export async function callOpenAIAssistant(
     const restaurantId = conversation.restaurantId  || conversation.context.legalId || conversation.context?.restaurantId;
     let mainData;
     if (restaurantId){
+      try{
        mainData = await getRestaurantDatafromDb(restaurantId, conversation.context.isSimulator);
        mainData = JSON.stringify(mainData, null, 2);
+      }catch (error) {
+        console.error("Error fetching restaurant data:", error);
+      }
     }
 
     // Define tools and function schemas

@@ -229,7 +229,6 @@ export const getAIConfigurations = async (): Promise<AIConfigurationsInterface> 
   // Fetch AI configurations from Firestore or return fallback
   const doc = await firestore.collection('ai_config').doc('default').get();
   if (doc.exists) {
-    console.log(`[Firestore] Fetched AI configurations:`, doc.data());
     return doc.data() as AIConfigurationsInterface;
   }
   console.log(`[Firestore] No AI configurations found, using fallback`);
@@ -838,7 +837,7 @@ export async function getRestaurantDatafromDb(
     };
   } catch (error) {
     console.error(`[Firestore] ❌ Error fetching restaurant data:`, error);
-    throw new Error(`Failed to fetch restaurant data: ${error instanceof Error ? error.message : String(error)}`);
+    return null;
   }
 }
 
