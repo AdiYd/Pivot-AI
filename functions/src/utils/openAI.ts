@@ -18,7 +18,7 @@ type AIModel = {
 }
 
 const ai_models: AIModel = {
-  model: "gpt-4o-mini",
+  model: "gpt-4o",
   temperature: 0.2, // Lower temperature for more predictable, structured output
   max_tokens: 3000,
 }
@@ -248,8 +248,8 @@ export async function callOpenAIDataAnalysis(
     };
 
     const contextualInstructions = analysisType === 'restaurant' 
-      ? "You're analyzing the restaurant data including details about the restaurant, its contacts, orders, suppliers, and products." 
-      : "You're analyzing the restaurant order data including order history, statuses, and performance metrics.";
+      ? "You're analyzing the restaurant data including details about the restaurant, its contacts, orders, suppliers, and products.\n For each order id in the restaurant orders list - you can re-direct the client to the full document at: https://pivot.webly.digital/orders/${orderId}" 
+      : "You're analyzing the restaurant order data including order history, statuses, and performance metrics. \n For each order id in the restaurant orders list - you can re-direct the client to the full document at: https://pivot.webly.digital/orders/${orderId}";
 
     const systemMessages = [
       { role: "system", content: `
@@ -282,9 +282,12 @@ export async function callOpenAIDataAnalysis(
            - סימני פיסוק וסמלים (אמוג'י) לחלוקה והדגשה
            - רווחים וסידור חזותי נכון
            - כותרות וחלוקה לקטגוריות
-           - טבלאות טקסטואליות (באמצעות סימני | ו-)
+           - טבלאות טקסטואליות ( באמצעות סימני | ,- ,+ )
            - רשימות מוגדרות בכוכביות או מספרים
-           - הדגשות טקסט (**מודגש** או *נטוי*)
+           - הדגשות טקסט ( *מודגש* )
+           - טקסט נטוי ( _נטוי_ )
+           - קווים תחתונים להפרדה ( ─────────── )
+           - קטעי קוד טקסטואליים ( \`code\` )
         
         3. התאם את הפורמט לפלטפורמת וואטסאפ - הודעות קצרות אך מקיפות, מחולקות לחלקים קריאים.
 

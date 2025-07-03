@@ -197,8 +197,8 @@ export default function SuppliersPage() {
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Calendar className="w-4 h-4" />
             <span>
-              {supplier.reminders.length > 0
-                ? supplier.reminders.map(reminder => WEEKDAYS_DICT[reminder.day]).join(', ')
+              {supplier.cutoff.length > 0
+                ? supplier.cutoff.map(reminder => WEEKDAYS_DICT[reminder.day]).join(', ')
                 : 'אין ימי תזכורת מוגדרים'}
             </span>
           </div>
@@ -294,11 +294,11 @@ export default function SuppliersPage() {
                 </TableCell>
                 <TableCell>
                   <div className="text-sm grid min-w-[200px]">
-                    {supplier.reminders.length > 0
-                      ? supplier.reminders.map(reminder => `${WEEKDAYS_DICT[reminder.day]} ${reminder.time}`).slice(0, 3).join(', ')
+                    {supplier.cutoff.length > 0
+                      ? supplier.cutoff.map(reminder => `${WEEKDAYS_DICT[reminder.day]} ${reminder.time}`).slice(0, 3).join(', ')
                       : 'לא מוגדר'}
-                    {supplier.reminders.length > 3 && (
-                      <span className="text-muted-foreground"> +{supplier.reminders.length - 3}</span>
+                    {supplier.cutoff.length > 3 && (
+                      <span className="text-muted-foreground"> +{supplier.cutoff.length - 3}</span>
                     )}
                   </div>
                 </TableCell>
@@ -586,7 +586,7 @@ export default function SuppliersPage() {
                 <Tabs defaultValue="general" className="w-full">
                   <TabsList className="grid w-full grid-cols-4">
                     <TabsTrigger value="general">כללי</TabsTrigger>
-                    <TabsTrigger value="reminders">תזכורות</TabsTrigger>
+                    <TabsTrigger value="cutoff">זמני חיתוך</TabsTrigger>
                     <TabsTrigger value="products">מוצרים</TabsTrigger>
                     <TabsTrigger value="analytics">נתונים</TabsTrigger>
                   </TabsList>
@@ -636,8 +636,8 @@ export default function SuppliersPage() {
                       </div>
                     </div>
                   </TabsContent>
-                  
-                  <TabsContent dir='rtl' value="reminders" className="space-y-6 mt-6">
+
+                  <TabsContent dir='rtl' value="cutoff" className="space-y-6 mt-6">
                     <div className="space-y-6">
                       <div>
                         <h3 className="text-lg font-medium mb-4">לוח זמני תזכורות שבועי</h3>
@@ -651,7 +651,7 @@ export default function SuppliersPage() {
                           </div>
                           <div className="grid grid-cols-7">
                             {Object.entries(WEEKDAYS_DICT).map(([key, value], index) => {
-                              const isDeliveryDay = selectedSupplier.reminders.find(reminder => reminder.day === weekDaysDict[index]);
+                              const isDeliveryDay = selectedSupplier.cutoff.find(reminder => reminder.day === weekDaysDict[index]);
                               return (
                                 <div 
                                   key={index} 

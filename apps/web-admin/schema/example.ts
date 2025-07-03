@@ -67,7 +67,7 @@ export const exampleRestaurants: Record<Restaurant['legalId'], Restaurant> = {
         role: "supplier",
         email: "freshfields@example.com",
         category: ["vegetables", "fruits"],
-        reminders: [
+        cutoff: [
           { day: "mon", time: "14:00" },
           { day: "wed", time: "14:00" },
           { day: "fri", time: "10:00" }
@@ -112,7 +112,7 @@ export const exampleRestaurants: Record<Restaurant['legalId'], Restaurant> = {
         name: "פירות ים תיכוניים",
         role: "supplier",
         category: ["fish"],
-        reminders: [
+        cutoff: [
           { day: "tue", time: "13:00" },
           { day: "fri", time: "09:00" }
         ],
@@ -147,7 +147,7 @@ export const exampleRestaurants: Record<Restaurant['legalId'], Restaurant> = {
         name: "בשרים מובחרים",
         role: "supplier",
         category: ["meats"],
-        reminders: [
+        cutoff: [
           { day: "mon", time: "12:00" },
           { day: "thu", time: "12:00" }
         ],
@@ -212,7 +212,7 @@ export const exampleRestaurants: Record<Restaurant['legalId'], Restaurant> = {
         name: "מטרו תוצרת",
         role: "supplier",
         category: ["vegetables"],
-        reminders: [
+        cutoff: [
           { day: "tue", time: "17:00" },
           { day: "thu", time: "17:00" },
           { day: "sat", time: "10:00" }
@@ -249,7 +249,7 @@ export const exampleRestaurants: Record<Restaurant['legalId'], Restaurant> = {
         role: "supplier",
         email: "orders@tnuva.com",
         category: ["dairy"],
-        reminders: [
+        cutoff: [
           { day: "mon", time: "14:00" },
           { day: "wed", time: "14:00" },
           { day: "fri", time: "09:00" }
@@ -312,7 +312,7 @@ export const exampleRestaurants: Record<Restaurant['legalId'], Restaurant> = {
         name: "מאפיית הלחם",
         role: "supplier",
         category: ["disposables"],
-        reminders: [
+        cutoff: [
           { day: "sun", time: "10:00" },
           { day: "tue", time: "10:00" },
           { day: "thu", time: "10:00" }
@@ -348,7 +348,7 @@ export const exampleRestaurants: Record<Restaurant['legalId'], Restaurant> = {
         name: "קפה ג׳ו",
         role: "supplier",
         category: ["general"],
-        reminders: [
+        cutoff: [
           { day: "mon", time: "09:00" },
           { day: "wed", time: "09:00" },
           { day: "fri", time: "09:00" }
@@ -571,77 +571,6 @@ export const exampleConversations: Record<string, Conversation> = {
       },
       {
         role: "assistant",
-        body: "בטח, דוד! אני אעזור לך לבדוק את המלאי של הירקות שלך. איזה ספק תרצה לבדוק? אתה עובד עם תוצרת שדות טריים לירקות.",
-        messageState: "INVENTORY_SNAPSHOT_START",
-        hasTemplate: false,
-        createdAt: daysAgo(1, 1.9)
-      },
-      {
-        role: "user",
-        body: "תוצרת שדות טריים",
-        messageState: "INVENTORY_SNAPSHOT_START",
-        hasTemplate: false,
-        createdAt: daysAgo(1, 1.8)
-      },
-      {
-        role: "assistant",
-        body: "מעולה! בוא נבדוק את המלאי שלך מתוצרת שדות טריים. אנא ספר לי מה המלאי הנוכחי שלך של עגבניות שרי (בק״ג):",
-        messageState: "INVENTORY_SNAPSHOT_PRODUCT",
-        hasTemplate: false,
-        createdAt: daysAgo(1, 1.7)
-      },
-      {
-        role: "user",
-        body: "3 ק״ג",
-        messageState: "INVENTORY_SNAPSHOT_PRODUCT",
-        hasTemplate: false,
-        createdAt: daysAgo(1, 1.6)
-      },
-      {
-        role: "assistant",
-        body: "תודה! עכשיו, כמה ארוגולה יש לך כרגע (בק״ג)?",
-        messageState: "INVENTORY_SNAPSHOT_PRODUCT",
-        hasTemplate: false,
-        createdAt: daysAgo(1, 1.5)
-      },
-      {
-        role: "user",
-        body: "1 ק״ג",
-        messageState: "INVENTORY_SNAPSHOT_PRODUCT",
-        hasTemplate: false,
-        createdAt: daysAgo(1, 1.4)
-      },
-      {
-        role: "assistant",
-        body: "הבנתי! לסיום, כמה מלפפונים יש לך (בק״ג)?",
-        messageState: "INVENTORY_SNAPSHOT_PRODUCT",
-        hasTemplate: false,
-        createdAt: daysAgo(1, 1.3)
-      },
-      {
-        role: "user",
-        body: "2 ק״ג",
-        messageState: "INVENTORY_SNAPSHOT_PRODUCT",
-        hasTemplate: false,
-        createdAt: daysAgo(1, 1.2)
-      },
-      {
-        role: "assistant",
-        hasTemplate: true,
-        templateId: "TEMPLATE_CALCULATE_RESULTS",
-        body: "תודה רבה! בהתבסס על רמות המלאי שלך והמלאי הנוכחי, הנה מה שאתה צריך להזמין מתוצרת שדות טריים:\n\n🍅 עגבניות שרי: 2 ק״ג (כדי להגיע לרמת מלאי של 5 ק״ג)\n🥬 ארוגולה: 1 ק״ג (כדי להגיע לרמת מלאי של 2 ק״ג)\n🥒 מלפפונים: 2 ק״ג (כדי להגיע לרמת מלאי של 4 ק״ג)\n\nהאם תרצה שאבצע את ההזמנה הזו עכשיו?",
-        messageState: "INVENTORY_CALCULATE_SNAPSHOT",
-        createdAt: daysAgo(1, 1.1)
-      },
-      {
-        role: "user",
-        body: "כן, בבקשה תזמין",
-        messageState: "INVENTORY_CALCULATE_SNAPSHOT",
-        hasTemplate: false,
-        createdAt: daysAgo(1, 1)
-      },
-      {
-        role: "assistant",
         body: "מעולה! ביצעתי את ההזמנה שלך מתוצרת שדות טריים. הם יספקו ביום המשלוח הבא שלהם. האם יש משהו נוסף שאתה צריך עזרה בו?",
         messageState: "ORDER_CONFIRMATION",
         hasTemplate: false,
@@ -689,28 +618,6 @@ export const exampleConversations: Record<string, Conversation> = {
         hasTemplate: false,
         createdAt: daysAgo(0, 0.5)
       },
-      {
-        role: "assistant",
-        hasTemplate: true,
-        templateId: "TEMPLATE_SNAPSHOT_START",
-        body: "היי שרה! אני אעזור לך לבדוק את המלאי שלך. איזו קטגוריית ספקים תרצי לבדוק? יש לך ספקים עבור: ירקות ומוצרי חלב.",
-        messageState: "INVENTORY_SNAPSHOT_START",
-        createdAt: daysAgo(0, 0.4)
-      },
-      {
-        role: "user",
-        body: "ירקות",
-        messageState: "INVENTORY_SNAPSHOT_START",
-        hasTemplate: false,
-        createdAt: daysAgo(0, 0.3)
-      },
-      {
-        role: "assistant", 
-        body: "מעולה! בוא נבדוק את מלאי הירקות שלך עם מטרו תוצרת. אנא ספרי לי מה המלאי הנוכחי שלך של חסה מעורבת (בארגזים):",
-        messageState: "INVENTORY_SNAPSHOT_PRODUCT",
-        hasTemplate: false,
-        createdAt: daysAgo(0, 0.2)
-      }
     ],
   },
   

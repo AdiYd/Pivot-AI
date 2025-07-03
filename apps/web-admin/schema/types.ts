@@ -62,8 +62,9 @@ export type BotState =
   | "SETUP_SUPPLIERS_START"
   | "SETUP_SUPPLIERS_ADDITIONAL"
   | "SUPPLIER_CATEGORY"
+  | "SUPPLIER_CATEGORY2"
   | "SUPPLIER_CONTACT"
-  | "SUPPLIER_REMINDERS"
+  | "SUPPLIER_CUTOFF"
 // Product setup states
   | "PRODUCTS_LIST"
 // Base quantity setup states
@@ -73,17 +74,8 @@ export type BotState =
   | "RESTAURANT_FINISHED"
 
  // Order states 
-  | "INVENTORY_SNAPSHOT_START"
-  | "INVENTORY_SNAPSHOT_CATEGORY"
-  | "INVENTORY_SNAPSHOT_PRODUCT"
-  | "INVENTORY_SNAPSHOT_QTY"
-  | "INVENTORY_CALCULATE_SNAPSHOT"
-  | "ORDER_SETUP_START"
+
   | "ORDER_CONFIRMATION"
-  | "DELIVERY_START"
-  | "DELIVERY_CHECK_ITEM"
-  | "DELIVERY_RECEIVED_AMOUNT"
-  | "DELIVERY_INVOICE_PHOTO"
 
 // Info states
   | "RESTAURANT_INFO"
@@ -105,20 +97,10 @@ export interface IncomingMessage {
 }
 
 export interface BotAction {
-  type: "SEND_MESSAGE" | "CREATE_RESTAURANT" | "CREATE_SUPPLIER" | "UPDATE_SUPPLIER" | "UPDATE_PRODUCT" | "CREATE_INVENTORY_SNAPSHOT" | "SEND_ORDER" | "LOG_DELIVERY";
+  type: "SEND_MESSAGE" | "CREATE_RESTAURANT" | "CREATE_SUPPLIER" | "UPDATE_SUPPLIER" | "UPDATE_PRODUCT" | "LOG_DELIVERY";
   payload: Record<string, any>;
 }
 
-
-export interface BotConfig {
-  inventoryReminderInterval: number;
-  orderCutoffReminderHours: number;
-  supplierCategories: SupplierCategory[];
-  showPaymentLink: boolean;
-  paymentLink: string;
-  skipPaymentCoupon: string;
-  paymentMethods: string[];
-}
 
 
 export interface StateObject {
@@ -148,6 +130,9 @@ export interface StateObject {
   
   // Message to show if validation fails
   validationMessage?: string;
+
+  // Second message for additional context
+  message2?: string; 
   
   // Type of validation to perform (if any)
   validator?: z.ZodTypeAny;

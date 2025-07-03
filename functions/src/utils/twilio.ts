@@ -1,6 +1,7 @@
 import { Twilio } from 'twilio';
 import * as crypto from 'crypto';
 import { Request } from 'firebase-functions/v1';
+import { MessageInstance } from 'twilio/lib/rest/api/v2010/account/message';
 
 // Load environment variables for local development
 if (process.env.NODE_ENV !== 'production' && process.env.FUNCTIONS_EMULATOR === 'true') {
@@ -24,6 +25,30 @@ export function getTwilioClient(): Twilio {
     client = new Twilio(accountSid, authToken);
   }
   return client;
+}
+
+const MAX_WHATSAPP_BODY_LENGTH = 4000;
+
+function splitMessage(body: string): string[] {
+  const messages: string[] = [];
+  while (body.length > 0) {
+    messages.push(body.substring(0, MAX_WHATSAPP_BODY_LENGTH));
+    body = body.substring(MAX_WHATSAPP_BODY_LENGTH);
+  }
+  return messages;
+}
+
+async function sendLongMessage(to: string, body: string, twilioClient: Twilio): Promise<MessageInstance | undefined> {
+  const messages = splitMessage(body);
+  let response;
+  for (const message of messages) {
+    response = await twilioClient.messages.create({
+      from: `whatsapp:${process.env.TWILIO_WHATSAPP_NUMBER}`,
+      to,
+      body: message,
+    });
+  }
+  return response;
 }
 
 /**
@@ -125,10 +150,12 @@ export async function sendWhatsAppMessage(
     const twilioClient = getTwilioClient();
     const twilioFrom = `whatsapp:${process.env.TWILIO_WHATSAPP_NUMBER}`;
     to = formatPhoneForWhatsApp(to);
+
+    let response;
     
     // If we have a template, use the template API
-    if (template && template.id && template.sid) {
-      console.log(`[Twilio] Sending template message: ${template.id}`);
+    if (template && template.id && template.sid && template.id !== 'approval_template') {
+      console.log(`[Twilio] Sending template message: ${template.id}, to ${to}`);
       
       // Extract values from context and convert to array of components
       const components: any[] = [];
@@ -185,7 +212,7 @@ export async function sendWhatsAppMessage(
       }
       
       // Call Twilio API with the template name and parameters
-      await twilioClient.messages.create({
+      response = await twilioClient.messages.create({
         from: twilioFrom,
         to,
         contentSid: template.sid,
@@ -195,18 +222,35 @@ export async function sendWhatsAppMessage(
       console.log(`[Twilio] ✅ Template message sent successfully:`, {
         to: to,
         templateId: template.id,
+        bodyLength: template.body?.length || 0,
+        messageSid: response.sid,
+        status: response.status
       });
+    } 
+    else if (template && template?.id === 'approval_template') {
+      // Handle approval template case
+        const body = template.body || 'נתוני AI לא זמינים';
+        response = await sendLongMessage(to, body, twilioClient);
+        await twilioClient.messages.create({
+          from: twilioFrom,
+          to,
+          contentSid: template.sid
+      });
+         console.log(`[Twilio] ✅ AI approve message sent successfully:`, {
+        to: to,
+        templateId: template.id,
+        bodyLength: template.body?.length || 0,
+      });
+
     } else {
       // For regular text messages
-      await twilioClient.messages.create({
-        from: twilioFrom,
-        to,
-        body
-      });
+      response = await sendLongMessage(to, body, twilioClient);
       
       console.log(`[Twilio] ✅ Regular message sent successfully:`, {
         to: to,
         messageLength: body.length,
+        status: response?.status,
+        messageSid: response?.sid
       });
     }
   } catch (error) {

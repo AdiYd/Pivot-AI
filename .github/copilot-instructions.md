@@ -18,7 +18,7 @@ The platform must:
 The state machine of the chat bot will do the following:
 1. signup new clients, get the restaurant information and store it in firestore as new restaurant (store seperatly the conversation itself)
 2. Start iterating over the restaurants suppliers and prepare the baseline inventory for the restaurant.
-3. Once all set up, the chatbot will schedule reminders for inventory snapshots, take the restaurants orders and create order. 
+3. Once all set up, the chatbot will schedule reminders (based on cutoff times) for inventory snapshots, take the restaurants orders and create order.
 4. The chatbot will initiate a message with the order to the supplier and get order approval from supplier and final approval from the restaurant.
 
 Copilot: keep this context in memory when suggesting code.
@@ -99,7 +99,7 @@ Copilot: keep this context in memory when suggesting code.
  *         ├─ role: "supplier"              // Always "supplier"
  *         ├─ email: string (optional)
  *         ├─ category: string[]          // Array of supplier categories
- *         ├─ reminders: Reminder[]      // Array of reminders e.g. [{ day: "sun", time: "20:00" }]
+ *         ├─ cutoff: Cutoff[]      // Array of cutoff times e.g. [{ day: "sun", time: "20:00" }]
  *         ├─ rating: number            // 0-5
  *         ├─ createdAt: Timestamp
  *         └─ updatedAt: Timestamp

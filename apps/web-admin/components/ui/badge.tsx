@@ -4,7 +4,6 @@ import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
-import { getCategoryName } from "@/schema/states"
 
 const badgeVariants = cva(
   "inline-flex items-center text-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
@@ -53,26 +52,48 @@ function Badge({ className, variant, ...props }: BadgeProps) {
 
 const getCategoryBadge = (category: string) => {
     const colors: Record<string, string> = {
-      vegetables: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-      fruits: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
-      fish: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-      meats: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-      dairy: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-      bread: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
-      coffee: 'bg-orange-950 text-white dark:bg-orange-950 dark:text-white',
-      alcohol: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-      eggs: 'bg-yellow-50 text-yellow-900 dark:bg-yellow-950 dark:text-yellow-100',
-      oliveOil: 'bg-green-50 text-green-900 dark:bg-green-950 dark:text-green-100',
-      disposables: 'bg-orange-200 text-gray-800 dark:bg-orange-800 dark:text-gray-200',
-      desserts: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200',
-      juices: 'bg-orange-50 text-orange-900 dark:bg-orange-950 dark:text-orange-100',
-      general: 'bg-slate-100 text-slate-800 dark:bg-slate-900 dark:text-slate-200',
-      meat: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200', // Keeping for compatibility
+      'ירקות 🥬': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+      'פירות 🍎': 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+      'דגים 🐟': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+      'בשר 🥩': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+      'ביצים 🥚': 'bg-yellow-50 text-yellow-900 dark:bg-yellow-950 dark:text-yellow-100',
+      'מאפים 🥐': 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
+      'מוצרי חלב 🧀': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+      'לחם 🍞': 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
+      'לחמים 🍞': 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
+      'קפואים ❄️': 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200',
+      'קינוחים 🍰': 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200',
+      'תבלינים 🌶️': 'bg-red-200 text-red-900 dark:bg-red-900 dark:text-red-100',
+      'שימורים 🥫': 'bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200',
+      'משקאות 🥤': 'bg-blue-50 text-blue-900 dark:bg-blue-950 dark:text-blue-100',
+      'אלכוהול 🍷': 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+      'שתייה קלה 🥤': 'bg-blue-50 text-blue-900 dark:bg-blue-950 dark:text-blue-100',
+      'שתייה חריפה 🍸': 'bg-purple-200 text-purple-900 dark:bg-purple-900 dark:text-purple-100',
+      'חטיפים 🍟': 'bg-yellow-200 text-yellow-900 dark:bg-yellow-900 dark:text-yellow-100',
+      'דגים וים 🐟🍣': 'bg-blue-200 text-blue-900 dark:bg-blue-900 dark:text-blue-100',
+      'פירות ים 🦞': 'bg-cyan-200 text-cyan-900 dark:bg-cyan-900 dark:text-cyan-100',
+      'מאפייה 🥐': 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
+      'בשר ועוף 🥩🍗': 'bg-red-200 text-red-900 dark:bg-red-900 dark:text-red-100',
+      'עוף 🍗': 'bg-orange-200 text-orange-900 dark:bg-orange-900 dark:text-orange-100',
+      'טבעוני 🌱': 'bg-green-200 text-green-900 dark:bg-green-900 dark:text-green-100',
+      'קשות 🍪': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+      'מזווה 🧂📦': 'bg-slate-100 text-slate-800 dark:bg-slate-900 dark:text-slate-200',
+      'מקרר 🥶': 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200',
+      'ירקות ופירות 🥬🍅': 'bg-green-200 text-green-900 dark:bg-green-900 dark:text-green-100',
+      'לחם ומאפייה 🍞🥐': 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
+      'מוצרי מזווה 🧂📦': 'bg-slate-100 text-slate-800 dark:bg-slate-900 dark:text-slate-200',
+      'חד פעמי 📦': 'bg-orange-200 text-gray-800 dark:bg-orange-800 dark:text-gray-200',
+      'תחזוקה ⚙️': 'bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-gray-200',
+      'ניקיון 🧼': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+      'שמן 🫒': 'bg-green-50 text-green-900 dark:bg-green-950 dark:text-green-100',
+      'אריזות 📦': 'bg-orange-200 text-gray-800 dark:bg-orange-800 dark:text-gray-200',
+      'קופסאות 📦': 'bg-orange-200 text-gray-800 dark:bg-orange-800 dark:text-gray-200',
+      'ציוד 🛠️': 'bg-gray-300 text-gray-900 dark:bg-gray-700 dark:text-gray-200',
     };
     
     return (
       <Badge key={category} className={(colors[category] || 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200') + " text-xs text-nowrap w-fit mx-[2px] cursor-default text-center flex items-center gap-1"}>
-        {getCategoryName(category)}
+        {category}
       </Badge>
     );
   };

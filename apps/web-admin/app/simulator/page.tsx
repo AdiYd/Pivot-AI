@@ -47,8 +47,8 @@ interface SimulatorSession extends Omit<Conversation, 'messages'> {
 
 // Configuration
 const FUNCTION_URL = process.env.NODE_ENV === 'development' 
-  ? 'http://localhost:5001/pivot-chatbot-fdfe0/us-central1/whatsappWebhook'
-  : 'https://us-central1-pivot-chatbot-fdfe0.cloudfunctions.net/whatsappWebhook';
+  ? 'http://localhost:5001/pivot-chatbot-fdfe0/europe-central2/whatsappWebhook'
+  : 'https://europe-central2-pivot-chatbot-fdfe0.cloudfunctions.net/whatsappWebhook';
 
 const SIMULATOR_API_KEY = process.env.NEXT_PUBLIC_SIMULATOR_API_KEY;
 

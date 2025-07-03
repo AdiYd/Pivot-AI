@@ -10,10 +10,12 @@ import {
   doc,
   updateDoc,
   query,
-  orderBy
+  orderBy,
+  setDoc
 } from "firebase/firestore";
-import { DataBase, Order, Restaurant, Conversation, Contact } from "@/schema/types";
+import { DataBase, Order, Restaurant, Conversation, Contact, Supplier, Message } from "@/schema/types";
 import { RestaurantSchema, OrderSchema, ConversationSchema, MessageSchema } from "@/schema/schemas";
+import { Delete } from "lucide-react";
 
 // Firebase configuration
 const firebaseConfig = {
@@ -79,7 +81,7 @@ export function FirebaseAppProvider({ children }: { children: ReactNode }) {
 
       // Parse restaurants with validation
       const restaurants: Record<string, Restaurant> = {};
-      restaurantsSnap.forEach((doc) => {
+      restaurantsSnap.forEach(async (doc) => {
         try {
           const data = { ...doc.data() };
           const parsed = RestaurantSchema.parse(data);
@@ -121,7 +123,14 @@ export function FirebaseAppProvider({ children }: { children: ReactNode }) {
             // Fetch messages for this conversation order by timestamp with ascending order
             const messagesCollectionRef = query(collection(db, 'conversations_simulator', doc.id, 'messages'), orderBy('createdAt', 'asc'));
             const messagesSnap = await getDocs(messagesCollectionRef);
-            const loadedMessages = messagesSnap.docs.map(msgDoc => MessageSchema.parse(msgDoc.data()));
+            const loadedMessages = messagesSnap.docs.map(msgDoc => {
+              const msgData = msgDoc.data() as Message;
+              if (msgData.messageState as any === 'SUPPLIER_REMINDERS'){
+                msgData.messageState = 'SUPPLIER_CUTOFF';
+              }
+              const parsed = MessageSchema.parse(msgData);
+              return parsed;
+            });
             // Update the conversation with loaded messages
             conversations[doc.id].messages = [...conversations[doc.id].messages, ...loadedMessages];
             // conversations[doc.id].messages = [ ...loadedMessages];

@@ -9,7 +9,7 @@ import {
   StateReducerResult,
   Message,
 } from '../schema/types';
-import { stateObject } from '../schema/states';
+import { CATEGORY_TAGS_DICT, stateObject } from '../schema/states';
 import { ProductSchema, restaurantLegalIdSchema, RestaurantSchema, SupplierSchema } from '../schema/schemas';
 import { callOpenAIDataAnalysis, callOpenAISchema } from '../utils/openAI';
 import { firestore, getRestaurant } from '../utils/firestore';
@@ -21,10 +21,13 @@ import { FieldValue } from 'firebase-admin/firestore';
 export const escapeDict: Record<string, BotState> = {
  'menu': 'IDLE',
  'תפריט': 'IDLE',
+ 'תפריט ראשי': 'IDLE',
  'עזרה': 'IDLE',
  'help': 'IDLE',
  'reset_conversation_pivot': 'INIT',
 };
+
+export const onBoradingList: BotState[] = ['INIT', 'ONBOARDING_LEGAL_ID', 'ONBOARDING_RESTAURANT_NAME', 'ONBOARDING_CONTACT_NAME', 'ONBOARDING_CONTACT_EMAIL','ONBOARDING_PAYMENT_METHOD'];
 
 /**
  * Validates input data against a schema or using AI
@@ -58,7 +61,7 @@ async function stateValidator(
       try {
         //Collect history of messages only from the current state and map them to body only
         const aiResult = await callOpenAISchema(trimmedInput, conversation as Conversation, messagesHistory as string);
-        console.log(`[StateReducer] AI validation result:`, aiResult);
+        // console.log(`[StateReducer] AI validation result:`, aiResult);
         
         // If AI returns structured data and we have a schema, validate it
         if (aiResult) {
@@ -80,6 +83,13 @@ async function stateValidator(
         } 
         else if (validator instanceof z.ZodObject) {
           // Try to parse JSON if the input might be an object
+          if (conversation?.currentState === 'SUPPLIER_CATEGORY' || conversation?.currentState === 'SUPPLIER_CATEGORY2') {
+            const categories = trimmedInput.split(',').map(item => {
+              const cleanedItem = item.replace(/\uFFFD/g, "").trim();
+              return CATEGORY_TAGS_DICT[cleanedItem] || cleanedItem;
+            });
+            validatedData = validator.parse({ category: categories });
+          } else {
           try {
             const jsonData = JSON.parse(trimmedInput);
             validatedData = validator.parse(jsonData);
@@ -87,7 +97,12 @@ async function stateValidator(
             // If not valid JSON, try direct validation
             validatedData = validator.parse(trimmedInput);
           }
-        }         
+        }
+        }
+        else if (validator instanceof z.ZodArray) {
+          validatedData = validator.parse(trimmedInput.split(',').map(item => item.trim()));
+          console.log('validatedData', validatedData);
+        }
         return { data: validatedData, success: true };
       } catch (validationError) {
         // Capture and return the specific validation error message
@@ -149,6 +164,7 @@ function createActionFromState(
         type: 'CREATE_RESTAURANT',
         payload: restaurantData
       };
+    
     case 'CREATE_SUPPLIER':
         const supplierData = SupplierSchema.extend({
               restaurantId: restaurantLegalIdSchema,
@@ -159,7 +175,7 @@ function createActionFromState(
           role: 'supplier',
           ...(context.supplierEmail && { email: context.supplierEmail }),
           category: Array.isArray(context.supplierCategories) ? context.supplierCategories : [],
-          reminders: context.supplierReminders || [],
+          cutoff: context.supplierCutoff || [],
           products: context.supplierProducts || []
         })
       return {
@@ -175,7 +191,7 @@ function createActionFromState(
           restaurantId: context.legalId || '',
           whatsapp: context.supplierWhatsapp || '',
           name: context.supplierName || '',
-          reminders: context.supplierReminders || [],
+          cutoff: context.supplierCutoff || [],
           category: Array.isArray(context.supplierCategories) ? context.supplierCategories : []
         }
       );
@@ -195,26 +211,6 @@ function createActionFromState(
       return {
         type: 'UPDATE_PRODUCT',
         payload: productUpdateData
-      };
-      
-    case 'CREATE_INVENTORY_SNAPSHOT':
-      return {
-        type: 'CREATE_INVENTORY_SNAPSHOT',
-        payload: {
-          restaurantId: context.legalId || context.restaurantId,
-          category: context.currentCategory || '',
-          items: context.inventoryItems || []
-        }
-      };
-      
-    case 'SEND_ORDER':
-      return {
-        type: 'SEND_ORDER',
-        payload: {
-          restaurantId: context.legalId || context.restaurantId,
-          supplierId: context.supplierWhatsapp || '',
-          items: context.orderItems || []
-        }
       };
       
     case 'LOG_DELIVERY':
@@ -339,9 +335,9 @@ export async function conversationStateReducer(
   
   try {
     // Get current state definition
-    const currentStateDefinition = stateObject(result.newState, result);
+    const currentStateObject = stateObject(result.newState);
     
-    if (!currentStateDefinition) {
+    if (!currentStateObject) {
       console.error(`[StateReducer] No state definition found for state: ${conversation.currentState}`);
       
       // Reset to IDLE state if definition is not found
@@ -350,7 +346,7 @@ export async function conversationStateReducer(
         type: 'SEND_MESSAGE',
         payload: {
           to: message.from,
-          body: '⚠️ אירעה שגיאה במערכת. מצבך אופס למצב התחלתי.',
+          body: '⚠️ אירעה שגיאה במערכת. מעבירים אותך לתפריט הראשי.',
           messageState: result.newState.currentState
         }
       });
@@ -369,6 +365,7 @@ export async function conversationStateReducer(
     if (userInput === 'reset_pivot') {
       console.log(`[StateReducer] User input is a special command: ${userInput}`);
       result.newState.currentState = 'INIT';
+      result.newState.context = {};
       const nextStateDefinition = stateObject(result.newState);
       if (nextStateDefinition) {
         // Create message action for the next state
@@ -384,7 +381,7 @@ export async function conversationStateReducer(
     } 
 
     // Check if the message is one of the special commands (escapeDict)
-    if (escapeDict[userInput.toLocaleLowerCase()] &&  !['INIT'].includes(conversation.currentState)) {
+    if (escapeDict[userInput.toLocaleLowerCase()] &&  !onBoradingList.includes(conversation.currentState)) {
       console.log(`[StateReducer] User input is a special command: ${userInput}`);
       result.newState.currentState = escapeDict[userInput.toLocaleLowerCase()];
       const nextStateDefinition = stateObject(result.newState);
@@ -486,8 +483,8 @@ export async function conversationStateReducer(
     }
 
     // Check if this is a template option selection
-    if (currentStateDefinition.whatsappTemplate?.options && userInput !== 'user_confirmed') {
-      const selectedOption = currentStateDefinition.whatsappTemplate.options.find(
+    if (currentStateObject.whatsappTemplate?.options && userInput !== 'user_confirmed') {
+      const selectedOption = currentStateObject.whatsappTemplate.options.find(
         (option: any) => option.id === userInput
       );
       
@@ -496,15 +493,15 @@ export async function conversationStateReducer(
         console.log(`[StateReducer] Template option selected: ${selectedOption.name} (${selectedOption.id})`);
         
         // If the selection directly maps to a next state, use it
-        if (currentStateDefinition.nextState && currentStateDefinition.nextState[userInput]) {
-          nextState = currentStateDefinition.nextState[userInput];
+        if (currentStateObject.nextState && currentStateObject.nextState[userInput]) {
+          nextState = currentStateObject.nextState[userInput];
           
           // If we have a valid next state, skip further validation
           if (nextState) {
             // Update context if needed based on selection
-            if (currentStateDefinition.callback && typeof currentStateDefinition.callback === 'function') {
+            if (currentStateObject.callback && typeof currentStateObject.callback === 'function') {
               try {
-                currentStateDefinition.callback(result.newState.context, selectedOption.id);
+                currentStateObject.callback(result.newState.context, selectedOption.id);
               } catch (callbackError) {
                 console.error(`[StateReducer] Callback error for template selection:`, callbackError);
               }
@@ -512,9 +509,9 @@ export async function conversationStateReducer(
             result.newState.currentState = nextState;
 
             // Prepare message action for the next state
-            if (currentStateDefinition.action) {
+            if (currentStateObject.action) {
               const action = createActionFromState(
-                currentStateDefinition.action,
+                currentStateObject.action,
                 result.newState.context,
                 nextState
               );
@@ -535,7 +532,7 @@ export async function conversationStateReducer(
     }
     
     // First, try to validate the input
-    if (currentStateDefinition.validator && userInput !== 'user_confirmed') {
+    if (currentStateObject.validator && userInput !== 'user_confirmed') {
       try {
         const filteredMessages = conversation.messages.filter(msg => msg.messageState === conversation.currentState)
         .slice(-8)
@@ -558,12 +555,12 @@ export async function conversationStateReducer(
             return `${msg.role}: ${msg.body} [${timeString}]`;
       }).join('\n');
 
-        console.log('******* filteredMessages *******', filteredMessages);
+        // console.log('******* filteredMessages *******', filteredMessages);
         
         validationResult = await stateValidator(
           userInput, 
-          currentStateDefinition.validator,
-          currentStateDefinition.aiValidation,
+          currentStateObject.validator,
+          currentStateObject.aiValidation,
           conversation,
           filteredMessages
         );
@@ -575,28 +572,28 @@ export async function conversationStateReducer(
           const approvalMessage = validationResult.meta?.approval_message.trim();
           if (approvalMessage) {          
              const approvalMessageWrapper = `
-              ✅ אנא אשר את הפרטים הבאים לפני ההמשך:
-              -------------------------------------------------
-            ${approvalMessage}
-              -------------------------------------------------
-            יש לאשר את הנתונים על ידי לחיצה על כפתור "אישור" למטה.
-            *במידה ויש צורך בתיקונים או תוספות, יש לכתוב הודעה עם ההערות המתאימות.*`  
+✅ אנא אשר את הפרטים הבאים לפני ההמשך:
+-----------------------------------------------------
+${approvalMessage}
+-----------------------------------------------------
+
+*במידה ויש צורך בתיקונים או תוספות, יש לכתוב הודעה עם ההערות המתאימות.*`  
               // Send the approval Template message for whatsapp card with button to approve
               const approvalAction = createMessageAction(
                 {
                   whatsappTemplate: {
                     id: 'approval_template',
                     type: 'button',
-                    sid:'HXbb68da1428e3402364d9832f53a54730',
+                    sid:'HXf76b14e1ab01c256fb48b06072347f08',
+                    body: approvalMessageWrapper,
                     contentVariables: JSON.stringify({
                       '1': approvalMessageWrapper || "שגיאה בקבלת נתונים מהסוכן החכם (AI validation)",
                     }),
-                    body: approvalMessageWrapper,
                     options: [
                       { name: 'אישור', id: 'user_confirmed' },
                     ]
                   },
-                  description: 'Approval message for AI validated data',
+                  description: 'Approval message for AI validated data, the client must approve it by clicking the confirm button',
                 },
                 message.from,
                 result.newState.context,
@@ -613,12 +610,12 @@ export async function conversationStateReducer(
         console.error(`[StateReducer] Validation error:`, validationError);
         
         // Send validation error message if defined
-        if (currentStateDefinition.validationMessage) {
+        if (currentStateObject.validationMessage) {
           result.actions.push({
             type: 'SEND_MESSAGE',
             payload: {
               to: message.from,
-              body: currentStateDefinition.validationMessage,
+              body: currentStateObject.validationMessage,
               messageState: result.newState.currentState
             }
           });
@@ -650,12 +647,12 @@ export async function conversationStateReducer(
       console.log(`[StateReducer] Validation failed for state: ${conversation.currentState}`);
       
       // Send validation error message if defined
-      if (currentStateDefinition.validationMessage) {
+      if (currentStateObject.validationMessage) {
         result.actions.push({
           type: 'SEND_MESSAGE',
           payload: {
             to: message.from,
-            body: currentStateDefinition.validationMessage,
+            body: currentStateObject.validationMessage,
             messageState: result.newState.currentState
           }
         });
@@ -693,37 +690,37 @@ export async function conversationStateReducer(
     }
 
     // Execute callback if defined to update context
-    if (currentStateDefinition.callback && typeof currentStateDefinition.callback === 'function') {
+    if (currentStateObject.callback && typeof currentStateObject.callback === 'function') {
       try {
-        currentStateDefinition.callback(result.newState.context, validationResult.data);
+        currentStateObject.callback(result.newState.context, validationResult.data);
       } catch (callbackError) {
         console.error(`[StateReducer] Callback error:`, callbackError);
       }
     }
     
     // Determine next state based on validation result and state definition
-    if (currentStateDefinition.nextState) {
+    if (currentStateObject.nextState) {
       // Handle validation success and user confirmation
-      if (validationResult.success && currentStateDefinition.nextState.success) {
-        nextState = currentStateDefinition.nextState.success;
+      if (validationResult.success && currentStateObject.nextState.success) {
+        nextState = currentStateObject.nextState.success;
       }
-      if (validationResult.user_confirmed && currentStateDefinition.nextState.user_confirmed) {
-        nextState = currentStateDefinition.nextState.user_confirmed;
+      if (validationResult.user_confirmed && currentStateObject.nextState.user_confirmed) {
+        nextState = currentStateObject.nextState.user_confirmed;
         if (result.newState.context.dataToApprove) {
           delete result.newState.context.dataToApprove; // Clear temporary data
         }
 
       }
       // Handle list selection or template button response
-      else if (typeof validationResult.data === 'string' && currentStateDefinition.nextState[validationResult.data]) {
-        nextState = currentStateDefinition.nextState[validationResult.data];
+      else if (typeof validationResult.data === 'string' && currentStateObject.nextState[validationResult.data]) {
+        nextState = currentStateObject.nextState[validationResult.data];
       }
     }
     
     // Create action if defined in the state
-    if (currentStateDefinition.action) {
+    if (currentStateObject.action) {
       const action = createActionFromState(
-        currentStateDefinition.action,
+        currentStateObject.action,
         result.newState.context,
         result.newState.currentState
       );
@@ -751,15 +748,26 @@ export async function conversationStateReducer(
           result.newState.context,
           nextState
         );
+       
         
         result.actions.push(messageAction);
+        if (nextStateDefinition.message2) {
+          result.actions.push({
+           type: 'SEND_MESSAGE',
+           payload: {
+             to: message.from,
+             body: nextStateDefinition.message2,
+             messageState: result.newState.currentState
+           }
+         });
+        }
       } else {
         console.error(`[StateReducer] No state definition found for next state: ${nextState}`);
       }
     } else {
       // If no next state defined, create message for current state again
       const repeatMessageAction = createMessageAction(
-        currentStateDefinition,
+        currentStateObject,
         message.from,
         result.newState.context,
         conversation.currentState

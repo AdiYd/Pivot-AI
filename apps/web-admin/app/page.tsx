@@ -26,24 +26,6 @@ import { DebugButton, debugFunction } from "@/components/debug";
 import { ProtectedLayout } from "@/components/layout/protected-layout";
 import { useFirebase } from "@/lib/firebaseClient";
 
-// Helper function to get category name (previously imported from /schema/messages)
-function getCategoryName(category: string): string {
-  const categoryMap: Record<string, string> = {
-    'vegetables': 'ירקות',
-    'fruits': 'פירות',
-    'meats': 'בשרים',
-    'fish': 'דגים',
-    'dairy': 'מוצרי חלב',
-    'alcohol': 'אלכוהול',
-    'eggs': 'ביצים',
-    'oliveOil': 'שמן זית',
-    'disposables': 'חד פעמי',
-    'desserts': 'קינוחים',
-    'juices': 'מיצים',
-    'general': 'כללי'
-  };
-  return categoryMap[category] || category;
-}
 
 function StatCard({ 
   title, 
@@ -355,7 +337,7 @@ function DashboardPage() {
   });
   
   const supplierBarData = Object.entries(supplierCategoryCounts).map(([name, value]) => ({ 
-    name: getCategoryName(name), 
+    name: name, 
     value 
   }));
 
@@ -828,8 +810,6 @@ function getRelativeTime(date: Date): string {
 
 function getConversationAction(state: BotState): string {
   switch (state) {
-    case "INVENTORY_SNAPSHOT_PRODUCT":
-      return "בודק מלאי מוצרים";
     case "ONBOARDING_PAYMENT_METHOD":
       return "בתהליך רישום - תשלום";
     case "ORDER_CONFIRMATION":

@@ -1,22 +1,128 @@
 import { z } from 'zod';
-import { emailSchema, nameSchema, ProductSchema, restaurantLegalIdSchema, restaurantLegalNameSchema, restaurantNameSchema, SupplierSchema, textSchema } from './schemas';
-import { BotConfig,  Conversation, Product, StateObject, StateReducerResult, SupplierCategory } from './types';
+import { emailSchema, nameSchema, ProductSchema, restaurantLegalIdSchema, restaurantLegalNameSchema, restaurantNameSchema, SupplierSchema } from './schemas';
+import {  Conversation,StateObject } from './types';
 
-
+// Supplier categories for WhatsApp template (max 24 chars, 1 emoji, concise names)
+export const CATEGORIES_DICT: Record<
+  string,
+  { name: string; example: string }
+> = {
+  fresh: {
+    name: "ירקות ופירות 🥬🍅",
+    example: `ק"ג: עגבניות, מלפפון\nיח': חסה, פטרוזיליה`
+  },
+  meat: {
+    name: "בשר ועוף 🥩🍗",
+    example: `ק"ג: אנטריקוט, טחון\nיח': קבב, שניצל, כרעיים`
+  },
+  fish: {
+    name: "דגים וים 🐟🍣",
+    example: `ק"ג: סלמון, לברק\nיח': פילה דג`
+  },
+  dairy: {
+    name: "מוצרי חלב 🧀, ביצים 🥚",
+    example: `ק"ג: גבינה צהובה\nליטר: חלב\nתבנית: ביצים`
+  },
+  bread: {
+    name: "לחם ומאפייה 🍞🥯",
+    example: `יח': לחמניות, חלה\nאריזה: פיתות`
+  },
+  dry_goods: {
+    name: "מוצרי מזווה 🧂📦",
+    example: `ק"ג: אורז, עדשים\nשקית: פסטה`
+  },
+  // spices: {
+  //   name: "תבלינים 🌶️",
+  //   example: `ק"ג: פפריקה, כמון\nשקית: תבלין גרוס`
+  // },
+  // oil: {
+  //   name: "שמן 🌿",
+  //   example: `ג'ריקן: שמן זית, שמן קנולה`
+  // },
+  // canned: {
+  //   name: "שימורים 🥫",
+  //   example: `קופסה: תירס, טונה\nפחית: רסק עגבניות`
+  // },
+  frozen: {
+    name: "קפואים ❄️, קינוחים 🍰",
+    example: `אריזה: פירה, ירקות קפואים`
+  },
+  alcohol: {
+    name: "אלכוהול 🍷, משקאות 🥤",
+    example: `בקבוק: יין, וודקה\nבקבוק: מים, קולה\nחבית: בירה`
+  },
+  disposables: {
+    name: 'חד"פ 📦, נקיון 🧼',
+    example: `אריזה: צלחות, כוסות, שקיות\nחבילה: סכו"ם, מגבונים לחים`
+  },
+  // cleaning: {
+  //   name: "ניקיון ותחזוקה 🧼",
+  //   example: `בקבוק: סבון כלים, מסיר שומנים\nאריזה: נייר סופג`
+  // },
+  packaging: {
+    name: "ציוד 🛠️, תחזוקה ⚙️",
+    example: `יחידות: מצקת נירוסטה, מגש הגשה\nיחדות: כוסות וויסקי, שייקר, פותחן`
+  }
+};
 
 // Supplier categories with emoji representation
-export const CATEGORIES_DICT: Record<string, Pick<Product, 'name' | 'emoji'>> = {
-  vegetables: { name: "ירקות", emoji: "🥬" },
-  fruits: { name: "פירות", emoji: "🍎" },
-  meats: { name: "בשרים", emoji: "🥩" },
-  fish: { name: "דגים", emoji: "🐟" },
-  dairy: { name: "מוצרי חלב", emoji: "🥛" },
-  alcohol: { name: "אלכוהול", emoji: "🍷" },
-  eggs: { name: "ביצים אורגניות", emoji: "🥚" },
-  oliveOil: { name: "שמן זית", emoji: "🫒" },
-  disposables: { name: "חד פעמי", emoji: "🥤" },
-  desserts: { name: "קינוחים", emoji: "🍰" },
-  juices: { name: "מיצים טבעיים", emoji: "🧃" },
+export const CATEGORIES_DICT_OLD: Record<string, { name: string; example: string }> = {
+  freshProduce: {
+    name: "תוצרת טרייה 🥬🍅",
+    example: `ק"ג: עגבניות, מלפפון
+יחידות: חסה
+אריזה: נענע`
+  },
+  fishAndSea: {
+    name: "דגים וים 🐟🍣",
+    example: `ק"ג: פילה לברק, סלמון טרי
+אריזות: סיגר דגים`
+  },
+  meatAndPoultry: {
+    name: "בשר🥩, עוף 🍗",
+    example: `ק"ג: חזה עוף, אנטריקוט
+ארגזים: מינוט סטייק`
+  },
+  dairyEggsBread: {
+    name: "מוצרי חלב 🧀, ביצים 🥚",
+    example: `ק"ג: גבינת פרמזן
+תבניות: ביצים
+אריזות: לחמניות, לחם`
+  },
+  dryCannedSpices: {
+    name: "יבשים 🫘, שימורים",
+    example: `יחידות: רסק עגבניות
+שקיות: פפריקה
+אריזות: חומוס גרגרים`
+  },
+  frozenSemiReady: {
+    name: "🥟 קפואים ❄️, חצי מוכנים",
+    example: `ארגזים: פסטה טרייה קפואה
+קופסאות: תירס גמדי
+שקיות: פירה קפוא`
+  },
+  drinksAlcohol: {
+    name: "משקאות 🥤, אלכוהול 🍷",
+    example: `בקבוקים: ג’ק דניאלס
+חביות: בירה ויינשטפן
+ארגזים: קוקה קולה`
+  },
+  disposablesPackaging: {
+    name: 'חד"פ 🍽️, אריזות 📦',
+    example: `אריזות: קופסאות טייק אוויי, סכו\"ם חד פעמי
+גלילים: שקיות ניילון`
+  },
+  cleaningMaintenance: {
+    name: "🧼 חומרי ניקוי 🧽, תחזוקה",
+    example: `בקבוקים: סבון כלים
+ג’ריקנים: אקונומיקה
+אריזות: נייר סופג`
+  },
+  operationalEquipment: {
+    name: "🛠️ ציוד תפעולי ⚙️, כלים",
+    example: `יחידות: מצקת נירוסטה, מגש הגשה
+לפי סוג וגודל: גסטרונומים`
+  }
 };
 
 // Helper object to get days of the week in Hebrew
@@ -30,102 +136,6 @@ export const WEEKDAYS_DICT: Record<string, string> = {
   sat: 'שבת'
 };
 
-// Product templates organized by category for faster setup
-export const CATEGORY_PRODUCTS: Record<string, Array<Partial<Product>>> = {
-  vegetables: [
-    { name: "עגבניות", emoji: "🍅", unit: "kg" },
-    { name: "מלפפונים", emoji: "🥒", unit: "kg" },
-    { name: "חסה", emoji: "🥬", unit: "pcs" },
-    { name: "בצל", emoji: "🧅", unit: "kg" },
-    { name: "תפוחי אדמה", emoji: "🥔", unit: "kg" },
-    { name: "גזר", emoji: "🥕", unit: "kg" },
-    { name: "קוביות ירוקות", emoji: "🥒", unit: "kg" },
-    { name: "פלפל אדום", emoji: "🌶️", unit: "kg" }
-  ],
-  fruits: [
-    { name: "תפוחים", emoji: "🍎", unit: "kg" },
-    { name: "בננות", emoji: "🍌", unit: "kg" },
-    { name: "תפוזים", emoji: "🍊", unit: "kg" },
-    { name: "לימונים", emoji: "🍋", unit: "kg" },
-    { name: "אבוקדו", emoji: "🥑", unit: "pcs" }
-  ],
-  meats: [
-    { name: "חזה עוף", emoji: "🍗", unit: "kg" },
-    { name: "כנפיים עוף", emoji: "🍗", unit: "kg" },
-    { name: "בשר בקר", emoji: "🥩", unit: "kg" },
-    { name: "כבש", emoji: "🐑", unit: "kg" },
-    { name: "נקניקיות", emoji: "🌭", unit: "kg" }
-  ],
-  fish: [
-    { name: "סלמון", emoji: "🍣", unit: "kg" },
-    { name: "דניס", emoji: "🐟", unit: "kg" },
-    { name: "לברק", emoji: "🐟", unit: "kg" },
-    { name: "טונה", emoji: "🍣", unit: "kg" }
-  ],
-  dairy: [
-    { name: "חלב", emoji: "🥛", unit: "l" },
-    { name: "גבינה לבנה", emoji: "🧀", unit: "kg" },
-    { name: "גבינה צהובה", emoji: "🧀", unit: "kg" },
-    { name: "יוגורט", emoji: "🥛", unit: "pcs" },
-    { name: "שמנת", emoji: "🥛", unit: "l" },
-    { name: "חמאה", emoji: "🧈", unit: "kg" }
-  ],
-  alcohol: [
-    { name: "יין אדום", emoji: "🍷", unit: "bottle" },
-    { name: "יין לבן", emoji: "🥂", unit: "bottle" },
-    { name: "בירה", emoji: "🍺", unit: "bottle" },
-    { name: "וודקה", emoji: "🍸", unit: "bottle" },
-    { name: "וויסקי", emoji: "🥃", unit: "bottle" }
-  ],
-  eggs: [
-    { name: "ביצים גדולות", emoji: "🥚", unit: "pcs" },
-    { name: "ביצים קטנות", emoji: "🥚", unit: "pcs" },
-    { name: "ביצי חופש", emoji: "🥚", unit: "pcs" }
-  ],
-  oliveOil: [
-    { name: "שמן זית", emoji: "🫒", unit: "l" },
-    { name: "שמן זית כתית", emoji: "🫒", unit: "l" },
-    { name: "שמן חמניות", emoji: "🌻", unit: "l" }
-  ],
-  disposables: [
-    { name: "כוסות פלסטיק", emoji: "🥤", unit: "pack" },
-    { name: "צלחות חד פעמי", emoji: "🍽️", unit: "pack" },
-    { name: "מפיות", emoji: "🧻", unit: "pack" },
-    { name: "שקיות", emoji: "🛍️", unit: "pack" }
-  ],
-  desserts: [
-    { name: "עוגת שוקולד", emoji: "🍰", unit: "pcs" },
-    { name: "גלידה", emoji: "🍦", unit: "l" },
-    { name: "פירות קצופים", emoji: "🍓", unit: "pcs" },
-    { name: "עוגיות", emoji: "🍪", unit: "pcs" }
-  ],
-  juices: [
-    { name: "מיץ תפוזים", emoji: "🧃", unit: "l" },
-    { name: "מיץ תפוחים", emoji: "🧃", unit: "l" },
-    { name: "מיץ ענבים", emoji: "🧃", unit: "l" },
-    { name: "לימונדה", emoji: "🍋", unit: "l" }
-  ]
-};
-
-export const UNITS_DICT: Record<string, string> = {
-  kg: "ק\"ג",
-  g: "גרם",
-  l: "ליטר",
-  ml: "מיליליטר",
-  mg: "מיליגרם",
-  pcs: "יחידות",
-  box: "קופסאות",
-  pkg: "חבילות",
-  unit: "יח'",
-  bag: "שק",
-  barrel: "חבית",
-  jar: "צנצנת",
-  bottle: "בקבוק",
-  can: "פחית",
-  pack: "אריזה",
-  packet: "חבילה",
-  other: "אחר",
-};
 
 // Categories list for validation
 export const CATEGORY_LIST = ['vegetables', 'fruits', 'meats', 'fish', 'dairy', 'alcohol', 'eggs', 'oliveOil', 'disposables', 'desserts', 'juices'];
@@ -160,64 +170,11 @@ const getRandomRestaurant = (): RandomRestaurant => {
 }
 
 
-// Bot categories with emoji representation
-export const getCategoryName = (key: string): string => {
-  return CATEGORIES_DICT[key] ? `${CATEGORIES_DICT[key].name} ${CATEGORIES_DICT[key].emoji}` : key;
-};
-
-
-// Helper function to format supplier categories as a list with emojis
-export const formatCategoryList = (excludeCategories: string[] = []): string => {
-  return CATEGORY_LIST
-    .filter(id => !excludeCategories.includes(id))
-    .map((id, index) => {
-      const { name, emoji } = CATEGORIES_DICT[id];
-      return `${index + 1}. ${emoji} ${name}`;
-    })
-    .join('\n');
-};
-
-// Helper function to get available categories excluding already selected ones
-export const getAvailableCategories = (excludeCategories: string[] = []): Array<{name: string, id: string}> => {
-  return CATEGORY_LIST
-    .filter(id => !excludeCategories.includes(id))
-    .map(id => {
-      const { name, emoji } = CATEGORIES_DICT[id];
-      return { name: `${emoji} ${name}`, id };
-    });
-};
-
-// Helper function to get products for multiple categories
-export const getProductsForCategories = (categories: SupplierCategory[]): Array<Partial<Product>> => {
-  return categories.flatMap(category => 
-    (CATEGORY_PRODUCTS[category] || []).map(product => ({
-      name: product.name,
-      emoji: product.emoji,
-      unit: product.unit,
-    }))
-  );
-};
-
-// Helper function to format products as WhatsApp options, excluding already selected ones
-export const formatProductOptions = (categories: SupplierCategory[], excludeProducts: string[] = []): Array<{name: string, id: string}> => {
-  const products = getProductsForCategories(categories);
-  const filteredProducts = products.filter(product => 
-    !excludeProducts.some(excluded => excluded === product.name)
-  );
-  
-  return filteredProducts.map((product, index) => ({
-    name: `${product.emoji} ${product.name} (${product.unit})`,
-    id: `${product.name}, ${product.unit}`
-  }));
-};
-
-
-
 /**
  * Main state machine messages mapping
  * Each key corresponds to a value from BotState enum
  */
-export const stateObject: (conversation: Conversation, result?: StateReducerResult) => StateObject = (conversation, result) => {
+export const stateObject: (conversation: Conversation) => StateObject = (conversation) => {
   const { currentState } = conversation;
   let stateObject: StateObject;
   try {
@@ -230,13 +187,15 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
             id: "init_template",
             sid: 'HX397f201cb42563786ffbba32d3838932',
             type: "button",
-            body: `🍽️ *ברוכים הבאים ל ✨ P-vot ✨, מערכת ניהול המלאי וההזמנות!*
-            בכמה צעדים פשוטים נרשום את המסעדה שלך ונגדיר את הספקים והזמנות המומלצות עבורך.
+            body: `🍽️ *ברוכים הבאים ל ✨ P-vot ✨, מערכת ניהול מלאי והזמנות למסעדות!*
+            בכמה צעדים פשוטים נרשום את המסעדה שלך ונגדיר את הספקים והמוצרים שלך (פעם אחת).
+            לאחר מכן תוכל להתחיל לנהל את ההזמנות שלך מול הספקים בקלות וביעילות 😊.
+            
             בחר מה ברצונך לעשות:`,
             options: [
               { name: "📋 רישום מסעדה חדשה", id: "new_restaurant" },
             ...(conversation.context?.isSimulator ? [{ name: "⚡ רישום מסעדה מהיר (סימולטור)", id: "new_restaurant_fast" }] : []),
-              { name: "❓ עזרה והסבר", id: "help" }
+              { name: "❓ שאלות והסבר", id: "help" }
             ]
           },
           description: "Initial greeting when a new user contacts the bot. Offers basic navigation options.",
@@ -410,7 +369,8 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
         stateObject = {
           message: `⏳ *בהמתנה לאישור תשלום*
           ניתן לשלם בקישור הבא:
-          {paymentLink} 
+          https://payment.example.com
+
           לאחר השלמת התשלום, נמשיך בהגדרת המערכת.`,
           description: "Wait for payment confirmation before proceeding with setup."
         };
@@ -430,7 +390,7 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
             מוכנים להתחיל?`,
             options: [
               { name: "כן, בואו נתחיל ✨", id: "start_supplier" },
-              { name: "לא כרגע", id: "postpone" }
+              // { name: "לא כרגע", id: "postpone" }
             ]
           },
           description: "Initial prompt to begin supplier setup process.",
@@ -447,10 +407,10 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
             id: "supplier_setup_additional_template",
             sid: 'HX0ba222120174fc1dcea74419b842bdec',
             type: "button",
-            body: "🏪 *האם יש עוד ספקים שתרצו להגדיר?*",
+            body: "🚚 *האם יש עוד ספקים שתרצו להגדיר?*",
             options: [
               { name: "הגדרת ספק נוסף", id: "add_supplier" },
-              { name: "לא כרגע", id: "finished" }
+              { name: "סיום הגדרת ספקים", id: "finished" }
             ]
           },
           description: "Ask for more suppliers to be added after the initial setup.",
@@ -460,7 +420,7 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
               name: context.supplierName,
               whatsapp: context.supplierWhatsapp,
               categories: context.supplierCategories,
-              reminders: context.supplierReminders,
+              cutoff: context.supplierCutoff,
               products: context.supplierProducts
             }]
             delete context.supplierName;
@@ -482,24 +442,27 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
         stateObject = {
           whatsappTemplate: {
             id: "restaurant_finished_template",
-            sid: "HX7b36caa14a30424eaeb1a368d9ce1c03",
-            type: "text",
+            sid: "HX86077bc9bc804d0f5dd176e164b41b88",
+            type: "button",
             contentVariables:JSON.stringify({
-              '1': conversation.context?.restaurantName || 'שלך',
+              '1': conversation.context?.restaurantName.slice(0, 24) || 'שלך',
             }),
+            options: [
+              { name: "לצפייה בתפריט", id: "menu" }
+            ],
             body: `🎉 *הגדרת המסעדה {restaurantName} הושלמה!*
             תודה על שהקדשתם זמן להגדיר את המסעדה שלכם. כעת תוכלו להתחיל להשתמש במערכת לניהול המלאי וההזמנות שלכם.
             כתבו "תפריט" כדי לראות את האפשרויות הזמינות`,
           },
           description: "Final message indicating the restaurant setup is complete.",
-          validator: textSchema,
           callback: (context, data) => {
             if (context.dataToApprove) {
               delete context.dataToApprove;
             }
           },
           nextState: {
-            success: "IDLE"
+            success: "IDLE",
+            menu: 'IDLE'
           }
         };
         break;
@@ -509,52 +472,78 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
         stateObject = {
           whatsappTemplate: {
             id: "supplier_category_template",
-            sid: 'HX284aa3db82ae7c6298ff6f49a51a8f5c',
+            sid: 'HX0c07d92e700b312744b4684c59fda1d1',
             type: "list",
             contentVariables: JSON.stringify({
-              '1': `${CATEGORIES_DICT.vegetables.name} ${CATEGORIES_DICT.vegetables.emoji}`,
-              '2': 'vegetables',
-              '3': `${CATEGORIES_DICT.fruits.name} ${CATEGORIES_DICT.fruits.emoji}`,
-              '4': 'fruits',
-              '5': `${CATEGORIES_DICT.meats.name} ${CATEGORIES_DICT.meats.emoji}`,
-              '6': 'meats',
-              '7': `${CATEGORIES_DICT.fish.name} ${CATEGORIES_DICT.fish.emoji}`,
-              '8': 'fish',
-              '9': `${CATEGORIES_DICT.dairy.name} ${CATEGORIES_DICT.dairy.emoji}`,
-              '10': 'dairy',
-              '11': `${CATEGORIES_DICT.alcohol.name} ${CATEGORIES_DICT.alcohol.emoji}`,
-              '12': 'alcohol',
-              '13': `${CATEGORIES_DICT.eggs.name} ${CATEGORIES_DICT.eggs.emoji}`,
-              '14': 'eggs',
-              '15': `${CATEGORIES_DICT.oliveOil.name} ${CATEGORIES_DICT.oliveOil.emoji}`,
-              '16': 'oliveOil',
-              '17': `${CATEGORIES_DICT.disposables.name} ${CATEGORIES_DICT.disposables.emoji}`,
-              '18': 'disposables',
-              '19': `${CATEGORIES_DICT.desserts.name} ${CATEGORIES_DICT.desserts.emoji}`,
-              '20': 'desserts',
-              '21': `${CATEGORIES_DICT.juices.name} ${CATEGORIES_DICT.juices.emoji}`,
-              '22': 'juices'
+              ...Object.entries(CATEGORIES_DICT)
+              .slice(0, 10)
+              .reduce((acc, [key, cat], idx) => {
+                acc[(idx + 1).toString()] = cat.name.slice(0, 24);
+                return acc;
+              }, {} as Record<string, string>),
+              // 10: "קטגוריה אחרת"
             }),
             body: `🚚 *הגדרת ספק חדש למסעדה*
-            בחרו קטגוריה לספק זה מתוך האפשרויות , *או* כתבו את שם הקטגוריה.
+      בחרו קטגוריה לספק זה מתוך האפשרויות
 
-            💡 במידה והספק אחראי על יותר מקטגוריה אחת, ניתן לכתוב מספר קטגוריות מופרדות בפסיק`,
+      אם הקטגוריה אינה מופיעה ברשימה - ניתן לכתוב אותה במילים.`,
             options: [
-              // Will be dynamically populated with categories options, deducting already selected categories
-            ...Object.entries(CATEGORIES_DICT).map(([id, name]) => ({ id, name: `${name.name}  ${name.emoji}` }))
+              ...Object.entries(CATEGORIES_DICT).map(([id, cat]) => ({
+          id,
+          name: cat.name
+              })).slice(0, 10),
+              {
+                name: "קטגוריה אחרת",
+                id: "קטגוריה אחרת"
+              }
             ]
           },
-          description: "list to select one or more supplier categories from available list or write a new category.",
-          aiValidation: {
-            prompt: "עליך לבקש מהמשתמש לבחור קטגוריה (או כמה קטגוריות) לספק הנוכחי מתוך רשימת הקטגוריות המוצעות או לכתוב קטגוריה חדשה.",
-            schema: SupplierSchema.pick({ category: true })
-          },
+          description: "list to select one or more supplier categories from available list.",
           validator: SupplierSchema.pick({ category: true }),
           callback: (context, data) => {
             context.supplierCategories = data.category || [];
           },
           nextState: {
-            user_confirmed: "SUPPLIER_CONTACT"
+            success: "SUPPLIER_CONTACT",
+            ["קטגוריה אחרת"]: "SUPPLIER_CATEGORY2"
+          }
+        };
+        break;
+      }
+      case "SUPPLIER_CATEGORY2": {
+        stateObject = {
+          whatsappTemplate: {
+            id: "supplier_category_template",
+            sid: 'HX0c07d92e700b312744b4684c59fda1d1',
+            type: "list",
+            contentVariables: JSON.stringify({
+              ...Object.entries(CATEGORIES_DICT)
+              .slice(9, 17)
+              .reduce((acc, [key, cat], idx) => {
+                acc[(idx + 1).toString()] = cat.name.slice(0, 24);
+                return acc;
+              }, {} as Record<string, string>),
+            }),
+            body: `🚚 *הגדרת ספק חדש למסעדה*
+בחרו קטגוריה לספק זה מתוך האפשרויות
+
+אם הקטגוריה אינה מופיעה ברשימה - ניתן לכתוב אותה במילים.
+אם יש מספר קטגוריות, ניתן לכתוב אותם מופרדות בפסיק - למשל:
+מוצרי חלב 🧀, ביצים 🥚, תבלינים 🌶️`,
+            options: [
+              ...Object.entries(CATEGORIES_DICT).map(([id, cat]) => ({
+          id,
+          name: cat.name
+              })).slice(9,15)
+            ]
+          },
+          description: "list to select one or more supplier categories from available list.",
+          validator: SupplierSchema.pick({ category: true }),
+          callback: (context, data) => {
+            context.supplierCategories = data.category || [];
+          },
+          nextState: {
+            success: "SUPPLIER_CONTACT",
           }
         };
         break;
@@ -563,11 +552,12 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
       case "SUPPLIER_CONTACT": {
         stateObject = {
           message: `👤 *מה שם ומספר הוואטסאפ של הספק?*
-          
-          לדוגמה: ירקות השדה, 0501234567`,
-          description: "Ask for the supplier's name and phone number.",
+ניתן לשתף איש קשר בוואטסאפ או לכתוב את הפרטים כאן
+
+לדוגמה: ירקות השדה, 0501234567`,
+          description: "Ask for the supplier's name and phone number. If provided with country code or with dash ('-'), change to unified format 05XXXXXXXXX.",
           aiValidation: {
-            prompt: "עליך לשאול את המשתמש מה השם ומספר הוואטסאפ של הספק הנוכחי.",
+            prompt: "עליך לשאול את המשתמש מה השם ומספר הוואטסאפ של הספק הנוכחי. אם המספר כולל קידומת מדינה או מקף ('-'), יש לשנות אותו לפורמט אחיד 05XXXXXXXXX.",
             schema: SupplierSchema.pick({ name: true, whatsapp: true })
           },
           validator: SupplierSchema.pick({ name: true, whatsapp: true }),
@@ -576,13 +566,13 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
             context.supplierWhatsapp = data.whatsapp;
           },
           nextState: {
-            user_confirmed: "SUPPLIER_REMINDERS"
+            user_confirmed: "SUPPLIER_CUTOFF"
           }
         };
         break;
       }
       
-      case "SUPPLIER_REMINDERS": {
+      case "SUPPLIER_CUTOFF": {
         stateObject = {
           whatsappTemplate: {
             id: "supplier_reminders_template",
@@ -608,13 +598,13 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
             ]
           },
           description: "Capture the supplier order cutoff times to properly schedule reminders before deadlines. You should collect the days and times when the supplier stops accepting orders. Reminders will be set based on this information.",
-          validator: SupplierSchema.pick({ reminders: true }),
+          validator: SupplierSchema.pick({ cutoff: true }),
           aiValidation: {
             prompt: "עליך לבקש מהמשתמש לציין את זמני הסגירה המדויקים (cut-off) של הספק - היום והשעה האחרונים שבהם ניתן לשלוח הזמנות. המערכת תשתמש במידע זה לתזכר את המשתמש לפני מועדי הסגירה. אם מציינים 'עד שעה מסוימת', יש להתייחס לזו כשעת הסגירה. לא ניתן להגדיר יותר מזמן סגירה אחד ביום.",
-            schema: SupplierSchema.pick({ reminders: true })
+            schema: SupplierSchema.pick({ cutoff: true })
           },
           callback: (context, data) => {
-            context.supplierReminders = data.reminders;
+            context.supplierCutoff = data.cutoff;
           },
           nextState: {
             user_confirmed: "PRODUCTS_LIST",
@@ -627,18 +617,19 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
         stateObject = {
           description: "Select products from supplier with their units of measurement.",
           message: `📋 *הגדרת מוצרים מהספק*
+🔹 רשמו את רשימת המוצרים ויחידות המידה שלהם:
 
-          🔹 רשמו את רשימת המוצרים ויחידות המידה שלהם:
-          
-          📝 *לדוגמה:*
-          ק"ג: עגבניות, מלפפון, בצל 
-          יח': חסה, כרוב, פלפל
-          ארגז: תפוחים, בננות`,
+📝 *לדוגמה:*
+${Object.values(CATEGORIES_DICT).find((cat) => (cat.name.includes(conversation.context?.supplierCategories[0])))?.example.trim() || 
+`ק"ג: עגבניות, מלפפון, בצל 
+יח': חסה, כרוב, פלפל
+ארגז: תפוחים, בננות`}`,
           aiValidation: {
             prompt: `עליך לעזור למשתמש לרשום רשימת מוצרים ויחידות מידה מהספק. השלם פרטים חסרים לפי הסביר ביותר.
-            אם לא צוינו יחידות מידה, הנח יחידות סטנדרטיות למוצר.
-            הנחה את המשתמש להשתמש רק ביחידות תקניות (לדוגמה: ק"ג, גרם, פחית, בקבוק, חבית, ליטר, יח', חבילה, ארגז) או "אחר".
-            יש לאסוף ולהציג מידע על המוצרים ויחידות המידה שלהם בלבד! אם הלקוח שיתף מידע נוסף, יש להתעלם ממנו.`,
+            אם לא צוונו יחידות מידה, הנח יחידות סטנדרטיות למוצר.
+            הנחה את המשתמש להעדיף להשתמש ביחידות תקניות (לדוגמה: ק"ג (ולא קילוגרם), גרם, פחית, בקבוק, חבית, ליטר, יח', חבילה, ארגז, שקית, קופסה וכו'.) או "אחר".
+            יש לאסוף ולהציג נתונים על המוצרים (שם ולידו אימוג'י) ויחידות המידה שלהם בלבד! אם הלקוח שיתף מידע נוסף (למשל כמויות), יש להתעלם ממנו בשלב זה.
+            את התשובה יש להחזיר בצורה ברורה ותמיד לכלול את שם המוצר, האימוג'י שלו והיחידות שלו.`,
             schema: z.array(ProductSchema.pick({ name: true, unit: true, emoji: true }))
           },
           validator: z.array(ProductSchema.pick({ name: true, unit: true, emoji: true })),
@@ -656,13 +647,19 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
       case "PRODUCTS_BASE_QTY": {
         stateObject = {
           message:  `📦 *הגדרת מצבת בסיס למוצרים*
-            כדי שנוכל ליעל את תהליך ההזמנה, נגדיר כמות בסיס לכל מוצר. כמות זו תעזור לנו לחשב את ההזמנה המומלצת שלך אוטומטית.
-            עבור כל מוצר, הזן את הכמות הבסיסית הנדרשת למסעדה לאמצע שבוע, ואת הכמות הנדרשת לסוף שבוע בפורמט:
-            *[שם מוצר] - [כמות אמצע שבוע], [כמות סוף שבוע]*
-           
-            ניתן להעתיק את הרשימה ולמלא כמויות בהתאם:
-            ${conversation.context.supplierProducts.map((product : any) => `*${product.name}(${UNITS_DICT[product.unit] || product.unit})* - `).join("\n") }
-            `,
+כדי שנוכל ליעל את תהליך ההזמנה, נגדיר כמות בסיס לכל מוצר. כמות זו תעזור לנו לחשב את ההזמנה המומלצת שלך באופן אוטומטי.
+עבור כל מוצר, הזן את הכמות הבסיסית הנדרשת למסעדה לאמצע שבוע, ואת הכמות הנדרשת לסוף שבוע
+
+ניתן לפרט בכתב בצורה ברורה או להעתיק את הרשימה ולמלא כמויות בהתאם:`,
+
+          message2: `${conversation.context.supplierProducts.map((product : any, index:number) => `- *${product.name}(${product.unit})*: `).join(`
+אמצע שבוע - 
+סוף שבוע -
+-----------------
+`)}
+אמצע שבוע - 
+סוף שבוע - 
+`,
           description: "Iterate over the defined products and ask for their base quantity in the specified unit, for midweek and for weekend.",
           aiValidation: {
             prompt: "עליך לבקש מהמשתמש להזין את הכמות הבסיסית הנדרשת ליחידה אחת של כל מוצר ברשימה, עבור כל מוצר יש להזין כמות בסיס לשימוש באמצע השבוע ובסוף השבוע.",
@@ -684,98 +681,6 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
       }
       
       
-      // === INVENTORY SNAPSHOT STATES === //
-      
-      case "INVENTORY_SNAPSHOT_START": {
-        stateObject = {
-          whatsappTemplate: {
-            id: "TEMPLATE_SNAPSHOT_START",
-            type: "button",
-            body: "📦 *עדכון מלאי*\n\nהגיע הזמן לעדכן את מצב המלאי במסעדה. נעבור על הפריטים לפי קטגוריות.\n\nמוכנים להתחיל?",
-            options: [
-              { name: "התחל עדכון מלאי", id: "start" },
-              { name: "דחה לזמן אחר", id: "postpone" }
-            ]
-          },
-          description: "Prompt to begin inventory snapshot process.",
-          validationMessage: "❌ אנא בחר אחת מהאפשרויות."
-        };
-        break;
-      }
-      
-      case "INVENTORY_SNAPSHOT_CATEGORY": {
-        stateObject = {
-          whatsappTemplate: {
-            id: "TEMPLATE_SNAPSHOT_CATEGORY",
-            type: "list",
-            body: "🔍 *בחר קטגוריה לעדכון מלאי*\n\nבחר את הקטגוריה שברצונך לעדכן:",
-            options: [] // Will be dynamically populated with actual categories
-          },
-          description: "Select which category of products to update inventory for.",
-          validationMessage: "❌ אנא בחר קטגוריה תקינה מהרשימה."
-        };
-        break;
-      }
-      
-      case "INVENTORY_SNAPSHOT_PRODUCT": {
-        stateObject = {
-          message: "📋 *עדכון מלאי - {categoryName}*\n\nהמוצרים בקטגוריה זו:\n{productList}\n\nבחר מספר מוצר או הקלד 'הבא' למוצר הבא:",
-          description: "Show products in selected category and prompt user to choose one to update.",
-          validationMessage: "❌ אנא בחר מספר מוצר תקין מהרשימה או הקלד 'הבא'.",
-          // validator: "selection"
-        };
-        break;
-      }
-      
-      case "INVENTORY_SNAPSHOT_QTY": {
-        stateObject = {
-          message: "📊 *כמה {productName} יש במלאי כרגע?*\n\nהזן כמות בpcs {unit}:",
-          description: "Ask for current stock quantity of the selected product.",
-          validationMessage: "❌ אנא הזן מספר תקין גדול או שווה ל-0.",
-          // validator: "number"
-        };
-        break;
-      }
-      
-      case "INVENTORY_CALCULATE_SNAPSHOT": {
-        stateObject = {
-          whatsappTemplate: {
-            id: "TEMPLATE_CALCULATE_RESULTS",
-            type: "card",
-            header: {
-              type: "text",
-              text: "📊 סיכום מלאי והזמנה מומלצת"
-            },
-            body: "✅ *עדכון המלאי הושלם!*\n\nהמערכת חישבה את ההזמנה המומלצת עבורך לפי פערי המלאי:\n\n{shortagesSummary}\n\nהאם ברצונך ליצור הזמנה לפי המלצה זו?",
-            options: [
-              { name: "כן, צור הזמנה", id: "create_order" },
-              { name: "לא תודה", id: "skip_order" }
-            ]
-          },
-          description: "Show inventory calculation results and prompt whether to create order.",
-          validationMessage: "❌ אנא בחר אחת מהאפשרויות."
-        };
-        break;
-      }
-      
-      // === ORDER MANAGEMENT STATES === //
-      
-      case "ORDER_SETUP_START": {
-        stateObject = {
-          whatsappTemplate: {
-            id: "TEMPLATE_ORDER_SETUP",
-            type: "list",
-            body: "🛒 *יצירת הזמנה חדשה*\n\nבחר את הספק להזמנה:",
-            options: [
-              // These will be dynamically populated with suppliers from the restaurant
-              { name: "רשימת ספקים תיווצר דינמית", id: "dynamic" }
-            ]
-          },
-          description: "Prompt to choose a supplier to create a new order.",
-          validationMessage: "❌ אנא בחר ספק מהרשימה."
-        };
-        break;
-      }
       
       case "ORDER_CONFIRMATION": {
         stateObject = {
@@ -795,75 +700,20 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
         break;
       }
       
-      case "DELIVERY_START": {
-        stateObject = {
-          whatsappTemplate: {
-            id: "TEMPLATE_DELIVERY_START",
-            type: "button",
-            body: "🚚 *קבלת משלוח מספק {supplierName}*\n\nהגיע הזמן לבדוק את המשלוח שהגיע. נעבור על הפריטים שהוזמנו ונוודא שהכל התקבל כראוי.\n\nמוכנים להתחיל?",
-            options: [
-              { name: "התחל בדיקת משלוח", id: "start" },
-              { name: "דחה לזמן אחר", id: "postpone" }
-            ]
-          },
-          description: "Prompt to begin delivery check process for an incoming order.",
-          validationMessage: "❌ אנא בחר אחת מהאפשרויות."
-        };
-        break;
-      }
-      
-      case "DELIVERY_CHECK_ITEM": {
-        stateObject = {
-          whatsappTemplate: {
-            id: "TEMPLATE_CHECK_ITEM",
-            type: "button",
-            body: "📦 *בדיקת פריט: {productName}*\n\nכמות שהוזמנה: {orderedQty} {unit}\n\nהאם התקבלה הכמות המלאה?",
-            options: [
-              { name: "✅ כן, התקבל במלואו", id: "full" },
-              { name: "⚠️ התקבל חלקית", id: "partial" },
-              { name: "❌ לא התקבל כלל", id: "none" }
-            ]
-          },
-          description: "Check if ordered item was received in full, partially or not at all.",
-          validationMessage: "❌ אנא בחר אחת מהאפשרויות."
-        };
-        break;
-      }
-      
-      case "DELIVERY_RECEIVED_AMOUNT": {
-        stateObject = {
-          message: "🔢 *כמה {productName} התקבלו בפועל?*\n\nהזן את הכמות שהתקבלה בpcs {unit}:",
-          description: "Ask for the actual received quantity of a partially received item.",
-          validationMessage: "❌ אנא הזן מספר תקין גדול או שווה ל-0 וקטן מהכמות שהוזמנה.",
-          // validator: "number"
-        };
-        break;
-      }
-      
-      case "DELIVERY_INVOICE_PHOTO": {
-        stateObject = {
-          message: "📸 *צילום חשבונית*\n\nאנא צלם את החשבונית שקיבלת מהספק ושלח את התמונה כאן.\n\nהתמונה תישמר במערכת לצורך מעקב והתחשבנות.",
-          description: "Request a photo of the invoice for record-keeping.",
-          validationMessage: "❌ לא התקבלה תמונה תקינה. אנא שלח תמונה של החשבונית.",
-          // validator: "photo"
-        };
-        break;
-      }
       
       // === INFO STATE === //
 
       case "RESTAURANT_INFO": {
         stateObject = {
           message: `🏪 *נתוני המסעדה שלך* 📊\n
-            📌 נשמח לעזור לך במידע על המסעדה שלך!\n
-            💬 אפשר לשאול:
-            ▪️ שאלות כלליות על המסעדה
-            ▪️ מידע על ספקים ומוצרים
-            ▪️ נתוני הזמנות והיסטוריה\n
-            ✨ *דוגמאות*:
-            "מהו שם המסעדה שלי?"
-            "מי הספק של הירקות?"
-            "כמה הזמנות ביצעתי החודש?"`,
+📌 נשמח לעזור לך במידע על המסעדה שלך!\n
+💬 אפשר לשאול:
+▪️ שאלות כלליות על המסעדה
+▪️ מידע על ספקים ומוצרים
+▪️ נתוני הזמנות והיסטוריה\n
+✨ *דוגמאות*:
+"מי הספק של הירקות?"
+"כמה הזמנות ביצעתי השבוע?"`,
           description: "Engage with the restaurant information (database). Ask anything about the restaurant, request visual or textual information, get reports and ask how to change data.",
         };
         break;
@@ -872,15 +722,15 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
       case "ORDERS_INFO": {
         stateObject = {
           message: `📊 *נתוני ההזמנות שלך* 🛒\n
-            📌 נשמח לעזור לך במידע על ההזמנות שביצעת!\n
-            💬 אפשר לשאול:
-            ▪️ היסטוריית הזמנות
-            ▪️ דוחות לפי ספקים
-            ▪️ סיכום הזמנות חודשיות\n
-            ✨ *דוגמאות*:
-            "כמה הזמנות ביצעתי החודש?"
-            "כמה פריטים הזמנתי מהספק <שם הספק>?"
-            "מהו הספק של ההזמנה האחרונה שלי?"`,
+📌 נשמח לעזור לך במידע על ההזמנות שביצעת!\n
+💬 אפשר לשאול:
+▪️ היסטוריית הזמנות
+▪️ דוחות לפי ספקים
+▪️ סיכום הזמנות חודשיות\n
+✨ *דוגמאות*:
+"כמה הזמנות ביצעתי השבוע?"
+"כמה פריטים הזמנתי מהספק <שם הספק>?"
+"מהי ההזמנה האחרונה שלי?"`,
           description: "Engage with the orders information (database). Ask anything about the orders, request visual or textual information, get reports and ask how to change data.",
         };
         break;
@@ -894,9 +744,9 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
         stateObject = {
           whatsappTemplate: {
             id: "template_idle_menu",
-            sid: 'HX89e737deef1421fe099e202051d36f41',
+            sid: 'HXc0ecb0654f70646086691d2dfc0d6ee3',
             contentVariables: JSON.stringify({
-              '1': conversation.context?.contactName || "",
+              '1': conversation.context?.contactName.split(" ")[0] || "",
               }),
             type: "list",
             body: "👋 *שלום {contactName}!*\n\nמה תרצה לעשות היום?\n\nבחר אחת מהאפשרויות:",
@@ -944,28 +794,3 @@ export const stateObject: (conversation: Conversation, result?: StateReducerResu
   }
   return stateObject;
 }
-
-/*
- * Configuration constants for bot behavior
- * These can be uploaded to Firestore for dynamic configuration
- */
-export const BOT_CONFIG: BotConfig = {
-  // Reminder intervals in hours
-  inventoryReminderInterval: 24, // Daily reminders
-  orderCutoffReminderHours: 3, // 3 hours before cutoff
-  
-  // Default supplier categories in order
-  supplierCategories:  [
-    "vegetables", "fish", "alcohol", "meats", "fruits", 
-    "oliveOil", "disposables", "desserts", "juices", "eggs"
-  ],
-
-  showPaymentLink: true, // Show payment link after registration
-
-  paymentLink: 'https://payment.example.com/restaurant/',
-  skipPaymentCoupon: 'try14', // Coupon to skip payment
-  
-  // Payment options
-  paymentMethods: ["creditCard", "googlePay"],
-  
-  };

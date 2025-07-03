@@ -7,7 +7,6 @@ import { Conversation, IncomingMessage, Message, Order, Restaurant } from "./sch
 import { validateTwilioWebhook, sendWhatsAppMessage, fetchContactFromVCard, normalizePhoneNumber } from "./utils/twilio";
 import { getCollectionName, getRestaurant } from "./utils/firestore";
 import { ConversationSchema } from "./schema/schemas";
-import { UNITS_DICT } from "./schema/states";
 
 // Initialize Firebase Admin only if not already initialized
 if (!admin.apps?.length) {
@@ -344,7 +343,7 @@ async function sendOrderRequestNotifications(order: Order, restaurant: Restauran
 `;
       // Add ordered items
       order.items.forEach((item: any) => {
-        supplierMessage += `${item.emoji} ${item.name}: ${item.qty} ${UNITS_DICT[item.unit] || item.unit}\n`;
+        supplierMessage += `${item.emoji} ${item.name}: ${item.qty} ${item.unit}\n`;
       });
 
       supplierMessage += `\nהערות: ${order.restaurantNotes || 'אין'}
@@ -407,7 +406,7 @@ async function sendOrderConfirmationNotifications(order: Order, restaurant: Rest
 
       // Add ordered items
       order.items.forEach((item: any) => {
-        supplierMessage += `${item.emoji} ${item.name}: ${item.qty} ${UNITS_DICT[item.unit] || item.unit}\n`;
+        supplierMessage += `${item.emoji} ${item.name}: ${item.qty} ${item.unit}\n`;
       });
       
       supplierMessage += `\nהערות: ${order.restaurantNotes || 'אין'}

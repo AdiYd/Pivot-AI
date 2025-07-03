@@ -26,7 +26,7 @@
  *         ├─ role: "supplier"              // Always "supplier"
  *         ├─ email: string (optional)
  *         ├─ category: string[]          // Array of supplier categories
- *         ├─ reminders: Reminder[]      // Array of reminders e.g. [{ day: "sun", time: "20:00" }]
+ *         ├─ cutoff: Cutoff[]      // Array of cutoff times e.g. [{ day: "sun", time: "20:00" }]
  *         ├─ rating: number            // 0-5
  *         ├─ createdAt: Timestamp
  *         └─ updatedAt: Timestamp

@@ -19,7 +19,7 @@ if (!admin.apps?.length) {
 export const firestore = admin.firestore();
 // Enable ignoreUndefinedProperties to handle undefined fields gracefully
 firestore.settings({
-  // ignoreUndefinedProperties: true
+  ignoreUndefinedProperties: true
 });
 console.log(`[Firestore] Initialized Firestore with project ID: ${firestore.databaseId}`);
 
@@ -660,8 +660,9 @@ export async function getOrdersDatafromDb(
       .collection(ordersCollectionName)
       .where('restaurant.legalId', '==', restaurantId)
       .orderBy('createdAt', 'desc')
+      .limit(20)
       .get();
-    
+
     if (ordersSnapshot.empty) {
       console.log(`[Firestore] No orders found for restaurant ID: ${restaurantId}`);
       return { orders: [], stats: { totalOrders: 0 } };

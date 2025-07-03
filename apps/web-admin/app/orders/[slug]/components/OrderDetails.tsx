@@ -2,7 +2,7 @@
 
 import { Order, Restaurant, Supplier } from '@/schema/types';
 import { motion } from 'framer-motion';
-import { CATEGORIES_DICT, UNITS_DICT } from '@/schema/states';
+import { CATEGORIES_DICT } from '@/schema/states';
 import { Calendar, Check, Download, Phone, Mail, ArrowLeft, Loader } from 'lucide-react';
 import { Button } from '@/components/ui';
 import Link from 'next/link';
@@ -197,7 +197,7 @@ export default function OrderDetails({ order }: OrderDetailsProps) {
                     </div>
                   </td>
                   <td className="p-3 font-medium">{item.qty}</td>
-                  <td className="p-3">{UNITS_DICT[item.unit] || item.unit}</td>
+                  <td className="p-3">{item.unit}</td>
                 </tr>
               ))}
             </tbody>

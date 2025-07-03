@@ -153,12 +153,7 @@ export async function processActions(
             throw validationError;
           }
           break;
-
-        case "SEND_ORDER":
-          // TODO: Implement order sending logic with Zod validation and simulator support
-          console.log(`[BotActions] SEND_ORDER action ${isSimulator ? '(simulator)' : ''} not yet implemented`, action.payload);
-          break;
-
+          
         case "LOG_DELIVERY":
           // TODO: Implement delivery logging logic with Zod validation and simulator support
           console.log(`[BotActions] LOG_DELIVERY action ${isSimulator ? '(simulator)' : ''} not yet implemented`, action.payload);

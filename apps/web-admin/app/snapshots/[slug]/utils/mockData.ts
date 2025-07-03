@@ -36,7 +36,7 @@ export const mockRestaurant = {
       role: 'supplier',
       email: 'produce@example.com',
       category: ['vegetables', 'fruits'],
-      reminders: [
+      cutoff: [
         { day: 'sun', time: '10:00' },
         { day: 'wed', time: '10:00' }
       ],
@@ -70,7 +70,7 @@ export const mockRestaurant = {
       whatsapp: '0502345678',
       role: 'supplier',
       category: ['meats'],
-      reminders: [
+      cutoff: [
         { day: 'mon', time: '12:00' }
       ],
       rating: 5,

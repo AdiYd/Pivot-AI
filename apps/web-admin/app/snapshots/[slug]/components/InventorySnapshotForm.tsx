@@ -19,7 +19,6 @@ import {
   Moon
 } from 'lucide-react';
 import { getCategoryBadge } from '@/components/ui/badge';
-import { UNITS_DICT } from '@/schema/states';
 
 interface InventorySnapshotFormProps {
   restaurant: Restaurant;
@@ -418,7 +417,7 @@ export default function InventorySnapshotForm({
                             </div>
                             {/* Show par level */}
                             <div className="text-xs text-muted-foreground mt-0.5">
-                              בסיס: {parLevel} {UNITS_DICT[product.unit] || product.unit}
+                              בסיס: {parLevel} {product.unit}
                             </div>
                           </div>
                           <div className='flex flex-col gap-1'>
@@ -442,7 +441,7 @@ export default function InventorySnapshotForm({
                                 inputMode="decimal"
                               />
                               <span className="mr-1 mt-2 text-xs text-muted-foreground">
-                                {UNITS_DICT[product.unit] || product.unit}
+                                {product.unit}
                               </span>
                             </div>
                           </div>
@@ -504,7 +503,7 @@ export default function InventorySnapshotForm({
                                   inputMode="decimal"
                                 />
                               </td>
-                              <td className="p-2 text-center text-xs">{UNITS_DICT[product.unit] || product.unit}</td>
+                              <td className="p-2 text-center text-xs">{product.unit}</td>
                             </motion.tr>
                           );
                         })}

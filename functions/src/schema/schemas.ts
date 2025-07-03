@@ -6,8 +6,8 @@ import { BotState } from "./types";
 // General schemas
 export const textSchema = z.string().min(1, "שדה זה אינו יכול להיות ריק וצריך להכיל לפחות תו אחד");  // Generic text schema for non-empty strings
 export const timestampSchema = z.any().optional(); // Placeholder for server timestamp, will be replaced with serverTimestamp in Firestore
-export const daysSchema = z.enum(["sun", "mon", "tue", "wed", "thu", "fri", "sat"]); // Enum for days of the week, used for reminders and delivery days
-export const timeSchema = z.string().regex(/^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/, "שעה חייבת להיות בפורמט HH:MM, לדוגמה: 20:00"); // Regex for time in HH:MM format
+export const daysSchema = z.enum(["sun", "mon", "tue", "wed", "thu", "fri", "sat"]); // Enum for days of the week, used for cutoff, reminders and delivery days
+export const timeSchema = z.string().regex(/^(0[6-9]|1[0-9]|2[0-3]):[0-5][0-9]$/, "שעה חייבת להיות בין 06:00 ל-23:59 ובפורמט HH:MM, לדוגמה: 20:00"); // Regex for time in HH:MM format, only between 06:00 and 23:59
 
 // Onboarding Types
 export const restaurantLegalIdSchema = z.string().regex(/^\d{9}$/, "מספר ח.פ של המסעדה חייב להיות באורך של 9 ספרות בלבד, לדוגמה: 123456789"); // 9-digit legal ID
@@ -28,9 +28,9 @@ export const contactRoleSchema = z.enum(["owner", "manager", "shift", "general",
 
 // Product types
 export const productUnitSchema = z.union([
-  z.enum(["kg", "g", "l", "ml", "mg", "pcs", "box", "pkg", "unit", "bag", "barrel", "jar", "bottle", "can","pack", "packet", "other"]),
+  z.enum(['ק"ג', 'גרם', 'ליטר', 'מ"ל', 'מ"ג', 'יחידות', 'קופסה', 'אריזה', 'שקית','יחידה', 'חבית', 'צנצנת', 'בקבוק', 'פחית', 'חבילה','ארגז','מארז', 'אחר']),
   z.string().min(1, "יחידת המוצר חייבת להיות באורך של לפחות תו אחד")
-]).default("other"); // Default unit is other, can be any string or predefined unit
+]).default("אחר"); // Default unit is other, can be any string or predefined unit
 export const productNameSchema = z.string().min(2, "שם המוצר חייב להיות באורך של לפחות 2 תווים");
 export const parSchema = z.number().gt(0, "כמות מינימלית חייבת להיות מעל 0");
 export const emojySchema = z.string().default("📦"); // Optional emoji for product representation
@@ -38,20 +38,11 @@ export const emojySchema = z.string().default("📦"); // Optional emoji for pro
 
 // Supplier types
 export const supplierRatingSchema = z.number().min(0).max(5); // Rating from 0 to 5
-const baseCategorySchema = z.string().min(2, 'קטגוריה חייבת להיות באורך של לפחות 2 תווים'); // Minimum 2 characters
-export const supplierCategorySchema = z.union([
-  z.enum(['vegetables', 'fruits', 'meats', 'fish', 'dairy', 'alcohol', 'eggs', 'oliveOil', 'disposables', 'desserts', 'juices']),
-  baseCategorySchema
-]);
-export const supplierRemindersSchema = z.array(z.object({
+export const supplierCategorySchema = z.string().min(2, 'קטגוריה חייבת להיות באורך של לפחות 2 תווים'); // Minimum 2 characters
+export const supplierCutoffSchema = z.array(z.object({
   day: daysSchema,
   // Time in HH:MM format, e.g., 20:00 between 06:00 and 23:59
-  time: timeSchema.refine((time) => {
-    const [hours, minutes] = time.split(':').map(Number);
-    return (hours >= 6 && hours <= 23) || (hours === 23 && minutes === 59);
-  }, {
-    message: "שעת התזכורת חייבת להיות בין 06:00 ל-23:59",
-  })
+  time: timeSchema
 }));
 export const supplierCutoffHourSchema = z.number().min(0, "אנא הזן שעה תקינה בין 0 ל-23").max(23, 'שעת סיום חייבת להיות בין 0 ל-23'); // Cutoff hour for placing orders, default to 20:00
 
@@ -74,22 +65,13 @@ const botStateValues: BotState[] = [
   "SETUP_SUPPLIERS_START",
   "SETUP_SUPPLIERS_ADDITIONAL",
   "SUPPLIER_CATEGORY",
+  "SUPPLIER_CATEGORY2",
   "SUPPLIER_CONTACT",
-  "SUPPLIER_REMINDERS",
+  "SUPPLIER_CUTOFF",
   "PRODUCTS_LIST",
   "PRODUCTS_BASE_QTY",
   "RESTAURANT_FINISHED",
-  "INVENTORY_SNAPSHOT_START",
-  "INVENTORY_SNAPSHOT_CATEGORY",
-  "INVENTORY_SNAPSHOT_PRODUCT",
-  "INVENTORY_SNAPSHOT_QTY",
-  "INVENTORY_CALCULATE_SNAPSHOT",
-  "ORDER_SETUP_START",
   "ORDER_CONFIRMATION",
-  "DELIVERY_START",
-  "DELIVERY_CHECK_ITEM",
-  "DELIVERY_RECEIVED_AMOUNT",
-  "DELIVERY_INVOICE_PHOTO",
   "RESTAURANT_INFO",
   "ORDERS_INFO",
   "IDLE",
@@ -132,7 +114,7 @@ export const ProductSchema = z.object({
 export const SupplierSchema = ContactSchema.extend({
     role: contactRoleSchema.default('supplier').transform(()=> "supplier"), // All suppliers have the role of "supplier"
     category: z.array(supplierCategorySchema).default([]), // Array of supplier categories, transformed to a Set for uniqueness
-    reminders: supplierRemindersSchema.default([]), // Array of reminders for the supplier
+    cutoff: supplierCutoffSchema.default([]), // Array of cutoff times for the supplier
     products: z.array(ProductSchema).default([]), // Array of products of the supplier
     rating: supplierRatingSchema.default(0), // Rating from 0 to 5
     createdAt: timestampSchema,

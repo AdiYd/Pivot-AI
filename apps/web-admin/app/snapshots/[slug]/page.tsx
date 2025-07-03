@@ -10,9 +10,7 @@ import ErrorState from './components/ErrorState';
 import { Button, Input, useToast } from '@/components/ui';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, ArrowRight, SendHorizonal, Check, Calendar, ChevronDown, ChevronUp, Plus } from 'lucide-react';
-import { UNITS_DICT } from '@/schema/states';
 import { OrderSchema } from '@/schema/schemas';
-import { set } from 'zod';
 
 // Hebrew translations for contact fields
 const hebrewFields = {
@@ -781,10 +779,10 @@ function OrderSummary({
                             dir="ltr"
                             inputMode="decimal"
                           />
-                          <span className='text-xs'>{UNITS_DICT[product.unit] || product.unit}</span>
+                          <span className='text-xs'>{product.unit}</span>
                         </div>
                       ) : (
-                        `${product.orderQty || product.recommendedQty} ${UNITS_DICT[product.unit] || product.unit}`
+                        `${product.orderQty || product.recommendedQty} ${product.unit}`
                       )}
                     </td>
                   </motion.tr>
@@ -881,8 +879,8 @@ function OrderSummary({
                           onChange={(e) => setNewProduct({...newProduct, unit: e.target.value})}
                           className="p-1 border rounded"
                         >
-                          {Object.entries(UNITS_DICT).map(([key, value]) => (
-                            <option key={key} value={key}>{value}</option>
+                          {["ק\"ג", "גרם", "ליטר", "מיליליטר", "מיליגרם", "יחידות", "קופסאות", "חבילות", "יח'", "שק", "חבית", "צנצנת", "בקבוק", "פחית", "אריזה", "חבילה", "אחר"].map((unit) => (
+                            <option key={unit} value={unit}>{unit}</option>
                           ))}
                         </select>
                         <Button 
@@ -1084,7 +1082,7 @@ function OrderConfirmation({
                     </div>
                   </td>
                   <td className="p-3 font-medium">{item.qty}</td>
-                  <td className="p-3">{UNITS_DICT[item.unit] || item.unit}</td>
+                  <td className="p-3">{item.unit}</td>
                 </tr>
               ))}
             </tbody>
