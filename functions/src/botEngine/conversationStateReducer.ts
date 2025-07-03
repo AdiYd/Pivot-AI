@@ -11,7 +11,7 @@ import {
 } from '../schema/types';
 import { CATEGORY_TAGS_DICT, stateObject } from '../schema/states';
 import { ProductSchema, restaurantLegalIdSchema, RestaurantSchema, SupplierSchema } from '../schema/schemas';
-import { callOpenAIDataAnalysis, callOpenAISchema } from '../utils/openAI';
+import { callOpenAIAssistant, callOpenAIDataAnalysis, callOpenAISchema } from '../utils/openAI';
 import { firestore, getRestaurant } from '../utils/firestore';
 import { FieldValue } from 'firebase-admin/firestore';
 /**
@@ -443,6 +443,49 @@ export async function conversationStateReducer(
       return result;
     }
     }
+
+    if (['HELP', 'INTERESTED'].includes(conversation.currentState)) {
+
+        const response = await callOpenAIAssistant(
+          userInput,
+        conversation,
+        conversation.currentState === "HELP" ? 'help' : 'interested',
+        conversation.messages.map((msg : Message) => `${msg.role}: ${msg.body || ''}`).slice(-10).join('\n'),
+        );
+        console.log(`[StateReducer] AI analysis result:`, response);
+        
+        if (response) {
+          result.actions.push({
+            type: 'SEND_MESSAGE',
+            payload: {
+              to: message.from,
+              body: response.response,
+              messageState: result.newState.currentState
+            }
+          });
+          if (response.is_finished){
+            if (conversation.currentState === 'INIT'){
+              result.newState.currentState = 'INIT';
+            } else {
+             result.newState.currentState = 'IDLE';
+            }
+          }
+          return result; // Return early with the AI response
+        } else {
+          console.error(`[StateReducer] AI analysis failed for input: ${userInput}`);
+          result.actions.push({
+            type: 'SEND_MESSAGE',
+            payload: {
+              to: message.from,
+              body: '⚠️ ניתוח הנתונים נכשל. אנא נסה שוב.',
+              messageState: result.newState.currentState
+            }
+          });
+          result.newState.currentState = 'IDLE'; // Reset to IDLE state on failure
+          return result; // Stay in current state
+        }
+    }
+
 
     if (['RESTAURANT_INFO', 'ORDERS_INFO'].includes(conversation.currentState)) {
 

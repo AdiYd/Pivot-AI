@@ -54,6 +54,7 @@ export const orderStatusSchema = z.enum(["pending", "confirmed","sent", "deliver
 // Message types
 const botStateValues: BotState[] = [
   "INIT",
+  "INTERESTED",
   "ONBOARDING_COMPANY_NAME",
   "ONBOARDING_LEGAL_ID",
   "ONBOARDING_RESTAURANT_NAME",
@@ -75,6 +76,7 @@ const botStateValues: BotState[] = [
   "RESTAURANT_INFO",
   "ORDERS_INFO",
   "IDLE",
+  "HELP"
 ];
 export const conversationStateSchema = z.enum(botStateValues as [BotState, ...BotState[]], {
   description: "מצב השיחה הנוכחי, לדוגמה: 'WAITING_FOR_PAYMENT', 'INVENTORY_SNAPSHOT_START', 'IDLE' וכו'",

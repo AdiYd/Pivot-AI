@@ -256,7 +256,7 @@ export const stateObject: (conversation: Conversation) => Promise<StateObject> =
           nextState: {
             new_restaurant: "ONBOARDING_COMPANY_NAME",
             new_restaurant_fast: "ONBOARDING_SIMULATOR",
-            help: "IDLE"
+            help: "INTERESTED"
           }
         };
         break;
@@ -815,7 +815,7 @@ ${conversation.context.supplierProducts.map((product : any, index:number) => `- 
             add_supplier: "SUPPLIER_CATEGORY",
             restaurant_data: "RESTAURANT_INFO", // Assuming this shows restaurant data
             order_data: "ORDERS_INFO",         // Assuming this shows order data
-            help: "IDLE" // Redirect to help state or show help message
+            help: "HELP" // Redirect to help state or show help message
           }
         };
         break;

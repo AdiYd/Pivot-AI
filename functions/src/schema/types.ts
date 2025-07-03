@@ -47,6 +47,7 @@ export type Days = z.infer<typeof daysSchema>;
 // Bot state types
 export type BotState =
   | "INIT"
+  | "INTERESTED"
 
 // Onboarding states  - restaurant creation
   | "ONBOARDING_COMPANY_NAME"
@@ -82,7 +83,8 @@ export type BotState =
   | "ORDERS_INFO"
 
 // IDLE state
-  | "IDLE";
+  | "IDLE"
+  | "HELP";
 
 
 

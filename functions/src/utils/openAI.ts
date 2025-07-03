@@ -182,9 +182,9 @@ export async function callOpenAIDataAnalysis(
     const restaurantId = conversation.restaurantId  || conversation.context.legalId || conversation.context?.restaurantId;
     let mainData = {}; 
       if (analysisType === 'restaurant') {
-      mainData = getRestaurantDatafromDb(restaurantId, conversation.context.isSimulator);
+      mainData = await getRestaurantDatafromDb(restaurantId, conversation.context.isSimulator);
     } else if (analysisType === 'orders') {
-      mainData = getOrdersDatafromDb(restaurantId, conversation.context.isSimulator);
+      mainData = await getOrdersDatafromDb(restaurantId, conversation.context.isSimulator);
     }
     // Define tools and function schemas
     const dataAnalysisFunction = {
@@ -362,6 +362,108 @@ export async function callOpenAIDataAnalysis(
     console.error("OpenAI Data Analysis API call failed:", error);
     return {
       response: "שגיאה במהלך ניתוח הנתונים. אנא נסה שוב מאוחר יותר או פנה לתמיכה.",
+      is_finished: true,
+      success: false
+    };
+  }
+}
+
+
+export type AssistantResponse = {
+  response: string; // The AI's response with data visualization and analysis
+  is_finished: boolean; // True if the user has indicated they are done with their queries
+  success: boolean; // Indicates if the API call was successful
+};
+/**
+ * Call OpenAI to provide data visualization and analysis based on restaurant or order data
+ */
+export async function callOpenAIAssistant(
+  userInput: string, 
+  conversation: Conversation, 
+  assistType: 'help' | 'interested',
+  messagesHistory: string, 
+): Promise<AssistantResponse> {
+  try {
+    const openai = getOpenAIClient();
+    const AI_CONFIGURATIONS = await getAIConfigurations();
+    const restaurantId = conversation.restaurantId  || conversation.context.legalId || conversation.context?.restaurantId;
+    let mainData;
+    if (restaurantId){
+       mainData = await getRestaurantDatafromDb(restaurantId, conversation.context.isSimulator);
+       mainData = JSON.stringify(mainData, null, 2);
+    }
+
+    // Define tools and function schemas
+    const dataAsistanceType = {
+      name: "data_asistance_response",
+      description: `This function format the output, call it when your data is ready. Analyze and visualize ${assistType} data and respond to user queries`,
+      parameters: {
+        type: "object",
+        properties: {
+          response: {
+            type: "string",
+            description: "A visually appealing, well-styled and descriptive response that answers the user's query with data visualization and answers"
+          },
+          is_finished: {
+            type: "boolean",
+            description: "True only if the user has explicitly indicated they are done with their queries or have received all the information they needed, or type \"רישום\" or \"סיום\" or \"סיום שיחה\" or \"התחל\""
+          }
+        },
+        required: ["response", "is_finished"]
+      }
+    };
+
+    const contextualInstructions = assistType === 'help' 
+      ? AI_CONFIGURATIONS.prompts.helpMenu.prompt
+      : AI_CONFIGURATIONS.prompts.interestedMenu.prompt;
+
+    const systemMessages = [
+      { role: "system", content: AI_CONFIGURATIONS.prompts.systemCorePrompt.prompt },
+      { role: "system", content: AI_CONFIGURATIONS.prompts.menuOptionsPrompt.prompt },
+      { role: "system", content: AI_CONFIGURATIONS.prompts.dataVisualizationInstructions.prompt },
+      { role: "system", content: contextualInstructions },
+      { role: "system", content: `נתונים רלוונטיים שנאספו בשיחות קודמות: \n\n ${JSON.stringify(conversation.context, null, 2)}` },
+      { role: "system", content: `היסטוריית השיחות הקודמות:\n\n ${messagesHistory || "אין היסטוריה"}` },
+      { role: 'system', content: `הנתונים ממסד הנתונים (אלו הם הנתונים הרשמיים והמעודכנים): \n\n ${JSON.stringify(mainData, null, 2) || "אין מידע זמין"}` },
+    ];
+    
+    // Initialize conversation messages
+    let messages = [
+      ...systemMessages,
+      { role: "user", content: userInput }
+    ] as ChatCompletionMessageParam[];
+
+    // Initial API call to determine if we need additional data
+    const initialResponse = await openai.chat.completions.create({
+      ...AI_CONFIGURATIONS.params,
+      messages,
+      tools: [
+        { type: "function", function: dataAsistanceType },
+      ],
+      tool_choice: "required"
+    });
+
+      // Get the first response
+      const initialChoice = initialResponse.choices[0];
+      const toolCall = initialChoice.message.tool_calls?.[0];
+      if (toolCall?.function.name === "data_asistance_response") {
+        const result = JSON.parse(toolCall.function.arguments);
+        return {
+          response: result.response,
+          is_finished: result.is_finished,
+          success: true
+        };
+      }
+      return {
+          response: "נשמח לעמוד לרשותכם בזמן אחר ולענות על כל השאלות.",
+          is_finished: true,
+          success: false
+        };
+
+  } catch (error) {
+    console.error("OpenAI Data Analysis API call failed:", error);
+    return {
+      response: "נשמח לעמוד לרשותכם בזמן אחר ולענות על כל השאלות.",
       is_finished: true,
       success: false
     };
