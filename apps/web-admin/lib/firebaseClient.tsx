@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, ReactNode, useMemo, useCallback } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode, useMemo, useCallback, use } from "react";
 import { FirebaseApp, getApps, initializeApp } from "firebase/app";
 import { 
   Firestore, 
@@ -16,6 +16,7 @@ import {
 import { DataBase, Order, Restaurant, Conversation, Contact, Supplier, Message } from "@/schema/types";
 import { RestaurantSchema, OrderSchema, ConversationSchema, MessageSchema } from "@/schema/schemas";
 import { Delete } from "lucide-react";
+import { Icon } from "@iconify/react/dist/iconify.js";
 
 // Firebase configuration
 const firebaseConfig = {
@@ -45,6 +46,7 @@ export interface FirebaseContextValue {
   database: DataBase;
   databaseLoading: boolean;
   refreshDatabase: () => Promise<void>;
+  toggleSource: () => void;
 }
 
 // Create firebase context with default values
@@ -52,6 +54,7 @@ const FirebaseContext = createContext<FirebaseContextValue>({
   database: {} as DataBase,
   databaseLoading: true,
   refreshDatabase: async () => {},
+  toggleSource: () => {},
 });
 
 const emptyDatabase: DataBase = {
@@ -64,18 +67,20 @@ const emptyDatabase: DataBase = {
 export function FirebaseAppProvider({ children }: { children: ReactNode }) {
   const [database, setDatabase] = useState<DataBase>(emptyDatabase);
   const [databaseLoading, setDatabaseLoading] = useState(true);
+  const [source, setSource] = useState<string>('_simulator');
+
 
   // Helper function to fetch all collections and build database object
-  const fetchDatabase = async (): Promise<DataBase> => {
+  const fetchDatabase = useCallback(async (): Promise<DataBase> => {
     if (typeof window === 'undefined' || !db) return emptyDatabase;
 
     try {
       setDatabaseLoading(true);
       // Fetch all collections in parallel
       const [restaurantsSnap, ordersSnap, conversationsSnap] = await Promise.all([
-        getDocs(collection(db, 'restaurants_simulator')),
-        getDocs(collection(db, 'orders_simulator')),
-        getDocs(collection(db, 'conversations_simulator'))
+        getDocs(collection(db, `restaurants${source}`)),
+        getDocs(collection(db, `orders${source}`)),
+        getDocs(collection(db, `conversations${source}`))
       ]);
 
 
@@ -111,7 +116,10 @@ export function FirebaseAppProvider({ children }: { children: ReactNode }) {
       conversationsSnap.forEach((doc) => {
         try {
           const data = { ...doc.data() };
-          const parsed = ConversationSchema.parse(data);
+          if (data.currentState === 'SUPPLIER_REMINDERS') {
+            data.currentState = 'SUPPLIER_CUTOFF';
+          }
+          const parsed =  ConversationSchema.parse(data);
           
           // Add this conversation to the collection with empty messages initially
           conversations[doc.id] = {
@@ -121,14 +129,14 @@ export function FirebaseAppProvider({ children }: { children: ReactNode }) {
           // Create a promise for loading messages and add to our array
           const messagesPromise = async () => {
             // Fetch messages for this conversation order by timestamp with ascending order
-            const messagesCollectionRef = query(collection(db, 'conversations_simulator', doc.id, 'messages'), orderBy('createdAt', 'asc'));
+            const messagesCollectionRef = query(collection(db, `conversations${source}`, doc.id, 'messages'), orderBy('createdAt', 'asc'));
             const messagesSnap = await getDocs(messagesCollectionRef);
             const loadedMessages = messagesSnap.docs.map(msgDoc => {
               const msgData = msgDoc.data() as Message;
               if (msgData.messageState as any === 'SUPPLIER_REMINDERS'){
                 msgData.messageState = 'SUPPLIER_CUTOFF';
               }
-              const parsed = MessageSchema.parse(msgData);
+              const parsed = msgData || MessageSchema.parse(msgData);
               return parsed;
             });
             // Update the conversation with loaded messages
@@ -162,7 +170,7 @@ export function FirebaseAppProvider({ children }: { children: ReactNode }) {
     } finally {
       setDatabaseLoading(false);
     }
-  };
+  }, [source]);
 
   // Function to update contacts from array to map
   const updateContacts = async() => {
@@ -185,21 +193,28 @@ export function FirebaseAppProvider({ children }: { children: ReactNode }) {
   const refreshDatabase = useCallback(async () => {
     const db = await fetchDatabase();
     setDatabase(db);
-  }, []);
+  }, [fetchDatabase]);
+
+    useEffect(() => {
+    refreshDatabase();
+  }, [source, refreshDatabase]);
 
   // Fetch database on mount
   useEffect(() => {
     if (typeof window === 'undefined' || !db) return;
     fetchDatabase().then(setDatabase);
-  }, []);
+  }, [fetchDatabase]);
 
   const value = useMemo(() => ({
     database,
     databaseLoading,
     refreshDatabase,
+    toggleSource: () => setSource(p => p ? '' : '_simulator')
   } as FirebaseContextValue), [database, databaseLoading, refreshDatabase]);
 
-  return <FirebaseContext.Provider value={value}>{children}</FirebaseContext.Provider>;
+  return <FirebaseContext.Provider value={value}>
+    {children}
+    </FirebaseContext.Provider>;
 }
 
 // Simple hook to access Firebase context

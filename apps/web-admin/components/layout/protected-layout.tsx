@@ -5,6 +5,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { SideNav } from "@/components/layout/side-nav";
 import { Loader2 } from "lucide-react";
+import { Button } from "../ui";
+import { useFirebase } from "@/lib/firebaseClient";
+import { Icon } from "@iconify/react/dist/iconify.js";
 
 interface ProtectedLayoutProps {
   children: React.ReactNode;
@@ -14,6 +17,7 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
   const { data: session, status } = useSession();
   const router = useRouter();
   const pathname = usePathname();
+  const {toggleSource} = useFirebase();
 
   // Define public routes that don't need protection
   const publicRoutes = ['/login'];
@@ -50,6 +54,15 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
       
       <div className="flex min-h-screen relative">
         {!isPublicRoute && <SideNav />}
+        {!isPublicRoute && 
+        <Button
+        variant="outline"
+        size={"icon"}
+        className="absolute top-4 hover:scale-110 left-4 shadow-lg shadow-teal-500 hover:shadow-pink-400 rounded-xl bg-orange-400/80 backdrop-blur-xl hover:bg-teal-500/80 transition-all duration-500 z-[99999]"
+        onClick={toggleSource}
+      >
+        <Icon icon="carbon:debug"  />
+      </Button>}
         <main className="flex-1 p-6 max-sm:p-4 max-sm:pt-10 overflow-auto max-h-screen">
           {children}
         </main>

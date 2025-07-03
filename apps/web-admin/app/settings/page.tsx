@@ -207,7 +207,7 @@ export default function SettingsPage() {
                 </Label>
               <div className="text-xs text-muted-foreground mb-2">{config.prompts[key].description}</div>
               <Textarea
-                className="w-full min-h-[80px] font-mono"
+                className="w-full min-h-[80px] font-mono bg-card"
                 value={config.prompts[key].prompt.trim()}
                 onChange={e => handlePromptChange(key, 'prompt', e.target.value)}
                 rows={8}

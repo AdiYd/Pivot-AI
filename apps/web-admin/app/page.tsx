@@ -25,6 +25,7 @@ import { BotState } from "@/schema/types";
 import { DebugButton, debugFunction } from "@/components/debug";
 import { ProtectedLayout } from "@/components/layout/protected-layout";
 import { useFirebase } from "@/lib/firebaseClient";
+import { Icon } from "@iconify/react/dist/iconify.js";
 
 
 function StatCard({ 
@@ -122,7 +123,7 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>)
 
 function DashboardPage() {
   const [loading, setLoading] = useState(true);
-  const {database} = useFirebase();
+  const {database, toggleSource} = useFirebase();
   const [activePieIndex, setActivePieIndex] = useState<number | null>(null);
   const [activeOrderPieIndex, setActiveOrderPieIndex] = useState<number | null>(null);
   const [activeConversationPieIndex, setActiveConversationPieIndex] = useState<number | null>(null);
@@ -411,6 +412,7 @@ function DashboardPage() {
   return (
     <div className="space-y-6 p-2 pt-6">
       <DebugButton debugFunction={debugFunction} />
+      <Icon icon="icon-park-outline:switch" className="absolute top-2 left-4 cursor-pointer hover:scale-110 transition-transform" onClick={toggleSource} />
       {/* Header */}
       <div style={{marginTop: '0px'}}>
         <div className="w-full flex justify-center">
