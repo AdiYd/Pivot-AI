@@ -787,7 +787,7 @@ ${conversation.context.supplierProducts.map((product : any, index:number) => `- 
         stateObject = {
           whatsappTemplate: {
             id: "template_idle_menu",
-            sid: 'HXb0f38b04f418f321acfce0218aa89b07',
+            sid: (['בעלים', 'מנהל'].includes(conversation.role) || conversation.context.isManager) ? 'HXb0f38b04f418f321acfce0218aa89b07' : 'HX2736eddb8f56b05f6a3d696fd907e6a8',
             contentVariables: JSON.stringify({
               '1': conversation.context?.contactName.split(" ")[0] || "",
               }),

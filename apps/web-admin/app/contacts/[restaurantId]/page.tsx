@@ -13,13 +13,23 @@ import { Check } from "lucide-react";
 import { ThemeToggle } from '@/components/theme-toggle';
 
 const contactRoles = [
-  { value: 'בעלים', label: 'בעלים' },
+//   { value: 'בעלים', label: 'בעלים' },
   { value: 'מנהל', label: 'מנהל' },
   { value: 'מנהל מטבח', label: 'מנהל מטבח' },
   { value: 'מנהל בר', label: 'מנהל בר' },
   { value: 'בר', label: 'בר' },
   { value: 'מטבח', label: 'מטבח' },
   { value: 'כללי', label: 'כללי' },
+];
+
+const roleOrder = [
+  'בעלים',
+  'מנהל',
+  'מנהל מטבח',
+  'מנהל בר',
+  'מטבח',
+  'בר',
+  'כללי',
 ];
 
 const restaurantCollection = 'restaurants_simulator';
@@ -270,9 +280,6 @@ export default function ContactsPage() {
 
   return (
     <div className="max-w-3xl max-sm:min-w-full mx-auto p-2 space-y-8">
-        <div className='absolute left-4 top-4 z-50'>
-            <ThemeToggle />
-        </div>
       <div className="mb-4">
         <h1 className="text-2xl font-bold mb-1 flex items-center gap-2">
           <User className="w-6 h-6" />
@@ -299,8 +306,9 @@ export default function ContactsPage() {
             <div>לא נמצאו אנשי קשר. הוסף איש קשר חדש.</div>
           </div>
         )}
-        {Object.entries(editContacts).map(([phone, c], idx) => (
-          <Card key={phone} className="relative">
+        {Object.entries(editContacts).sort(([, a], [, b]) => roleOrder.indexOf(a.role) - roleOrder.indexOf(b.role))
+        .map(([phone, c], idx) => (
+          <Card key={phone} className={`relative  ${c.role === 'בעלים' ? '!border-green-500 !border-[0.8px]' : ''}`}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <div className="flex items-center gap-2">
                 <User className="w-5 h-5" />
@@ -337,6 +345,7 @@ export default function ContactsPage() {
                   <Label>מספר וואטסאפ</Label>
                   <Input
                     value={phone}
+                    type='tel'
                     dir='ltr'
                     onChange={e => {
                       // Only allow changing if not owner
@@ -350,7 +359,11 @@ export default function ContactsPage() {
                         delete copy[phone];
                         return copy;
                       });
+                    
                     }}
+                    className={`
+                      ${/^05\d{8}$/.test(phone) ? 'focus:border-green-500' : 'focus:border-red-500'}
+                    `}
                     placeholder="05..."
                     disabled={['בעלים'].includes(c.role)}
                   />
@@ -431,9 +444,13 @@ export default function ContactsPage() {
                   <Label>מספר וואטסאפ</Label>
                   <Input
                     value={newContact.whatsapp}
+                    type='tel'
                     dir='ltr'
                     onChange={e => setNewContact(n => ({ ...n, whatsapp: e.target.value }))}
                     placeholder="05..."
+                    className={`${
+                      /^05\d{8}$/.test(newContact.whatsapp) ? 'focus:border-green-500' : 'focus:border-red-500'
+                    }`}
                   />
                 </div>
               </div>

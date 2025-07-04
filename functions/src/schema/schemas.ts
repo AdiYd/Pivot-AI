@@ -18,7 +18,7 @@ export const paymentProviderSchema = z.enum(["trial", "credit_card", "paypal"]).
 
 // Contact types
 export const whatsappRegex = /^(05[0-9]{8})$/; // Regex for Israeli WhatsApp numbers starting with 05
-export const whatsappSchema = z.string().regex(whatsappRegex, "מספר הוואטסאפ לא תקין, יש לכתוב מספר לא תווים נוספים לדוגמה: 0541234567");
+export const whatsappSchema = z.string().regex(whatsappRegex, "מספר הוואטסאפ לא תקין, יש לכתוב מספר ללא תווים נוספים, לדוגמה: 0541234567");
 export const nameSchema = z.string().min(2, "שם חייב להיות באורך של לפחות 2 תווים");
 export const emailSchema = z.string().email("כתובת האימייל לא תקינה");
 export const contactRoleSchema = z.enum(["בעלים", "מנהל מסעדה", "מנהל", "אחראי", "מנהל מטבח", "מנהל בר", "מטבח", "בר", "כללי", "ספק"], {

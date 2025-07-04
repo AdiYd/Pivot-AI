@@ -176,20 +176,16 @@ export default function RestaurantsPage() {
         description: "אירעה שגיאה בהפעלת/כיבוי המסעדה",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
   // Handle restaurant delete
   const handleDelete = async (restaurantId: string) => {
     try {
-      setIsLoading(true);
       console.log('Deleting restaurant:', restaurantId);
       const restaurantName = database.restaurants[restaurantId]?.name || 'מסעדה לא מזוהה';
       const userConfirm = window.confirm(`האם אתה בטוח שברצונך למחוק את המסעדה ${restaurantName} עם ח.פ ${restaurantId}?\nפעולה זו לא ניתנת לשחזור.`);
       if (!userConfirm) {
-        setIsLoading(false);
         return;
       }
       const restaurantDocRef = doc(db, `restaurants${source}`, restaurantId);
@@ -202,6 +198,7 @@ export default function RestaurantsPage() {
       toast({
         title: "מסעדה נמחקה",
         description: "המסעדה נמחקה בהצלחה מהמערכת",
+        variant: "success",
       });
 
       if (selectedRestaurant?.legalId === restaurantId) {
@@ -216,9 +213,7 @@ export default function RestaurantsPage() {
         description: "אירעה שגיאה במחיקת המסעדה",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
-    }
+    } 
   };
 
   // Handle activation toggle

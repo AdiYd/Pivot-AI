@@ -133,7 +133,6 @@ export function FirebaseAppProvider({ children }: { children: ReactNode }) {
         try {
           const data = { ...doc.data() };
           const parsed =  ConversationSchema.parse(data);
-
           // Add this conversation to the collection with empty messages initially
           conversations[doc.id] = {
             ...parsed,
