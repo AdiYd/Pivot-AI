@@ -744,7 +744,7 @@ ${Object.values(CATEGORIES_DICT).find((cat) => (cat.name.includes(conversation.c
         stateObject = {
           whatsappTemplate: {
             id: "template_idle_menu",
-            sid: 'HXc0ecb0654f70646086691d2dfc0d6ee3',
+            sid: 'HXb0f38b04f418f321acfce0218aa89b07',
             contentVariables: JSON.stringify({
               '1': conversation.context?.contactName.split(" ")[0] || "",
               }),
@@ -753,6 +753,7 @@ ${Object.values(CATEGORIES_DICT).find((cat) => (cat.name.includes(conversation.c
             options: [
               { name: "🛒 יצירת הזמנה חדשה", id: "create_order" },
               { name: "🚚 הוספת ספק חדש", id: "add_supplier" },
+              { name: "👤 ניהול אנשי קשר", id: "manage_contacts" },
               { name: "🏪 נתוני מסעדה", id: "restaurant_data" },
               { name: "📊 נתוני הזמנות", id: "order_data" },
               { name: "❓ שאלות ותמיכה", id: "help" }
@@ -780,7 +781,31 @@ ${Object.values(CATEGORIES_DICT).find((cat) => (cat.name.includes(conversation.c
 
       case "HELP": {
         stateObject = {
-          message: `❓ *איך אפשר לעזור לך?*\n\nאנא פרט את השאלה או הבעיה שלך ואנו נשמח לעזור.`,
+          message: `
+🔹 *תפריט עזרה – מדריך למשתמשי המערכת*
+
+ברוכים הבאים ל-P-vot – מערכת ניהול מלאי והזמנות חכמה למסעדות, הכל דרך WhatsApp!
+
+*מה אפשר לעשות כאן?*
+1. *יצירת הזמנה חדשה*: בצעו ספירת מלאי, קבלו המלצה לכמויות, ושלחו הזמנה לספק בלחיצת כפתור.
+2. *הוספת ספק חדש*: הגדירו ספקים, ימי אספקה, שעת חיתוך והוסיפו מוצרים ופרטי קשר.
+3. *צפייה בנתוני מסעדה*: קבלו מידע על אנשי קשר, ספקים, מוצרים, והיסטוריית הזמנות.
+4. *צפייה בנתוני הזמנות*: בדקו סטטוס הזמנות, חוסרים, תיעוד אספקות וקבלות.
+5. *שאלות ותמיכה*: קבלו תשובות לשאלות נפוצות, הסברים על תהליכים, וטיפים לשימוש יעיל.
+
+*איך זה עובד?*
+- שלחו "תפריט" בכל שלב כדי לחזור לתפריט הראשי.
+- כל פעולה תלווה בהנחיה ברורה – פשוט ענו להודעה או בחרו באופציה.
+- ניתן להעלות תמונות חשבוניות, לדווח על חוסרים, ולבצע שינויים בפרטי ספקים ומוצרים.
+
+*הערות חשובות:*
+- פעולות ניהול (הוספת ספק/מוצר) זמינות רק לבעלי הרשאות מתאימות.
+- לכל שאלה או בקשה מיוחדת, ניתן לפנות לתמיכה: לידור זינו 054-7513346 | lidor.zenou@gmail.com
+
+*המשיכו לנהל את המסעדה בקלות וביעילות!* 🍽️
+
+❓ *איך אפשר לעזור לך?* ❓
+אנא פרט את השאלה או הבעיה שלך ואנו נשמח לעזור.`,
           description: "User is seeking help or support.",
           nextState: {
             success: "IDLE", // Redirect to idle state on success

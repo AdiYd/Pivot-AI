@@ -83,9 +83,10 @@ Copilot: keep this context in memory when suggesting code.
  *     ├─ legalId: string                // 9-digit legal ID
  *     ├─ legalName: string             // Legal business name
  *     ├─ name: string                 // Restaurant name (customer-facing)
- *     ├─ contacts: {                 // Map of contacts items, including primary contact ({whatsapp, name, role, email})
- *       [whatsapp: string]: Contact{}
- *     }       
+ *     ├─ contacts: {                 // Map of contacts items, including primary contact
+ *       [whatsapp: string]: { 'whatsapp': string, 'name': string, 'role': string, 'email': string (optional), 'remindersForSuppliers': string[] (optional) }
+ *       // ...
+ *      }       
  *     ├─ isActivated: boolean     // Whether the restaurant is activated for service
  *     ├─ payment: PaymentMeta    // {provider, status (boolean)}
  *     ├─ orders: string[]       // Array of order IDs
@@ -93,7 +94,7 @@ Copilot: keep this context in memory when suggesting code.
  *     └─ updatedAt: Timestamp
  *
  *     /suppliers (collection of suppliers objects)
- *       {supplierId} (doc)
+ *       {supplierWhatsapp} (doc)
  *         ├─ whatsapp: string                // WhatsApp number (matches document ID)
  *         ├─ name: string
  *         ├─ role: "supplier"              // Always "supplier"
@@ -102,10 +103,8 @@ Copilot: keep this context in memory when suggesting code.
  *         ├─ cutoff: Cutoff[]      // Array of cutoff times e.g. [{ day: "sun", time: "20:00" }]
  *         ├─ rating: number            // 0-5
  *         ├─ createdAt: Timestamp
- *         └─ updatedAt: Timestamp
- *
- *         /products (collection of products objects)
- *           {productId} (doc)
+ *         ├─ updatedAt: Timestamp
+ *         └─ products[] (array of products objects)
  *             ├─ name: string
  *             ├─ unit: string                // "kg", "pcs", etc.
  *             ├─ emoji: string              // Emoji representation
@@ -181,7 +180,6 @@ Copilot: keep this context in memory when suggesting code.
  *         ├─ messageState: string // State when message was sent
  *         └─ createdAt: Timestamp
  */
-
 ```
 
 ---

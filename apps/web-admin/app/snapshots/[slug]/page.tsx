@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
-import { arrayUnion, collection, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { arrayUnion, collection, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebaseClient';
 import { Order, Restaurant, Supplier} from '@/schema/types';
 import InventorySnapshotForm from './components/InventorySnapshotForm';
@@ -10,7 +10,7 @@ import ErrorState from './components/ErrorState';
 import { Button, Input, useToast } from '@/components/ui';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, ArrowRight, SendHorizonal, Check, Calendar, ChevronDown, ChevronUp, Plus } from 'lucide-react';
-import { OrderSchema } from '@/schema/schemas';
+import { OrderSchema, RestaurantSchema } from '@/schema/schemas';
 
 // Hebrew translations for contact fields
 const hebrewFields = {
@@ -22,9 +22,9 @@ const hebrewFields = {
     owner: 'בעלים',
     manager: 'מנהל',
     chef: 'שף',
-    shift: 'משמרת',
-    employee: 'עובד',
-    supplier: 'ספק'
+    general: 'כללי',
+    restaurantManager: 'מנהל מסעדה',
+    barManager: 'מנהל בר',
   }
 };
 
@@ -106,7 +106,17 @@ export default function OrderPage() {
           throw new Error('לא נמצאה מסעדה מתאימה');
         }
 
-        setRestaurant(restaurantDoc.data() as Restaurant);
+        // Collect supplier information
+        const suppliers: Supplier[] = [];
+        const supplierDocs = await getDocs(collection(restaurantDoc.ref, 'suppliers'));
+        supplierDocs.forEach(supplierDoc => {
+          const supplierData = supplierDoc.data() as Supplier;
+          suppliers.push(supplierData);
+        });
+        const restaurantData = restaurantDoc.data() as Restaurant;
+        restaurantData.suppliers = suppliers;
+
+        setRestaurant(RestaurantSchema.parse(restaurantData));
         setLoading(false);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'אירעה שגיאה בטעינת הנתונים');

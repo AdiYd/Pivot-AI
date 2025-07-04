@@ -138,8 +138,8 @@ function DashboardPage() {
 
       // Restaurant stats
       const totalRestaurants = restaurants.length;
-      const activeRestaurants = restaurants.filter(r => r.isActivated).length;
-      const pendingPaymentRestaurants = restaurants.filter(r => !r.payment.status).length;
+      const activeRestaurants = restaurants.filter(r => (r.isActivated && r.payment.status)).length;
+      const pendingPaymentRestaurants = restaurants.filter(r => (r.isActivated && !r.payment.status)).length;
 
       // Supplier and product stats
       let totalSuppliers = 0;
@@ -159,8 +159,8 @@ function DashboardPage() {
       // Order stats - use the orders collection directly
       const totalOrders = orders.length;
       const pendingOrders = orders.filter(o => o.status === "pending").length;
-      const sentOrders = orders.filter(o => o.status === "sent").length;
-      const deliveredOrders = orders.filter(o => o.status === "delivered").length;
+      const confirmedOrders = orders.filter(o => o.status === "confirmed").length;
+      const cancelledOrders = orders.filter(o => o.status === "cancelled").length;
 
       // Conversation stats
       const totalConversations = conversations.length;
@@ -177,8 +177,8 @@ function DashboardPage() {
         totalProducts,
         totalOrders,
         pendingOrders,
-        sentOrders,
-        deliveredOrders,
+        confirmedOrders,
+        cancelledOrders,
         totalConversations,
         activeConversations,
         onboardingConversations
@@ -311,14 +311,15 @@ function DashboardPage() {
   // Pie: Restaurant status
   const restaurantPieData = [
     { name: "פעילות", value: stats.activeRestaurants },
-    { name: "לא פעילות", value: stats.totalRestaurants - stats.activeRestaurants }
+    { name: "לא פעילות", value: stats.totalRestaurants - stats.activeRestaurants - stats.pendingPaymentRestaurants },
+    { name: "תקופת נסיון", value: stats.pendingPaymentRestaurants },
   ];
   
   // Pie: Order status
   const orderPieData = [
     { name: "ממתינות", value: stats.pendingOrders },
-    { name: "נשלחו", value: stats.sentOrders },
-    { name: "נמסרו", value: stats.deliveredOrders }
+    { name: "אושרו", value: stats.confirmedOrders },
+    { name: "בוטלו", value: stats.cancelledOrders }
   ];
   
   // Bar: Suppliers per category
@@ -455,8 +456,8 @@ function DashboardPage() {
           description={`${stats.pendingOrders} ממתינות`}
           icon={ShoppingCart}
           trend={{ 
-            value: stats.deliveredOrders > stats.pendingOrders ? 15 : -5, 
-            isPositive: stats.deliveredOrders > stats.pendingOrders 
+            value: (stats.confirmedOrders && (stats.confirmedOrders > stats.pendingOrders) ? 15 : -5), 
+            isPositive: stats.confirmedOrders ? (stats.confirmedOrders > stats.pendingOrders) : false
           }}
         />
         <StatCard
@@ -492,6 +493,10 @@ function DashboardPage() {
                     <stop offset="0%" stopColor="#f87171" stopOpacity={1} />
                     <stop offset="100%" stopColor="#ef4444" stopOpacity={0.8} />
                   </linearGradient>
+                  <linearGradient id="pieColorPending" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#fbbf24" stopOpacity={1} />
+                    <stop offset="100%" stopColor="#f59e0b" stopOpacity={0.8} />
+                  </linearGradient>
                 </defs>
                 <Pie
                   data={restaurantPieData}
@@ -513,6 +518,7 @@ function DashboardPage() {
                 >
                   <Cell fill="url(#pieColorActive)" stroke="none" />
                   <Cell fill="url(#pieColorInactive)" stroke="none" />
+                  <Cell fill="url(#pieColorPending)" stroke="none" />
                   <LabelList 
                     dataKey="name" 
                     position="outside" 
@@ -526,7 +532,7 @@ function DashboardPage() {
                   iconType="circle" 
                   wrapperStyle={{ paddingTop: '20px' }}
                 />
-                <RechartsTooltip content={<CustomTooltip />} />
+                {/* <RechartsTooltip content={<CustomTooltip />} /> */}
               </RePieChart>
             </ResponsiveContainer>
           </CardContent>
@@ -546,13 +552,13 @@ function DashboardPage() {
                     <stop offset="0%" stopColor="#fbbf24" stopOpacity={1} />
                     <stop offset="100%" stopColor="#f59e0b" stopOpacity={0.8} />
                   </linearGradient>
-                  <linearGradient id="orderSent" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#60a5fa" stopOpacity={1} />
-                    <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.8} />
-                  </linearGradient>
-                  <linearGradient id="orderDelivered" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient id="orderConfirmed" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#34d399" stopOpacity={1} />
                     <stop offset="100%" stopColor="#10b981" stopOpacity={0.8} />
+                  </linearGradient>
+                  <linearGradient id="orderCancelled" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#f87171" stopOpacity={1} />
+                    <stop offset="100%" stopColor="#ef4444" stopOpacity={0.8} />
                   </linearGradient>
                 </defs>
                 <Pie
@@ -574,8 +580,8 @@ function DashboardPage() {
                   animationEasing="ease-out"
                 >
                   <Cell fill="url(#orderPending)" stroke="none" />
-                  <Cell fill="url(#orderSent)" stroke="none" />
-                  <Cell fill="url(#orderDelivered)" stroke="none" />
+                  <Cell fill="url(#orderConfirmed)" stroke="none" />
+                  <Cell fill="url(#orderCancelled)" stroke="none" />
                   <LabelList 
                     dataKey="name" 
                     position="outside" 

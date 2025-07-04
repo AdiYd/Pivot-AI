@@ -40,16 +40,17 @@ import {
   Filter,
   ArrowUpDown,
   Table as TableIcon,
-  RefreshCw
+  RefreshCw,
+  ToggleLeft
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { collection, deleteDoc, doc, getDocs, Timestamp } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, Timestamp, updateDoc } from 'firebase/firestore';
 import { Icon } from '@iconify/react/dist/iconify.js';
 
 // Import the actual database
 import exampleDatabase from '@/schema/example';
-import { Contact, DataBase, Order, paymentProvider, Restaurant, Supplier, SupplierCategory } from '@/schema/types';
+import { Contact, DataBase, Order, PaymentMeta, paymentProvider, Restaurant, Supplier, SupplierCategory } from '@/schema/types';
 import { getCategoryBadge } from '@/components/ui/badge';
 import { DebugButton, debugFunction } from '@/components/debug';
 import { db, useFirebase } from '@/lib/firebaseClient';
@@ -60,19 +61,18 @@ declare type Stats = {
     productsCount: number,
     totalOrders: number,
     pendingOrders: number,
-    deliveredOrders: number,
+    confirmedOrders: number,
     recentOrderDate: Date | null,
 };
 
 export default function RestaurantsPage() {
-  const {database, refreshDatabase} = useFirebase();
+  const {database, refreshDatabase, source} = useFirebase();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant & { stats: Stats } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingRestaurant, setEditingRestaurant] = useState<Restaurant | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
   const [sortBy, setSortBy] = useState<'name' | 'status' | 'suppliers' | 'orders'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
@@ -114,6 +114,73 @@ export default function RestaurantsPage() {
     }
   };
 
+  const handlePaymentStatusChange = async (restaurantId: string) => {
+     try {
+      // setIsLoading(true);
+      console.log('Changing payment status for restaurant:', restaurantId);
+      const restaurantDocRef = doc(db, `restaurants${source}`, restaurantId);
+      if (restaurantDocRef) {
+        // Get the current 'payment.status' status
+        const restaurantSnapshot = await getDoc(restaurantDocRef);
+        const currentStatus = restaurantSnapshot.data()?.payment as PaymentMeta;
+
+        //Change field "payment.status"
+        await updateDoc(restaurantDocRef, { payment: { status: !currentStatus.status, provider: currentStatus.provider === "credit_card" ? "trial": 'credit_card' } });
+        await refreshDatabase();
+
+      toast({
+        title: `מסעדת ${database.restaurants[restaurantId]?.name || restaurantId}`,
+        description: `המסעדה ${!currentStatus.status ? 'הופעלה' : 'הושהתה'} בהצלחה`,
+        variant: "success"
+      })
+    }
+      
+    } catch (error) {
+      console.error('Error deleting restaurant:', error);
+      toast({
+        title: "שגיאה",
+        description: "אירעה שגיאה בהפעלת/כיבוי המסעדה",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+
+  const handleActivateToggle = async (restaurantId: string) => {
+     try {
+      // setIsLoading(true);
+      console.log('Activating restaurant:', restaurantId);
+      const restaurantDocRef = doc(db, `restaurants${source}`, restaurantId);
+      if (restaurantDocRef) {
+        // Get the current 'isActivated' status
+        const restaurantSnapshot = await getDoc(restaurantDocRef);
+        const currentStatus = restaurantSnapshot.data()?.isActivated;
+
+        //Change field "isActivated"
+        await updateDoc(restaurantDocRef, { isActivated: !currentStatus });
+        await refreshDatabase();
+
+      toast({
+        title: `מסעדת ${database.restaurants[restaurantId]?.name || restaurantId}`,
+        description: `המסעדה ${!currentStatus ? 'הופעלה' : 'הושהתה'} בהצלחה`,
+        variant: "success"
+      })
+    }
+      
+    } catch (error) {
+      console.error('Error deleting restaurant:', error);
+      toast({
+        title: "שגיאה",
+        description: "אירעה שגיאה בהפעלת/כיבוי המסעדה",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Handle restaurant delete
   const handleDelete = async (restaurantId: string) => {
     try {
@@ -125,7 +192,7 @@ export default function RestaurantsPage() {
         setIsLoading(false);
         return;
       }
-      const restaurantDocRef = doc(db, 'restaurants_simulator', restaurantId);
+      const restaurantDocRef = doc(db, `restaurants${source}`, restaurantId);
       if (restaurantDocRef) {
         // Delete all documents in the collection
         await deleteDoc(restaurantDocRef);
@@ -185,7 +252,7 @@ export default function RestaurantsPage() {
         const orders = Object.values(restaurant.orders).map(order=>database.orders[order]);
         const totalOrders = orders.length;
         const pendingOrders = orders.filter(o => o?.status === 'pending').length;
-        const deliveredOrders = orders.filter(o => o?.status === 'delivered').length;
+        const confirmedOrders = orders.filter(o => o?.status === 'confirmed').length;
 
         // Calculate recent activity
         const recentOrderDate = orders.length > 0 
@@ -202,7 +269,7 @@ export default function RestaurantsPage() {
             productsCount,
             totalOrders,
             pendingOrders,
-            deliveredOrders,
+            confirmedOrders,
             recentOrderDate: recentOrderDate ? new Date(recentOrderDate) : null,
             conversationState: conversation?.currentState || 'IDLE'
           }
@@ -292,8 +359,10 @@ export default function RestaurantsPage() {
   const getStatusBadge = (restaurant: Restaurant) => {
     if (restaurant.isActivated && restaurant.payment.status) {
       return <Badge variant="default" className="bg-green-500 mx-auto text-nowrap"><CheckCircle className="w-3 h-3 ml-1" />פעיל</Badge>;
-    } else if (!restaurant.payment.status) {
+    } else if (restaurant.isActivated && !restaurant.payment.status) {
       return <Badge className='mx-auto text-nowrap bg-orange-300/60' variant="secondary">תקופת נסיון</Badge>;
+    } else if (!restaurant.isActivated && restaurant.payment.status) {
+      return <Badge className='mx-auto text-nowrap bg-pink-800/80' variant="info">מושהה</Badge>;
     } else {
       return <Badge className='mx-auto text-nowrap' variant="destructive"><XCircle className="w-3 h-3 ml-1" />לא פעיל</Badge>;
     }
@@ -339,11 +408,11 @@ export default function RestaurantsPage() {
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Users className="w-4 h-4" />
-            <span>{`${Object.values(restaurant.contacts).find(contact => contact.role ==='owner')?.name} - ${Object.values(restaurant.contacts).find(contact => contact.role === 'owner')?.role}`}</span>
+            <span>{`${Object.values(restaurant.contacts).find(contact => contact.role ==='מנהל')?.name} - ${Object.values(restaurant.contacts).find(contact => contact.role === 'בעלים')?.role}`}</span>
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Phone className="w-4 h-4" />
-            <span>{`${Object.values(restaurant.contacts).find(contact => contact.role === 'owner')?.whatsapp}`}</span>
+            <span>{`${Object.values(restaurant.contacts).find(contact => contact.role === 'מנהל')?.whatsapp}`}</span>
           </div>
 
           {/* Quick Stats */}
@@ -383,26 +452,6 @@ export default function RestaurantsPage() {
             </TooltipTrigger>
             <TooltipContent>
               <p>צפייה בפרטים</p>
-            </TooltipContent>
-          </Tooltip>
-          
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => {
-                  editingRestaurantRef.current = { ...restaurant };
-                  setIsEditing(true);
-                  setSelectedRestaurant(restaurant);
-                  setIsDialogOpen(true);
-                }}
-              >
-                <Edit className="w-4 h-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>עריכה</p>
             </TooltipContent>
           </Tooltip>
           
@@ -532,8 +581,8 @@ export default function RestaurantsPage() {
                   <div className="text-xs text-muted-foreground">{restaurant.legalName}</div>
                 </TableCell>
                 <TableCell>
-                  <div className="text-sm">{Object.values(restaurant.contacts).find(contact=> contact.role ==='owner')?.name}</div>
-                  <div className="text-xs text-muted-foreground">{Object.values(restaurant.contacts).find(contact=> contact.role ==='owner')?.whatsapp}</div>
+                  <div className="text-sm">{Object.values(restaurant.contacts).find(contact=> contact.role ==='מנהל')?.name}</div>
+                  <div className="text-xs text-muted-foreground">{Object.values(restaurant.contacts).find(contact=> contact.role ==='מנהל')?.whatsapp}</div>
                 </TableCell>
                 <TableCell>
                   {getStatusBadge(restaurant)}
@@ -557,7 +606,7 @@ export default function RestaurantsPage() {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-2">
                     
                     {/* <Tooltip>
                       <TooltipTrigger asChild>
@@ -579,7 +628,14 @@ export default function RestaurantsPage() {
                         <p>עריכה</p>
                       </TooltipContent>
                     </Tooltip> */}
-                    
+                    <Switch
+                      dir='ltr'
+                      
+                      checked={restaurant.isActivated}
+                      onCheckedChange={() => handleActivateToggle(restaurant.legalId)}
+                      className="data-[state=checked]:bg-green-500/80 h-6 data-[state=unchecked]:bg-red-400/80"
+                      onClick={e => e.stopPropagation()}
+                    />
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Tooltip>
@@ -598,25 +654,6 @@ export default function RestaurantsPage() {
                           </TooltipContent>
                         </Tooltip>
                       </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>האם אתה בטוח?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            פעולה זו תמחק את המסעדה &quot;{restaurant.name}&quot; לצמיתות.
-                            כל הנתונים הקשורים כולל ספקים, מוצרים והזמנות יימחקו.
-                            פעולה זו לא ניתנת לביטול.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>ביטול</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={(e) => { e.stopPropagation(); handleDelete(restaurant.legalId); }}
-                            className="bg-red-600 hover:bg-red-700"
-                          >
-                            מחק מסעדה
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
                     </AlertDialog>
                   </div>
                 </TableCell>
@@ -993,30 +1030,11 @@ export default function RestaurantsPage() {
                         <div dir='ltr' className="flex items-center space-x-2">
                           <Switch
                             checked={editingRestaurantRef.current?.isActivated || false}
-                            onCheckedChange={(checked) => editingRestaurantRef.current = { ...editingRestaurantRef.current, isActivated: checked } as Restaurant }
+                            onChange={async () => {handleActivateToggle(editingRestaurantRef.current?.legalId as string)}}
                           />
                           <Label>מסעדה פעילה</Label>
                         </div>
 
-                        <div className="flex justify-end gap-2 pt-4 border-t">
-                          <Button
-                            variant="outline"
-                            onClick={() => {
-                              setIsEditing(false);
-                              editingRestaurantRef.current = null;
-                            }}
-                          >
-                            <X className="w-4 h-4 mr-1" />
-                            ביטול
-                          </Button>
-                          <Button
-                            onClick={() => handleEdit(selectedRestaurant.legalId, editingRestaurantRef.current)}
-                            disabled={isLoading}
-                          >
-                            <Save className="w-4 h-4 mr-1" />
-                            שמור שינויים
-                          </Button>
-                        </div>
                       </div>
                     ) : (
                       <>
@@ -1040,9 +1058,22 @@ export default function RestaurantsPage() {
                             <Input value={selectedRestaurant.createdAt.toDate().toLocaleDateString('he-IL')} readOnly />
                           </div>
                           <div className="space-y-2">
-                            <Label>סטטוס</Label>
-                            <div className="pt-2">
-                              {getStatusBadge(selectedRestaurant)}
+                            <Label>סטטוס תשלום</Label>
+                            <div className="flex gap-8 items-center pt-2">
+                              <div>
+                              {getStatusBadge(database.restaurants[selectedRestaurant.legalId])}
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                <Switch
+                                  dir='ltr'
+                                  checked={database.restaurants[selectedRestaurant.legalId].payment?.status}
+                                  onCheckedChange={async (checked) => {
+                                    await handlePaymentStatusChange(selectedRestaurant.legalId);
+                                  }}
+                                  className='data-[state=checked]:bg-green-500/80 h-6 data-[state=unchecked]:bg-red-400/80'
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -1218,19 +1249,6 @@ export default function RestaurantsPage() {
                         </Card>
                       ))}
                       
-                      <div className="border-t pt-4 mt-4">
-                        <h4 className="font-medium mb-3">פרטי תשלום</h4>
-                        <div className="flex justify-start gap-4">
-                        <div className="space-y-2 min-w-[60%]">
-                          <Label>ספק תשלומים</Label>
-                          <Input value={selectedRestaurant.payment.provider} readOnly />
-                        </div>
-                        <div className="space-y-2 grid ">
-                          <Label>סטטוס תשלום</Label>
-                          {getStatusBadge(selectedRestaurant)}
-                        </div>
-                        </div>
-                      </div>
                       </>
                     )}
                   </TabsContent>

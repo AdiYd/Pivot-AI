@@ -10,7 +10,7 @@
  *     ├─ legalName: string             // Legal business name
  *     ├─ name: string                 // Restaurant name (customer-facing)
  *     ├─ contacts: {                 // Map of contacts items, including primary contact
- *       [whatsapp: string]: { 'whatsapp': string, 'name': string, 'role': string, 'email': string (optional) }
+ *       [whatsapp: string]: { 'whatsapp': string, 'name': string, 'role': string, 'email': string (optional), 'remindersForSuppliers': string[] (optional) }
  *       // ...
  *      }       
  *     ├─ isActivated: boolean     // Whether the restaurant is activated for service
@@ -20,7 +20,7 @@
  *     └─ updatedAt: Timestamp
  *
  *     /suppliers (collection of suppliers objects)
- *       {supplierId} (doc)
+ *       {supplierWhatsapp} (doc)
  *         ├─ whatsapp: string                // WhatsApp number (matches document ID)
  *         ├─ name: string
  *         ├─ role: "supplier"              // Always "supplier"
@@ -29,10 +29,8 @@
  *         ├─ cutoff: Cutoff[]      // Array of cutoff times e.g. [{ day: "sun", time: "20:00" }]
  *         ├─ rating: number            // 0-5
  *         ├─ createdAt: Timestamp
- *         └─ updatedAt: Timestamp
- *
- *         /products (collection of products objects)
- *           {productId} (doc)
+ *         ├─ updatedAt: Timestamp
+ *         └─ products[] (array of products objects)
  *             ├─ name: string
  *             ├─ unit: string                // "kg", "pcs", etc.
  *             ├─ emoji: string              // Emoji representation

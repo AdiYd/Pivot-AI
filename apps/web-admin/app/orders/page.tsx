@@ -41,8 +41,6 @@ interface EnhancedOrder extends Order {
 const STATUS_DICT: Record<OrderStatus, { name: string, variant: string, icon: React.ReactNode }> = {
   pending: { name: 'ממתין', variant: 'outline', icon: <Clock className="w-3 h-3 mr-1" /> },
   confirmed: { name: 'מאושר', variant: 'outline', icon: <CheckCircle className="w-3 h-3 mr-1" /> },
-  sent: { name: 'נשלח', variant: 'outline', icon: <Truck className="w-3 h-3 mr-1" /> },
-  delivered: { name: 'נמסר', variant: 'default', icon: <CheckCircle className="w-3 h-3 mr-1" /> },
   cancelled: { name: 'בוטל', variant: 'destructive', icon: <X className="w-3 h-3 mr-1" /> }
 };
 
@@ -152,8 +150,8 @@ export default function OrdersPage() {
     try {
       const total = enhancedOrders.length;
       const pending = enhancedOrders.filter(o => o.status === 'pending').length;
-      const sent = enhancedOrders.filter(o => o.status === 'sent').length;
-      const delivered = enhancedOrders.filter(o => o.status === 'delivered').length;
+      const confirmed = enhancedOrders.filter(o => o.status === 'confirmed').length;
+      const cancelled = enhancedOrders.filter(o => o.status === 'cancelled').length;
       const withShortages = enhancedOrders.filter(o => o.hasShortages).length;
       
       // Get unique restaurants and suppliers
@@ -167,8 +165,8 @@ export default function OrdersPage() {
       return {
         total,
         pending,
-        sent,
-        delivered,
+        confirmed,
+        cancelled,
         withShortages,
         uniqueRestaurantsCount: uniqueRestaurants.size,
         uniqueSuppliersCount: uniqueSuppliers.size,
@@ -195,16 +193,13 @@ export default function OrdersPage() {
     
     switch (status) {
       case 'pending':
-        className = 'border-amber-500 text-amber-500';
+        className = 'border-amber-500 border-none text-white bg-amber-600/80';
         break;
       case 'confirmed':
-        className = 'border-blue-500 text-blue-500';
+        className = 'border-green-500 border-none text-white bg-green-600/80';
         break;
-      case 'sent':
-        className = 'border-purple-500 text-purple-500';
-        break;
-      case 'delivered':
-        className = 'bg-green-500';
+      case 'cancelled':
+        className = 'border-red-500 border-none text-white bg-red-600/80';
         break;
       default:
         className = 'bg-gray-500';
@@ -265,9 +260,9 @@ export default function OrdersPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className='flex-1 overflow-y-auto'>
-          <div className="text-2xl font-bold text-amber-500">{stats.pending + stats.sent}</div>
+          <div className="text-2xl font-bold text-amber-500">{stats.pending + (stats.confirmed || 0)}</div>
           <p className="text-xs text-muted-foreground mt-1">
-            ממתינים: {stats.pending} | נשלחו: {stats.sent}
+            ממתינים: {stats.pending} | מאושרים: {stats.confirmed}
           </p>
         </CardContent>
       </Card>
@@ -280,9 +275,9 @@ export default function OrdersPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className='flex-1 overflow-y-auto'>
-          <div className="text-2xl font-bold text-green-500">{stats.delivered}</div>
+          <div className="text-2xl font-bold text-green-500">{stats.confirmed}</div>
           <p className="text-xs text-muted-foreground mt-1">
-            {stats.total > 0 ? Math.round((stats.delivered / stats.total) * 100) : 0}% מכלל ההזמנות
+            {stats.total > 0 ? Math.round(((stats.confirmed || 0) / stats.total) * 100) : 0}% מכלל ההזמנות
           </p>
         </CardContent>
       </Card>

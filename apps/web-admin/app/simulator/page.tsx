@@ -59,7 +59,7 @@ export default function SimulatorPage() {
     messages: [],
     isConnected: false,
     isLoading: false,
-    role: 'owner',
+    role: 'מנהל',
     context: {
       isSimulator: true,
       contactNumber: '0523456789',
@@ -354,7 +354,7 @@ export default function SimulatorPage() {
       messages: [],
       isConnected: false,
       isLoading: false,
-      role: 'owner',
+      role: 'מנהל',
       context: {
         isSimulator: true,
         contactNumber: '0523456789',
@@ -853,9 +853,10 @@ const clearSession = async (phoneNumber: string): Promise<void> => {
       
       // Check and delete reference in restaurants_simulator collection if exists
       const restaurantsRef = collection(db, 'restaurants_simulator');
+      // Query for restaurants where the contacts object has a key matching the phone number
       const restaurantQuery = query(
-        restaurantsRef, 
-        where('primaryContact.whatsapp', '==', cleanPhone)
+        restaurantsRef,
+        where(`contacts.${cleanPhone}`, '!=', null)
       );
       
       const restaurantSnapshot = await getDocs(restaurantQuery);
@@ -892,7 +893,7 @@ const WhatsAppTemplateRenderer = ({ message, context, onSelect }: WhatsAppTempla
       ...context,
     },
     messages: [],
-    role: 'owner',
+    role: 'מנהל',
   }
   useEffect(() => {
     setHasClientRendered(true);

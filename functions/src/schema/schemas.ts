@@ -21,8 +21,8 @@ export const whatsappRegex = /^(05[0-9]{8})$/; // Regex for Israeli WhatsApp num
 export const whatsappSchema = z.string().regex(whatsappRegex, "מספר הוואטסאפ לא תקין, יש לכתוב מספר לא תווים נוספים לדוגמה: 0541234567");
 export const nameSchema = z.string().min(2, "שם חייב להיות באורך של לפחות 2 תווים");
 export const emailSchema = z.string().email("כתובת האימייל לא תקינה");
-export const contactRoleSchema = z.enum(["owner", "manager", "shift", "general", "supplier"], {
-  description: "תפקיד איש הקשר במסעדה, לדוגמה: 'owner', 'manager' וכו'"
+export const contactRoleSchema = z.enum(["בעלים", "מנהל מסעדה", "מנהל", "אחראי", "מנהל מטבח", "מנהל בר", "מטבח", "בר", "כללי", "ספק"], {
+  description: "תפקיד איש הקשר במסעדה, לדוגמה: 'מנהל', 'ספק' וכו'"
 });
 
 
@@ -48,7 +48,7 @@ export const supplierCutoffHourSchema = z.number().min(0, "אנא הזן שעה 
 
 // Order types
 export const orderIdSchema = z.string().min(5, "מספר ההזמנה חייב להיות באורך של לפחות 5 תווים");
-export const orderStatusSchema = z.enum(["pending", "confirmed","sent", "delivered","cancelled"]).default("pending");
+export const orderStatusSchema = z.enum(["pending", "confirmed","cancelled"]).default("pending");
 
 
 // Message types
@@ -88,8 +88,9 @@ export const conversationStateSchema = z.enum(botStateValues as [BotState, ...Bo
 export const ContactSchema = z.object({
   whatsapp: whatsappSchema,
   name: nameSchema,
-  role: contactRoleSchema.default('general'),
+  role: contactRoleSchema.default('כללי'),
   email: emailSchema.optional(),
+  remindersForSuppliers: z.array(z.string()).optional(),
 });
 
 
@@ -113,8 +114,8 @@ export const ProductSchema = z.object({
 
 
 // Supplier schema
-export const SupplierSchema = ContactSchema.extend({
-    role: contactRoleSchema.default('supplier').transform(()=> "supplier"), // All suppliers have the role of "supplier"
+export const SupplierSchema = ContactSchema.pick({name: true, whatsapp: true, email: true}).extend({
+    role: contactRoleSchema.default('ספק').transform(()=> "ספק"), // All suppliers have the role of "supplier"
     category: z.array(supplierCategorySchema).default([]), // Array of supplier categories, transformed to a Set for uniqueness
     cutoff: supplierCutoffSchema.default([]), // Array of cutoff times for the supplier
     products: z.array(ProductSchema).default([]), // Array of products of the supplier
@@ -133,7 +134,7 @@ export const RestaurantSchema = z.object({
   payment: PaymentMetaSchema,
   suppliers: z.array(SupplierSchema).default([]),   // Array of supplier IDs
   orders: z.array(z.string()).default([]),         // Array of order IDs
-  isActivated: z.boolean().default(false),        // Whether the restaurant is activated for service and orders
+  isActivated: z.boolean().default(true),        // Whether the restaurant is activated for service and orders
   createdAt: timestampSchema,
   updatedAt: timestampSchema
 });
@@ -202,7 +203,7 @@ export const ConversationSchema = z.object({
     context: z.record(z.any()).default({}),                            // Context of the conversation, can be any key-value pairs
     messages: z.array(MessageSchema).default([]),                     // Array of messages in the conversation
     restaurantId: restaurantLegalIdSchema.optional(),                // Optional restaurant ID to link between a conversation and a restaurant
-    role: contactRoleSchema.default("general"),                     // Role of the contact in the conversation, e.g., "owner", "manager", etc.
+    role: contactRoleSchema.default("כללי"),                        // Role of the contact in the conversation, e.g., "owner", "manager", etc.
     createdAt: timestampSchema,                                    // Timestamp of when the conversation was created
     updatedAt: timestampSchema,                                   // Timestamp of when the conversation was last updated (e.g., last message timestamp)
 });

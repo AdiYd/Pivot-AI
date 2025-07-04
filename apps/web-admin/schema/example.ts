@@ -36,13 +36,13 @@ export const exampleRestaurants: Record<Restaurant['legalId'], Restaurant> = {
       "0501234567": {
         whatsapp: "0501234567",
         name: "דוד כהן",
-        role: "owner",
+        role: "מנהל",
         email: "david@labellecuisine.com"
       },
       "0501234568": {
         whatsapp: "0501234568",
         name: "יעל לוי",
-        role: "manager",
+        role: "מנהל",
         email: "yael@labellecuisine.com"
       }
     },
@@ -189,7 +189,7 @@ export const exampleRestaurants: Record<Restaurant['legalId'], Restaurant> = {
       "0523456789": {
         whatsapp: "0523456789",
         name: "שרה לוי",
-        role: "manager",
+        role: "מנהל",
         email: "sarah@urbanbistro.com"
       }
     },
@@ -292,7 +292,7 @@ export const exampleRestaurants: Record<Restaurant['legalId'], Restaurant> = {
       "0547890123": {
         whatsapp: "0547890123",
         name: "מיכאל בן-דוד",
-        role: "owner",
+        role: "מנהל",
         email: "michael@morningcafe.com"
       }
     },
@@ -386,7 +386,7 @@ export const exampleOrders: Record<string, Order> = {
         whatsapp: "0501234567",
         name: "דוד כהן",
         email: "david@labellecuisine.com",
-        role: "owner"
+        role: "מנהל"
       }
     },
     timeToDeliver: '26.10.2023 14:00',
@@ -396,7 +396,7 @@ export const exampleOrders: Record<string, Order> = {
       email: "freshfields@example.com"
     },
     category: ["vegetables"],
-    status: "delivered",
+    status: "confirmed",
     midweek: true,
     items: [
       { name: "עגבניות שרי", unit: "kg", emoji: "🍅", qty: 6 },
@@ -422,7 +422,7 @@ export const exampleOrders: Record<string, Order> = {
         whatsapp: "0501234567",
         name: "דוד כהן",
         email: "david@labellecuisine.com",
-        role: "owner"
+        role: "מנהל"
       }
     },
     timeToDeliver: '26.10.2023 14:00',
@@ -431,7 +431,7 @@ export const exampleOrders: Record<string, Order> = {
       name: "פירות ים תיכוניים",
     },
     category: ["fish"],
-    status: "sent",
+    status: "confirmed",
     midweek: false,
     items: [
       { name: "סלמון טרי", unit: "kg", emoji: "🐟", qty: 8 },
@@ -453,7 +453,7 @@ export const exampleOrders: Record<string, Order> = {
         whatsapp: "0501234567",
         name: "דוד כהן",
         email: "david@labellecuisine.com",
-        role: "owner"
+        role: "מנהל"
       }
     },
     timeToDeliver: '26.10.2023 14:00',
@@ -484,7 +484,7 @@ export const exampleOrders: Record<string, Order> = {
         whatsapp: "0523456789",
         name: "שרה לוי",
         email: "sarah@urbanbistro.com",
-        role: "manager"
+        role: "מנהל"
       }
     },
     supplier: {
@@ -493,7 +493,7 @@ export const exampleOrders: Record<string, Order> = {
     },
     timeToDeliver: '26.10.2023 14:00',
     category: ["vegetables"],
-    status: "delivered",
+    status: "pending",
     midweek: true,
     items: [
       { name: "חסה מעורבת", unit: "box", emoji: "🥬", qty: 4 },
@@ -516,7 +516,7 @@ export const exampleOrders: Record<string, Order> = {
         whatsapp: "0523456789",
         name: "שרה לוי",
         email: "sarah@urbanbistro.com",
-        role: "manager"
+        role: "מנהל"
       }
     },
     supplier: {
@@ -526,7 +526,7 @@ export const exampleOrders: Record<string, Order> = {
     },
     timeToDeliver: '26.10.2023 14:00',
     category: ["dairy"],
-    status: "sent",
+    status: "confirmed",
     midweek: false,
     items: [
       { name: "חלב", unit: "l", emoji: "🥛", qty: 10 },
@@ -556,7 +556,7 @@ export const exampleConversations: Record<string, Conversation> = {
       legalId: "123456789"
     },
     restaurantId: "123456789",
-    role: "owner",
+    role: "מנהל",
     createdAt: daysAgo(120),
     updatedAt: daysAgo(1),
     
@@ -605,7 +605,7 @@ export const exampleConversations: Record<string, Conversation> = {
       legalId: "987654321"
     },
     restaurantId: "987654321",
-    role: "manager",
+    role: "מנהל",
     createdAt: daysAgo(90),
     updatedAt: now,
     
@@ -633,7 +633,7 @@ export const exampleConversations: Record<string, Conversation> = {
       contactEmail: "michael@morningcafe.com"
     },
     restaurantId: "567890123",
-    role: "owner",
+    role: "מנהל",
     createdAt: daysAgo(30),
     updatedAt: daysAgo(1),
     
@@ -737,7 +737,7 @@ export const exampleConversations: Record<string, Conversation> = {
       role: "supplier"
     },
     restaurantId: "123456789",
-    role: "supplier",
+    role: "ספק",
     createdAt: daysAgo(110),
     updatedAt: daysAgo(6),
     

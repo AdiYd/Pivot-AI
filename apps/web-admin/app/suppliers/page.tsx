@@ -13,18 +13,20 @@ import {
 import { 
   Plus, Search, Truck, Calendar, Clock, Phone, Star, Package, 
   Eye, Store, Filter, TrendingUp, X, Table as TableIcon,
-  RefreshCw
+  RefreshCw,
+  Trash2
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
 // Import the actual database
 import exampleDatabase from '@/schema/example';
-import { DataBase, Days, Supplier, SupplierCategory } from '@/schema/types';
+import { DataBase, Days, Restaurant, Supplier, SupplierCategory } from '@/schema/types';
 import { getCategoryBadge } from '@/components/ui/badge';
 import { Icon } from '@iconify/react/dist/iconify.js';
 import { CATEGORIES_DICT, WEEKDAYS_DICT } from '@/schema/states';
 import { DebugButton, debugFunction } from '@/components/debug';
-import { useFirebase } from '@/lib/firebaseClient';
+import { db, useFirebase } from '@/lib/firebaseClient';
+import { deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore';
 
 // Types for enhanced supplier data
 interface EnhancedSupplier extends Supplier {
@@ -45,7 +47,7 @@ const weekDaysDict: Record<number, Days> = {
 }
 
 export default function SuppliersPage() {
-  const {database, refreshDatabase} = useFirebase();
+  const {database, refreshDatabase, source} = useFirebase();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedSupplier, setSelectedSupplier] = useState<EnhancedSupplier | null>(null);
@@ -165,6 +167,40 @@ export default function SuppliersPage() {
     return `לפני ${Math.floor(diffDays / 30)} חודשים`;
   };
 
+  const handleDelete = async (restaurantId: string, whatsapp: string) => {
+    try {
+      console.log('Deleting supplier from restaurant:', restaurantId);
+      const restaurantDocRef = doc(db, `restaurants${source}`, restaurantId);
+      if (restaurantDocRef) {
+        const restaurant = (await getDoc(restaurantDocRef)).data() as Restaurant;
+        const restaurantName = restaurant?.name || restaurant.legalName || restaurant.legalId;
+        const supplierName = restaurant.suppliers.find(supplier => supplier.whatsapp === whatsapp)?.name;
+        const approval = confirm(`האם אתה בטוח שברצונך למחוק את הספק ${supplierName} (${whatsapp}) מהמסעדה ${restaurantName}?
+
+פעולה זאת לא ניתנת לשחזור.`);
+        if (!approval) return;
+        // Remove from restaurant<restaurantId>(doc) -> suppliers<supplierWhatsapp>(collection)
+        const supplierDocRef = doc(db, `restaurants${source}`, restaurantId, 'suppliers', whatsapp);
+        await deleteDoc(supplierDocRef);
+        await refreshDatabase();
+        toast({
+          title: `ספק ${supplierName} של מסעדה ${restaurantName} נמחק`,
+          description: "הספק נמחק בהצלחה מהמערכת",
+          variant: "success",
+        });
+       }
+    } catch (error) {
+      console.error('Error deleting supplier:', error);
+      toast({
+        title: "שגיאה",
+        description: "אירעה שגיאה במחיקת הספק",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const SupplierCard = ({ supplier }: { supplier: EnhancedSupplier }) => (
     <Card className="hover:shadow-lg transition-shadow">
       <CardHeader className="pb-4">
@@ -199,7 +235,7 @@ export default function SuppliersPage() {
             <span>
               {supplier.cutoff.length > 0
                 ? supplier.cutoff.map(reminder => WEEKDAYS_DICT[reminder.day]).join(', ')
-                : 'אין ימי תזכורת מוגדרים'}
+                : 'אין ימי חיתוך מוגדרים'}
             </span>
           </div>
          
@@ -250,11 +286,12 @@ export default function SuppliersPage() {
               <TableHead className="text-right">מסעדה</TableHead>
               <TableHead className="text-right hidden">WhatsApp</TableHead>
               <TableHead className="text-right">קטגוריות</TableHead>
-              <TableHead className="text-right">ימי תזכורת</TableHead>
+              <TableHead className="text-right">ימי חיתוך</TableHead>
               <TableHead className="text-right hidden">שעת סגירה</TableHead>
               <TableHead className="text-right">מוצרים</TableHead>
               <TableHead className="text-right hidden">דירוג</TableHead>
               <TableHead className="text-right">הזמנות</TableHead>
+              <TableHead className="text-right">פעולות</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -315,6 +352,16 @@ export default function SuppliersPage() {
                   <div className='mr-3'>
                     {supplier.recentOrdersCount}
                   </div>
+                </TableCell>
+                <TableCell>
+                  <Button
+                  size="icon"
+                  title='מחק ספק'
+                   variant='outline'
+                   onClick={(e) => {e.stopPropagation(); handleDelete(supplier.restaurantId, supplier.whatsapp)}} 
+                  >
+                    <Trash2 className="w-4 h-4 text-red-500" />
+                  </Button>
                 </TableCell>
               </TableRow>
             ))}
@@ -430,7 +477,7 @@ export default function SuppliersPage() {
           </CardContent>
         </Card>
         
-        <Card>
+        {/* <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <Star className="w-4 h-4" />
@@ -445,7 +492,7 @@ export default function SuppliersPage() {
               {getRatingStars(stats.averageRating)}
             </div>
           </CardContent>
-        </Card>
+        </Card> */}
         
         <Card>
           <CardHeader className="pb-2">
@@ -617,7 +664,7 @@ export default function SuppliersPage() {
                       </div>
                     </div>
                     <div className="grid grid-cols-3 gap-4">
-                      <div className="space-y-2">
+                      {/* <div className="space-y-2">
                         <Label>דירוג</Label>
                         <div className="flex items-center gap-2">
                           <div className="flex">
@@ -625,7 +672,7 @@ export default function SuppliersPage() {
                           </div>
                           <span>({selectedSupplier.rating || 0})</span>
                         </div>
-                      </div>
+                      </div> */}
                       <div className="space-y-2">
                         <Label>מספר מוצרים</Label>
                         <Input value={selectedSupplier.productCount.toString()} readOnly />

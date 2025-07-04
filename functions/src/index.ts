@@ -151,10 +151,11 @@ exports.whatsappWebhook = functions.region('europe-central2').https.onRequest(as
         // Completely new user - start onboarding
         conversation = ConversationSchema.parse({
           currentState: "INIT",
-          role: "owner",
+          role: "בעלים",
           context: {
             contactNumber: phoneNumber,
-            contactRole: "owner",
+            contactRole: "בעלים",
+            isManager: true,
             ...(isSimulator && { isSimulator })
           },
         });
@@ -171,12 +172,13 @@ exports.whatsappWebhook = functions.region('europe-central2').https.onRequest(as
 
         conversation = ConversationSchema.parse({
           currentState: "IDLE",
-          role: contactRole || "general",
+          role: contactRole || "כללי",
           restaurantId,
           context: {
             legalId: restaurant.legalId,
             restaurantName: restaurant.name,
             contactNumber: phoneNumber,
+            isManager: (contactRole === "מנהל" || contactRole === "בעלים"),
             contactRole,
             contactName,
             ...(isSimulator && { isSimulator })
@@ -210,7 +212,7 @@ exports.whatsappWebhook = functions.region('europe-central2').https.onRequest(as
     
       conversation = ConversationSchema.parse({
         currentState: data.currentState,
-        role: data.role || "owner",
+        role: data.role || "כללי",
         context: {
           ...data.context,
           contactNumber: phoneNumber,
@@ -430,73 +432,6 @@ async function sendOrderConfirmationNotifications(order: Order, restaurant: Rest
 }
 
 /**
- * Send order sent notifications
- */
-async function sendOrderSentNotifications(order: Order, restaurant: Restaurant, orderUrl: string) {
-  try {
-    // Notification to restaurant owner that order is on its way
-    const ownerContact = Object.values(restaurant.contacts)
-      .find((contact: any) => contact.role === 'owner');
-    
-    if (ownerContact) {
-      const ownerMessage = `שלום ${ownerContact.name},
-ההזמנה שלך מ${order.supplier.name} נשלחה ובדרך אליכם.
-סטטוס: נשלח
-צפי הגעה: ${order.timeToDeliver || 'לא צוין'}
-מספר הזמנה: ${order.id}
-לצפייה בהזמנה: ${orderUrl}`;
-
-      await sendWhatsAppMessage(
-        ownerContact.whatsapp,
-        ownerMessage
-      );
-      
-      console.log(`[OrderSync] ✅ Sent order sent notification to restaurant owner: ${ownerContact.whatsapp}`);
-    }
-  } catch (error) {
-    console.error("[OrderSync] Error sending order sent notifications:", error);
-    throw error;
-  }
-}
-
-/**
- * Send delivery completed notifications
- */
-async function sendDeliveryCompletedNotifications(order: Order, restaurant: Restaurant, orderUrl: string) {
-  try {
-    const ownerContact = Object.values(restaurant.contacts)
-      .find((contact: any) => contact.role === 'owner');
-    
-    if (ownerContact) {
-      let ownerMessage = `שלום ${ownerContact.name},
-ההזמנה שלך מ${order.supplier.name} התקבלה במסעדה.
-סטטוס: התקבל
-מספר הזמנה: ${order.id}`;
-
-      // Add shortages information if any
-      if (order.shortages && order.shortages.length > 0) {
-        ownerMessage += `\n\nחוסרים:`;
-        order.shortages.forEach((shortage: any) => {
-          ownerMessage += `\n${shortage.emoji} ${shortage.name}: התבקש: ${shortage.requestedQty}, סופק: ${shortage.deliveredQty}`;
-        });
-      }
-      
-      ownerMessage += `\n\nלצפייה בהזמנה: ${orderUrl}`;
-
-      await sendWhatsAppMessage(
-        ownerContact.whatsapp,
-        ownerMessage
-      );
-      
-      console.log(`[OrderSync] ✅ Sent delivery completion to restaurant owner: ${ownerContact.whatsapp}`);
-    }
-  } catch (error) {
-    console.error("[OrderSync] Error sending delivery notifications:", error);
-    throw error;
-  }
-}
-
-/**
  * Send order cancelled notifications
  */
 async function sendOrderCancelledNotifications(order: Order, restaurant: Restaurant, orderUrl: string) {
@@ -569,22 +504,6 @@ function createOrderHandler(collectionPath: string) {
             );
             break;
           
-          case "sent":
-            await sendOrderSentNotifications(
-              newValue, 
-              restaurantData, 
-              orderUrl
-            );
-            break;
-            
-          case "delivered":
-            await sendDeliveryCompletedNotifications(
-              newValue, 
-              restaurantData, 
-              orderUrl
-            );
-            break;
-            
           case "cancelled":
             await sendOrderCancelledNotifications(
               newValue, 

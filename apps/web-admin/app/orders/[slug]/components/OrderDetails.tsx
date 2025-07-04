@@ -269,30 +269,16 @@ export default function OrderDetails({ order }: OrderDetailsProps) {
         <h3 className="text-base font-medium mb-4">סטטוס הזמנה</h3>
         
         <div className="flex justify-between items-center max-w-2xl mx-auto">
-          <div className={`flex flex-col items-center ${order.status === 'pending' || order.status === 'confirmed' || order.status === 'sent' || order.status === 'delivered' ? 'text-green-600' : 'text-gray-400'}`}>
-            <div className={`w-8 h-8 rounded-full ${order.status === 'pending' || order.status === 'confirmed' || order.status === 'sent' || order.status === 'delivered' ? 'bg-green-100' : 'bg-gray-100'} flex items-center justify-center`}>
+          <div className={`flex flex-col items-center ${order.status === 'pending' || order.status === 'confirmed' ? 'text-green-600' : 'text-gray-400'}`}>
+            <div className={`w-8 h-8 rounded-full ${order.status === 'pending' || order.status === 'confirmed' ? 'bg-green-100' : 'bg-gray-100'} flex items-center justify-center`}>
               <Check className="w-5 h-5" />
             </div>
             <p className="mt-2 text-xs">אושר</p>
           </div>
           
-          <div className={`flex-1 h-1 ${order.status === 'confirmed' || order.status === 'sent' || order.status === 'delivered' ? 'bg-green-500' : 'bg-gray-200'}`} />
+          <div className={`flex-1 h-1 ${order.status === 'confirmed' ? 'bg-green-500' : 'bg-gray-200'}`} />
           
-          <div className={`flex flex-col items-center ${order.status === 'sent' || order.status === 'delivered' ? 'text-green-600' : 'text-gray-400'}`}>
-            <div className={`w-8 h-8 rounded-full ${order.status === 'sent' || order.status === 'delivered' ? 'bg-green-100' : 'bg-gray-100'} flex items-center justify-center`}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-truck"><path d="M5 18H3c-.6 0-1-.4-1-1V7c0-.6.4-1 1-1h10c.6 0 1 .4 1 1v11" /><path d="M14 9h4l4 4v4c0 .6-.4 1-1 1h-2" /><circle cx="7" cy="18" r="2" /><circle cx="17" cy="18" r="2" /></svg>
-            </div>
-            <p className="mt-2 text-xs">נשלח</p>
-          </div>
-          
-          <div className={`flex-1 h-1 ${order.status === 'delivered' ? 'bg-green-500' : 'bg-gray-200'}`} />
-          
-          <div className={`flex flex-col items-center ${order.status === 'delivered' ? 'text-green-600' : 'text-gray-400'}`}>
-            <div className={`w-8 h-8 rounded-full ${order.status === 'delivered' ? 'bg-green-100' : 'bg-gray-100'} flex items-center justify-center`}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-package-check"><path d="M12 22V8" /><path d="m19 5-7-3-7 3" /><path d="M5 11V5l7-3v6" /><path d="m12 5 7-3v6" /><path d="M17 22v-7" /><path d="M22 18a5 5 0 0 1-5 5 5 5 0 0 1-3.5-1.5L15 20" /></svg>
-            </div>
-            <p className="mt-2 text-xs">התקבל</p>
-          </div>
+        
         </div>
         
         {order.deliveredAt && (

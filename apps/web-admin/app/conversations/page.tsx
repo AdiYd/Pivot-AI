@@ -296,7 +296,7 @@ const filteredConversations = useMemo(() => {
     
     return (
       <div className="flex items-center gap-1">
-        <Badge className={colors[category]}>
+        <Badge  className={colors[category] + ' text-[0.6rem]'}>
           {stateNames[state] || state}
         </Badge>
       </div>
@@ -818,7 +818,7 @@ const WhatsAppTemplateRenderer = ({ message, context={}, onSelect }: WhatsAppTem
       ...context,
     },
     messages: [],
-    role: 'owner',
+    role: 'מנהל',
   }
 
   useEffect(() => {

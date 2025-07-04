@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import * as admin from 'firebase-admin';
 import {SupplierSchema, ConversationSchema, MessageSchema, RestaurantSchema} from '../schema/schemas';
-import { Conversation, Supplier,SupplierCategory, Restaurant, Contact, Message, ContactMap } from '../schema/types';
+import { Conversation, Supplier, Restaurant, Contact, Message, ContactMap } from '../schema/types';
 import { FieldValue, DocumentReference } from 'firebase-admin/firestore';
 
 // CRITICAL: This ensures functions running in emulator connect to production Firestore
@@ -72,9 +72,10 @@ const AI_CONFIGURATIONS_FALLBACK: AIConfigurationsInterface = {
 למערכת יש תפריט ראשי (יש להקליד "תפריט" על מנת להגיע אליו בכל שלב) ובו יכולת לספק מידע באופן הבא בלבד:
 1.באפשרות של "יצירת הזמנה" - ניתן לקבל קישור ולבצע ספירת מלאי ולאחר מכן הזמנה
 2.באפשרות "הוספת ספק" (האפשרות קיימת לבעלי החשבון בלבד ולא לכל אנשי הקשר השייכים למסעדה) - ניתן להגדיר ספקים חדשים למסעדה
-3.באפשרות "נתוני מסעדה" ניתן לצפות ולשאול שאלות על נתוני המסעדה, ספקים, מוצרים, אנשי קשר וכו'
-4.באפשרות "נתוני הזמנות" ניתן לצפות ולשאול שאלות על ההזמנות האחרונות של המסעדה
-5.באפשרות "שאלות ועזרה" - ניתן לקבל תשובות לשאלות כלליות על המערכת, תהליך ההרשמה, יצירת הזמנות, ניהול מלאי, ספקים ועוד.
+3.באפשרות "ניהול אנשי קשר" ניתן להגדיר אנשי קשר שיקבלו תזכורות לבצע הזמנות בשמכם (למשל: מנהל בר, מנהל מטבח).
+4.באפשרות "נתוני מסעדה" ניתן לצפות ולשאול שאלות על נתוני המסעדה, ספקים, מוצרים, אנשי קשר וכו'
+5.באפשרות "נתוני הזמנות" ניתן לצפות ולשאול שאלות על ההזמנות האחרונות של המסעדה
+6.באפשרות "שאלות ועזרה" - ניתן לקבל תשובות לשאלות כלליות על המערכת, תהליך ההרשמה, יצירת הזמנות, ניהול מלאי, ספקים ועוד.
 
 בכל שאלה אחרת, בקשות מיוחדות, בקשות שאינן במסגרת התפריט, או רצון לשנות, לערוך או למחוק מידע מעבר לזה הניתן בתפריט - יש להפנות את הלקוח אל בעלי הממשק בהודעה הבאה:
 *******************
@@ -176,9 +177,10 @@ For each order id in the restaurant orders list - you can re-direct the client t
   *מה אפשר לעשות כאן?*
   1. *יצירת הזמנה חדשה*: בצעו ספירת מלאי, קבלו המלצה לכמויות, ושלחו הזמנה לספק בלחיצת כפתור.
   2. *הוספת ספק חדש*: הגדירו ספקים, ימי אספקה, שעת חיתוך והוסיפו מוצרים ופרטי קשר.
-  3. *צפייה בנתוני מסעדה*: קבלו מידע על אנשי קשר, ספקים, מוצרים, והיסטוריית הזמנות.
-  4. *צפייה בנתוני הזמנות*: בדקו סטטוס הזמנות, חוסרים, תיעוד אספקות וקבלות.
-  5. *שאלות ותמיכה*: קבלו תשובות לשאלות נפוצות, הסברים על תהליכים, וטיפים לשימוש יעיל.
+  3. *ניהול אנשי קשר*: הגדירו אנשי קשר שיקבלו תזכורות לבצע הזמנות בשמכם (למשל: מנהל בר, מנהל מטבח).
+  4. *צפייה בנתוני מסעדה*: קבלו מידע על אנשי קשר, ספקים, מוצרים, והיסטוריית הזמנות.
+  5. *צפייה בנתוני הזמנות*: בדקו סטטוס הזמנות, חוסרים, תיעוד אספקות וקבלות.
+  6. *שאלות ותמיכה*: קבלו תשובות לשאלות נפוצות, הסברים על תהליכים, וטיפים לשימוש יעיל.
 
   *איך זה עובד?*
   - שלחו "תפריט" בכל שלב כדי לחזור לתפריט הראשי.
@@ -271,21 +273,20 @@ export async function createRestaurant(data: Restaurant, isSimulator: boolean = 
 
   try {
     // Create the restaurant document
-    let restaurantDoc: Restaurant = {
+    let restaurantDoc: Omit<Restaurant, 'suppliers'> = {
       legalId: data.legalId,
       legalName: data.legalName,
       name: data.name,
-      isActivated: false,
+      isActivated: true,
       contacts: data.contacts as ContactMap, // Ensure contacts are typed correctly
       payment:  {
         provider: "trial",
         status: false,
       },
-      suppliers: [],
       orders: [],
       createdAt: FieldValue.serverTimestamp(),
     };
-    restaurantDoc = RestaurantSchema.parse(restaurantDoc); // Validate with Zod schema
+    restaurantDoc = RestaurantSchema.omit({ suppliers: true }).parse(restaurantDoc); // Validate with Zod schema excluding "suppliers" list
     // Use the correct collection based on simulator mode
     const collectionName = getCollectionName('restaurants', isSimulator);
     
@@ -315,8 +316,16 @@ export async function getRestaurant(restaurantId: Restaurant['legalId'], isSimul
       console.log(`[Firestore] No restaurant found with ID: ${restaurantId}`);
       return null;
     }
-    
-    return doc.data() as Restaurant;
+    // Collect all suppliers from the subcollection 'suppliers' of this restaurant document
+    let suppliers: Supplier[] = [];
+    const suppliersSnapshot = await firestore
+      .collection(collectionName)
+      .doc(restaurantId)
+      .collection('suppliers')
+      .get();
+    suppliers = suppliersSnapshot.docs.map(supplierDoc => supplierDoc.data() as Supplier);
+
+    return RestaurantSchema.parse({ ...doc.data(), suppliers });
   } catch (error) {
     console.error(`[Firestore] ❌ Error getting restaurant:`, error);
     throw new Error(`Failed to get restaurant: ${error instanceof Error ? error.message : String(error)}`);
@@ -337,72 +346,44 @@ export async function getRestaurantByPhone(
     console.log(`[Firestore] Looking up restaurant by phone: ${phone}`);
     
     const collectionName = getCollectionName('restaurants', isSimulator);
+    // Query for a restaurant where the contacts object has a key matching the phone number
     const snapshot = await firestore
       .collection(collectionName)
-      .where('contacts', 'array-contains', { whatsapp: phone })
+      .where(`contacts.${phone}`, '!=', null)
       .limit(1)
       .get();
-      
+
     if (snapshot.empty) {
       console.log(`[Firestore] No restaurant found for phone: ${phone}`);
       return null;
     }
-    
+
     const doc = snapshot.docs[0];
+
+    // Collect all suppliers from the subcollection 'suppliers' of this restaurant document
+    const suppliers: Supplier[] = [];
+    const suppliersSnapshot = await firestore
+      .collection(collectionName)
+      .doc(doc.id)
+      .collection('suppliers')
+      .get();
+    suppliersSnapshot.forEach(supplierDoc => {
+      suppliers.push(supplierDoc.data() as Supplier);
+    });
+
+    // Parse the whole object for RestaurantSchema
+    const restaurantData = RestaurantSchema.parse({ ...doc.data(), suppliers });
+
     console.log(`[Firestore] ✅ Found restaurant ${doc.id} for phone: ${phone}`);
     
     return {
       id: doc.id,
-      data: doc.data() as Restaurant,
+      data: restaurantData as Restaurant,
       ref: doc.ref
     };
   } catch (error) {
     console.error(`[Firestore] ❌ Error looking up restaurant by phone:`, error);
     throw error;
-  }
-}
-
-
-/**
- * Update restaurant activation status (both isActivated and payment status)
- * @param restaurantId Restaurant ID
- * @param isActivated Activation status
- */
-export async function updateRestaurantActivation(restaurantId: Restaurant['legalId'], isActivated: boolean, isSimulator: boolean = false): Promise<void> {
-  try {
-    const collectionName = getCollectionName('restaurants', isSimulator);
-    await firestore.collection(collectionName).doc(restaurantId).update({
-      isActivated,
-      'payment.status': isActivated
-    });
-    
-    console.log(`[Firestore] ✅ Updated restaurant ${restaurantId} activation: ${isActivated}`);
-  } catch (error) {
-    console.error(`[Firestore] ❌ Error updating restaurant activation:`, error);
-    throw new Error(`Failed to update restaurant activation: ${error instanceof Error ? error.message : String(error)}`);
-  }
-}
-
-
-/**
- * Get all restaurants
- * @param isSimulator Whether to use simulator collections
- * @returns Array of restaurants
- */
-export async function getAllRestaurants(isSimulator: boolean = false): Promise<Restaurant[]> {
-  try {
-    const collectionName = getCollectionName('restaurants', isSimulator);
-    const snapshot = await firestore.collection(collectionName).get();
-    
-    if (snapshot.empty) {
-      console.log(`[Firestore] No restaurants found`);
-      return [];
-    }
-    
-    return snapshot.docs.map(doc => doc.data() as Restaurant);
-  } catch (error) {
-    console.error(`[Firestore] ❌ Error getting all restaurants:`, error);
-    throw new Error(`Failed to get restaurants: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -467,55 +448,16 @@ export async function updateSupplier(
     if (!restaurantDoc.exists) {
       throw new Error(`Restaurant with ID ${data.restaurantId} not found`);
     }
-
-    const restaurantData = restaurantDoc.data() as Restaurant;
-    const currentSuppliers = restaurantData.suppliers || [];
-
     // Validate input data (exclude restaurantId from validation)
     const { restaurantId, ...supplierData } = data;
     const validData = SupplierSchema.parse(supplierData);
-    
-    // Check if supplier already exists by whatsapp number
-    const existingSupplierIndex = currentSuppliers.findIndex(
-      supplier => supplier.whatsapp === validData.whatsapp
-    );
+    const supplierWhatsApp = validData.whatsapp;
+    // Add supplier to this restaurant under collection 'suppliers' - if not exist, create. If exist- update (overwrite and merge)
+    const suppliersCollection = firestore.collection(`${restaurantsCollection}`).doc(data.restaurantId).collection('suppliers');
+    const supplierDoc = suppliersCollection.doc(supplierWhatsApp);
+    await supplierDoc.set(validData, { merge: true });
 
-    let updatedSuppliers: Supplier[];
-    const now = new Date(); // Use regular Date instead of FieldValue.serverTimestamp()
-
-    
-    if (existingSupplierIndex >= 0) {
-      // Update existing supplier by merging data
-      console.log(`[Firestore] Updating existing supplier at index ${existingSupplierIndex}`);
-      
-      updatedSuppliers = [...currentSuppliers];
-      updatedSuppliers[existingSupplierIndex] = {
-        ...currentSuppliers[existingSupplierIndex],
-        ...validData,
-        updatedAt: now,
-        // Keep original createdAt if it exists
-        createdAt: currentSuppliers[existingSupplierIndex].createdAt || now
-      };
-    } else {
-      // Add new supplier to the array
-      console.log(`[Firestore] Adding new supplier to suppliers array`);
-      
-      const newSupplier: Supplier = {
-        ...validData,
-        createdAt: now,
-        updatedAt: now
-      };
-      
-      updatedSuppliers = [...currentSuppliers, newSupplier];
-    }
-
-    // Update the restaurant document with the new suppliers array
-    await restaurantRef.update({
-      suppliers: updatedSuppliers,
-      updatedAt: now
-    });
-    
-    console.log(`[Firestore] ✅ Supplier "${validData.name}" ${existingSupplierIndex >= 0 ? 'updated' : 'created'} successfully`);
+    console.log(`[Firestore] ✅ Supplier "${validData.name}" added/updated successfully`);
     return validData.whatsapp;
     
   } catch (error) {
@@ -528,80 +470,6 @@ export async function updateSupplier(
     throw error;
   }
 }
-
-/**
- * Get list of suppliers of a restaurant
- * @param restaurantId Restaurant ID
- * @param category Optional category to filter by
- * @returns Array of suppliers
- */
-export async function getSuppliersByCategory(restaurantId: Restaurant['legalId'], category?: SupplierCategory, isSimulator: boolean = false): Promise<Supplier[]> {
-  try {
-    const collectionName = getCollectionName('restaurants', isSimulator);
-    const restaurantDoc = await firestore.collection(collectionName).doc(restaurantId).get();
-    
-    if (!restaurantDoc.exists) {
-      console.log(`[Firestore] Restaurant ${restaurantId} not found`);
-      return [];
-    }
-    
-    const restaurantData = restaurantDoc.data() as Restaurant;
-    const suppliers = restaurantData.suppliers || [];
-    
-    // Filter by category if provided
-    if (category) {
-      return suppliers.filter(supplier => 
-        supplier.category && supplier.category.includes(category)
-      );
-    }
-    
-    return suppliers;
-  } catch (error) {
-    console.error(`[Firestore] ❌ Error getting suppliers:`, error);
-    throw new Error(`Failed to get suppliers: ${error instanceof Error ? error.message : String(error)}`);
-  }
-}
-
-/**
- * Get a specific supplier by ID
- * @param restaurantId Restaurant ID
- * @param supplierId Supplier ID (whatsapp)
- * @returns Supplier data or null if not found
- */
-export async function getSupplier(restaurantId: Restaurant['legalId'], supplierId: Contact['whatsapp'], isSimulator: boolean = false): Promise<Supplier | null> {
-  try {
-    const collectionName = getCollectionName('restaurants', isSimulator);
-    const restaurantDoc = await firestore.collection(collectionName).doc(restaurantId).get();
-    
-    if (!restaurantDoc.exists) {
-      console.log(`[Firestore] Restaurant ${restaurantId} not found`);
-      return null;
-    }
-    
-    const restaurantData = restaurantDoc.data() as Restaurant;
-    const suppliers = restaurantData.suppliers || [];
-    
-    // Find supplier by whatsapp number
-    const supplier = suppliers.find(supplier => supplier.whatsapp === supplierId);
-    
-    return supplier || null;
-  } catch (error) {
-    console.error(`[Firestore] ❌ Error getting supplier:`, error);
-    throw new Error(`Failed to get supplier: ${error instanceof Error ? error.message : String(error)}`);
-  }
-}
-
-// ==== PRODUCT OPERATIONS ====
-
-
-// ==== ORDER OPERATIONS ====
-
-
-
-// ==== INVENTORY SNAPSHOT OPERATIONS ====
-
-
-
 
 
 // ==== CONVERSATION STATE MANAGEMENT ====
@@ -802,8 +670,21 @@ export async function getRestaurantDatafromDb(
       throw new Error(`Restaurant not found: ${restaurantId}`);
     }
     
-    const restaurantData = restaurantDoc.data();
-    
+    const restaurantData = restaurantDoc.data() as Restaurant;
+    const suppliersCollection = firestore.collection(`${collectionName}`).doc(restaurantId).collection('suppliers');
+    const suppliersSnapshot = await suppliersCollection.get();
+    const suppliers = suppliersSnapshot.docs.map(doc => doc.data() as Supplier);
+    restaurantData.suppliers = suppliers; // Add suppliers to restaurant data
+    const supplierStats: any = {
+      totalSuppliers: suppliers.length,
+      suppliersSummary: suppliers.map(supplier => ({
+        name: supplier.name,
+        categories: supplier.category.join(', '),
+        totalProducts: supplier.products.length,
+        cutoff: JSON.stringify(supplier.cutoff),
+      })),
+    };
+
     // Get all orders associated with this restaurant
     const ordersCollectionName = getCollectionName('orders', isSimulator);
     const ordersSnapshot = await firestore
@@ -820,26 +701,19 @@ export async function getRestaurantDatafromDb(
       totalOrders: recentOrders.length,
       pendingOrders: recentOrders.filter(order => order.status === 'pending').length,
       confirmedOrders: recentOrders.filter(order => order.status === 'confirmed').length,
-      deliveredOrders: recentOrders.filter(order => order.status === 'delivered').length,
       cancelledOrders: recentOrders.filter(order => order.status === 'cancelled').length,
       mostOrderedProducts: calculateMostOrderedProducts(recentOrders),
       recentOrderDate: recentOrders.length > 0 ? recentOrders[0].createdAt : null
     };
     
-    // Get supplier counts
-    const supplierCount = restaurantData?.suppliers?.length || 0;
-    const productCount = restaurantData?.suppliers?.reduce((total: number, supplier: any) => 
-      total + (supplier.products?.length || 0), 0) || 0;
-    
     // Return comprehensive data object
     return {
       ...restaurantData,
       stats: {
-        suppliersCount: supplierCount,
-        productsCount: productCount,
-        ...orderStats
+        ...orderStats,
+        ...supplierStats
       },
-      recentOrders: recentOrders.slice(0, 5) // Include the 5 most recent orders
+      recentOrders: recentOrders.slice(0, 10) // Include the 10 most recent orders
     };
   } catch (error) {
     console.error(`[Firestore] ❌ Error fetching restaurant data:`, error);
@@ -897,6 +771,11 @@ export async function getOrdersDatafromDb(
     const restaurantCollectionName = getCollectionName('restaurants', isSimulator);
     const restaurantDoc = await firestore.collection(restaurantCollectionName).doc(restaurantId).get();
     const restaurantData = restaurantDoc.exists ? restaurantDoc.data() : null;
+    if (restaurantData){
+      const suppliersSnapshot = await firestore.collection(restaurantCollectionName).doc(restaurantId).collection('suppliers').get();
+      const suppliers = suppliersSnapshot.docs.map(doc => doc.data() as Supplier);
+      restaurantData.suppliers = suppliers; // Add suppliers to restaurant data
+    }
     
     // Calculate order statistics by supplier, status, and time trends
     const stats = {

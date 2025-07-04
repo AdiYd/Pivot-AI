@@ -171,7 +171,7 @@ function createActionFromState(
           restaurantId: context.legalId || '',
           whatsapp: context.supplierWhatsapp || '',
           name: context.supplierName || '',
-          role: 'supplier',
+          role: 'ספק',
           ...(context.supplierEmail && { email: context.supplierEmail }),
           category: Array.isArray(context.supplierCategories) ? context.supplierCategories : [],
           cutoff: context.supplierCutoff || [],
@@ -441,6 +441,24 @@ export async function conversationStateReducer(
       });
       return result;
     }
+    }
+
+    if (userInput === "manage_contacts"){
+      const restaurantId = conversation.restaurantId|| conversation.context.legalId || conversation.context.restaurantId;
+      if (restaurantId) {
+        const url = 'https://pivot.webly.digital/contacts/' + restaurantId;
+        result.actions.push({
+          type: 'SEND_MESSAGE',
+          payload: {
+            to: message.from,
+            body: `🔗 בקישור תוכל לנהל את אנשי הקשר של המסעדה
+ולהגדיר מי יקבל תזכורות מהספקים שלך: 
+${url}`,
+            messageState: conversation.currentState
+          }
+        });
+        return result;
+      }
     }
 
     if (['HELP', 'INTERESTED'].includes(conversation.currentState)) {
@@ -908,7 +926,7 @@ export function initializeConversation(phoneNumber: string): Conversation {
     context: {
       contactNumber: phoneNumber,
     },
-    role: 'general',
+    role: 'כללי',
     createdAt: new Date(),
     updatedAt: new Date(),
     messages: []

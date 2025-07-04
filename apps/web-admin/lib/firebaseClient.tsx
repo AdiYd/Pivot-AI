@@ -11,12 +11,14 @@ import {
   updateDoc,
   query,
   orderBy,
-  setDoc
+  setDoc,
+  deleteField,
+  FieldValue,
+  deleteDoc
 } from "firebase/firestore";
 import { DataBase, Order, Restaurant, Conversation, Contact, Supplier, Message } from "@/schema/types";
-import { RestaurantSchema, OrderSchema, ConversationSchema, MessageSchema } from "@/schema/schemas";
-import { Delete } from "lucide-react";
-import { Icon } from "@iconify/react/dist/iconify.js";
+import { RestaurantSchema, OrderSchema, ConversationSchema, MessageSchema, SupplierSchema } from "@/schema/schemas";
+
 
 // Firebase configuration
 const firebaseConfig = {
@@ -88,13 +90,25 @@ export function FirebaseAppProvider({ children }: { children: ReactNode }) {
 
       // Parse restaurants with validation
       const restaurants: Record<string, Restaurant> = {};
-      restaurantsSnap.forEach(async (doc) => {
+      restaurantsSnap.forEach(async (docs) => {
         try {
-          const data = { ...doc.data() };
+          const data = { ...docs.data() };
+          
+          // Collect all suppliers from suppliers collection
+          const suppliersCollection = collection(db, `restaurants${source}`, docs.id, 'suppliers');
+          const suppliersSnap = await getDocs(suppliersCollection);
+          const suppliers: Supplier[] = [];
+          suppliersSnap.forEach((supplierDoc) => {
+            const supplierData = { ...supplierDoc.data() };
+            const parsed = SupplierSchema.parse(supplierData);
+            suppliers.push(parsed);
+          });
+          data.suppliers = suppliers;
+
           const parsed = RestaurantSchema.parse(data);
-          restaurants[doc.id] = parsed;
+          restaurants[docs.id] = parsed;
         } catch (error) {
-          console.warn(`Failed to parse restaurant ${doc.id}:`, error);
+          console.warn(`Failed to parse restaurant ${docs.id}:`, error);
         }
       });
 
@@ -115,14 +129,11 @@ export function FirebaseAppProvider({ children }: { children: ReactNode }) {
       // Create an array to store all the message loading promises
       const messageLoadingPromises: Promise<void>[] = [];
 
-      conversationsSnap.forEach((doc) => {
+      conversationsSnap.forEach(async (doc) => {
         try {
           const data = { ...doc.data() };
-          if (data.currentState === 'SUPPLIER_REMINDERS') {
-            data.currentState = 'SUPPLIER_CUTOFF';
-          }
           const parsed =  ConversationSchema.parse(data);
-          
+
           // Add this conversation to the collection with empty messages initially
           conversations[doc.id] = {
             ...parsed,
@@ -135,15 +146,12 @@ export function FirebaseAppProvider({ children }: { children: ReactNode }) {
             const messagesSnap = await getDocs(messagesCollectionRef);
             const loadedMessages = messagesSnap.docs.map(msgDoc => {
               const msgData = msgDoc.data() as Message;
-              if (msgData.messageState as any === 'SUPPLIER_REMINDERS'){
-                msgData.messageState = 'SUPPLIER_CUTOFF';
-              }
               const parsed = MessageSchema.parse(msgData);
               return parsed;
             });
             // Update the conversation with loaded messages
-            conversations[doc.id].messages = [...conversations[doc.id].messages, ...loadedMessages];
-            // conversations[doc.id].messages = [ ...loadedMessages];
+            // conversations[doc.id].messages = [...conversations[doc.id].messages, ...loadedMessages];
+            conversations[doc.id].messages = [ ...loadedMessages];
           };
           
           messageLoadingPromises.push(messagesPromise());
