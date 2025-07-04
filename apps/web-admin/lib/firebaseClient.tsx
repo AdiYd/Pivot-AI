@@ -47,6 +47,7 @@ export interface FirebaseContextValue {
   databaseLoading: boolean;
   refreshDatabase: () => Promise<void>;
   toggleSource: () => void;
+  source: string;
 }
 
 // Create firebase context with default values
@@ -55,6 +56,7 @@ const FirebaseContext = createContext<FirebaseContextValue>({
   databaseLoading: true,
   refreshDatabase: async () => {},
   toggleSource: () => {},
+  source: '_simulator',
 });
 
 const emptyDatabase: DataBase = {
@@ -136,7 +138,7 @@ export function FirebaseAppProvider({ children }: { children: ReactNode }) {
               if (msgData.messageState as any === 'SUPPLIER_REMINDERS'){
                 msgData.messageState = 'SUPPLIER_CUTOFF';
               }
-              const parsed = msgData || MessageSchema.parse(msgData);
+              const parsed = MessageSchema.parse(msgData);
               return parsed;
             });
             // Update the conversation with loaded messages
@@ -209,8 +211,9 @@ export function FirebaseAppProvider({ children }: { children: ReactNode }) {
     database,
     databaseLoading,
     refreshDatabase,
+    source,
     toggleSource: () => setSource(p => p ? '' : '_simulator')
-  } as FirebaseContextValue), [database, databaseLoading, refreshDatabase]);
+  } as FirebaseContextValue), [database, databaseLoading, refreshDatabase, source]);
 
   return <FirebaseContext.Provider value={value}>
     {children}

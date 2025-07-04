@@ -66,6 +66,7 @@ export type BotState =
   | "SUPPLIER_CATEGORY2"
   | "SUPPLIER_CONTACT"
   | "SUPPLIER_CUTOFF"
+  | "SUPPLIER_REMINDERS"
 // Product setup states
   | "PRODUCTS_LIST"
 // Base quantity setup states
