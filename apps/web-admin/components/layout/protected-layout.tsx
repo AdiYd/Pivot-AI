@@ -54,7 +54,7 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
       
       <div className="flex min-h-screen relative">
         {!isPublicRoute && <SideNav />}
-        {!isPublicRoute && 
+        {!isPublicRoute && pathname !== '/simulator' &&
         <Button
         variant="outline"
         size={"icon"}

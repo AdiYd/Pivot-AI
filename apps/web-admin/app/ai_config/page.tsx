@@ -34,6 +34,7 @@ const orderedPrompts = [
     "interestedMenu",
     "menuOptionsPrompt",
     "productsListValidation",
+    "productsBaseQtyValidation",
     "ordersDataContext",
     "restaurantDataContext",
 ];
@@ -45,6 +46,8 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const { toast } = useToast();
+
+  console.log(config?.prompts)
 
   // Fetch config from Firestore
   useEffect(() => {

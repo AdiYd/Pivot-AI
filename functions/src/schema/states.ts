@@ -705,7 +705,7 @@ ${conversation.context.supplierProducts.map((product : any, index:number) => `- 
 `.trim(),
           description: "Iterate over the defined products and ask for their base quantity in the specified unit, for midweek and for weekend.",
           aiValidation: {
-            prompt: "עליך לבקש מהמשתמש להזין את הכמות הבסיסית הנדרשת ליחידה אחת של כל מוצר ברשימה, עבור כל מוצר יש להזין כמות בסיס לשימוש באמצע השבוע ובסוף השבוע.",
+            prompt: AI_CONFIGURATIONS.prompts.productsBaseQtyValidation.prompt,
             schema: z.array(ProductSchema)
           },
           validator: z.array(ProductSchema),

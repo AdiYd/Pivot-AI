@@ -53,7 +53,7 @@ const FUNCTION_URL = process.env.NODE_ENV === 'development'
 const SIMULATOR_API_KEY = process.env.NEXT_PUBLIC_SIMULATOR_API_KEY;
 
 export default function SimulatorPage() {
-  const {database, databaseLoading, refreshDatabase} = useFirebase();
+  const {database, databaseLoading, refreshDatabase, source} = useFirebase();
   const [session, setSession] = useState<SimulatorSession>({
     phoneNumber: '0523456789',
     messages: [],
@@ -692,7 +692,7 @@ export default function SimulatorPage() {
               </ScrollArea>
 
               {/* Input Area */}
-              {session.isConnected && (
+              {session.isConnected && source && (
                 <div className=" z-10 px-4 py-2 relative bottom-0* left-0* right-0* ">
                   <form  onSubmit={handleSendMessage} className="relative flex items-center gap-2">
                       {session.currentState === 'SUPPLIER_CONTACT'  &&
@@ -726,12 +726,12 @@ export default function SimulatorPage() {
                             setNewMessage(prev => prev + '\n');
                           }
                         }}
-                        disabled={session.isLoading}
+                        disabled={session.isLoading || !source}
                         className="flex-1 min-h-[40px] h-auto* max-h-[120px] rounded-2xl shadow-md bg-white dark:bg-zinc-800 ring-1 border-none ring-zinc-300/40 focus-visible:ring-zinc-500/80 resize-none overflow-hidden"
                         maxLength={4000}
                         rows={2}
                       />
-                    <Button 
+                   <Button 
                       type="submit" 
                       disabled={!newMessage.trim() || session.isLoading}
                       size="icon"

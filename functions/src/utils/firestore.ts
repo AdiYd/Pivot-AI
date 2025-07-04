@@ -57,7 +57,7 @@ const AI_CONFIGURATIONS_FALLBACK: AIConfigurationsInterface = {
   params: ai_models,
   prompts: {
     productsListValidation: {
-      name: "ולידציית רשימת מוצרים",
+      name: "וידוא רשימת מוצרים",
       prompt: `עליך לעזור למשתמש לרשום רשימת מוצרים ויחידות מידה מהספק. השלם פרטים חסרים לפי הסביר ביותר.
 אם לא צוונו יחידות מידה, הנח יחידות סטנדרטיות למוצר.
 הנחה את המשתמש להעדיף להשתמש ביחידות תקניות, לדוגמה:
@@ -220,6 +220,12 @@ For each order id in the restaurant orders list - you can re-direct the client t
     *P-vot – כי הגיע הזמן לנהל מסעדה כמו שצריך!* 🚀
     `
     },
+
+  productsBaseQtyValidation: {
+    name: "וידוא מצבת בסיס",
+    prompt: "עליך לבקש מהמשתמש להזין את הכמות הבסיסית הנדרשת ליחידה אחת של כל מוצר ברשימה, עבור כל מוצר יש להזין כמות בסיס לשימוש באמצע השבוע ובסוף השבוע.",
+    description: "הנחיות לאיסוף ווידוא של מצבת בסיס"
+  }
   }
 };
 

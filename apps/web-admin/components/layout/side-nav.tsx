@@ -244,7 +244,7 @@ export function SideNav() {
                 isCollapsed={isCollapsed}
               />
               <NavItem 
-                href="/settings" 
+                href="/ai_config" 
                 icon={<Icon icon='lineicons:open-ai' width={16} height={16} />}
                 title="הגדרות AI"
                 isCollapsed={isCollapsed}
@@ -357,7 +357,7 @@ export function SideNav() {
               isCollapsed={false}
             />
             <NavItem 
-              href="/settings" 
+              href="/ai_config" 
               icon={<Icon icon='lineicons:open-ai' width={16} height={16} />}
               title="הגדרות AI" 
               isCollapsed={false}
