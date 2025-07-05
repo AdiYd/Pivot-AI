@@ -8,6 +8,7 @@ import { Button } from '@/components/ui';
 import Link from 'next/link';
 import { useState } from 'react';
 import { generateOrderPdf } from './pdfConverter';
+import { Icon } from '@iconify/react/dist/iconify.js';
 
 // Hebrew translations for fields
 const hebrewFields = {
@@ -80,7 +81,7 @@ export default function OrderDetails({ order }: OrderDetailsProps) {
           <div className="flex items-center gap-2 mb-2">
             {getStatusBadge(order.status)}
           </div>
-          <h1 className="text-2xl font-bold">הזמנה מספר {order.id}</h1>
+          <h1 className="text-2xl font-bold">הזמנה מספר {order.id.slice(order.id.indexOf('_')+1)}</h1>
            נוצר בתאריך: {formatFirebaseTimestamp(order.createdAt)}
         </div>
         
@@ -119,7 +120,7 @@ export default function OrderDetails({ order }: OrderDetailsProps) {
               </p>
               
               <div className="flex items-center gap-2 mt-1">
-                <Phone className="h-4 w-4 text-muted-foreground" />
+                {/* <Icon icon="mdi:whatsapp" /> */}
                 <p className="text-sm">{order.restaurant.contact.whatsapp}</p>
               </div>
               
@@ -140,7 +141,7 @@ export default function OrderDetails({ order }: OrderDetailsProps) {
             <p className="font-medium">{order.supplier.name}</p>
             
             <div className="flex items-center gap-2 mt-1">
-              <Phone className="h-4 w-4 text-muted-foreground" />
+              {/* <Icon icon="mdi:whatsapp" /> */}
               <p className="text-sm">{order.supplier.whatsapp}</p>
             </div>
             
@@ -311,13 +312,13 @@ const formatFirebaseTimestamp = (timestamp: any) => {
     // If it's a Firebase Timestamp
     if (typeof timestamp.toDate === 'function') {
       const date = timestamp.toDate();
-      return `${date.toLocaleDateString('he-IL')}, ${date.toLocaleTimeString('he-IL')}`;
+      return `${date.toLocaleDateString('he-IL')}, ${date.toLocaleTimeString('he-IL').slice(0, -3)}`;
     }
     
     // Try regular Date constructor as fallback
     const date = new Date(timestamp);
     if (isNaN(date.getTime())) return 'תאריך לא תקין';
-    return `${date.toLocaleDateString('he-IL')}, ${date.toLocaleTimeString('he-IL')}`;
+    return `${date.toLocaleDateString('he-IL')}, ${date.toLocaleTimeString('he-IL').slice(0, -3)}`;
   } catch {
     return 'תאריך לא תקין';
   }

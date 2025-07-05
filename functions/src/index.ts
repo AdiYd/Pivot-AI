@@ -241,7 +241,46 @@ exports.whatsappWebhook = functions.region('europe-central2').https.onRequest(as
     
     }
 
+    if (restaurantRef.docs.length > 0) {
+      // Check the value of 'restaurant.isActivated' - if false, send a message to the user
+      const restaurantDoc = restaurantRef.docs[0];
+      const restaurant = restaurantDoc.data() as Restaurant;
+      if (!restaurant.isActivated) {
+        console.log(`[${isSimulator ? 'Simulator' : 'WhatsApp'}] ❗ Restaurant is not activated: ${restaurant.name} (${restaurant.legalId})`);
+        const messageBody = `📌 המסעדה: ${restaurant.name} לא פעילה במערכת.
 
+על מנת לאתחל את השירות יש לפנות ל:
+*לידור זינו*:  0547513346
+*במייל*: lidor.zenou@gmail.com
+
+צוות P-vot 😊`;
+        const currentState = conversationDoc.data()?.currentState || 'INIT';
+        await conversationRef.collection('messages').add({
+            body: messageBody,
+            role: 'assistant',
+            createdAt: FieldValue.serverTimestamp(),
+            messageState: currentState,
+          });
+        if (isSimulator) {
+          res.status(200).json({
+            success: true,
+            responses: {
+              to: phoneNumber,
+              body: messageBody
+            }, // This will contain the messages that would be sent via WhatsApp
+            newState: {
+              currentState: 'IDLE',
+              context:  {}
+            }
+          });
+        } else {
+          await sendWhatsAppMessage(phoneNumber, messageBody);
+          // For regular Twilio webhook, just send an OK response
+          res.status(200).send("OK");
+        }
+        return;
+      }
+    }
     /**
      * Process the message through our state machine
      * This determines the next state and actions to take
@@ -264,7 +303,7 @@ exports.whatsappWebhook = functions.region('europe-central2').https.onRequest(as
     restaurantId = restaurantId || newState.context?.restaurantId || newState.context?.legalId || null;
     const firestoreState = {
       currentState: newState.currentState,
-      ...(restaurantId && { restaurantId }),
+      ...(restaurantId ? { restaurantId } : {}),
       updatedAt: FieldValue.serverTimestamp()
     };
 

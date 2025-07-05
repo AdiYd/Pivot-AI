@@ -361,7 +361,7 @@ export const stateObject: (conversation: Conversation) => Promise<StateObject> =
             body: `💳 *בחר שיטת תשלום*
             המערכת זמינה בתשלום חודשי. בחר את האופציה המועדפת עליך:`,
             options: [
-              ...(conversation.context?.isSimulator !== true ? [{ name: "כרטיס אשראי", id: "credit_card" }] : []),
+              { name: "כרטיס אשראי", id: "credit_card" },
               { name: "התחל ניסיון", id: "trial" }
             ]
           },
