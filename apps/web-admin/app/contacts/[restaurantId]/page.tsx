@@ -392,7 +392,7 @@ export default function ContactsPage() {
                 </div>
               </div>
               <div className="grid grid-cols-2 max-sm:grid-cols-1 gap-4">
-                <div>
+               {!['בעלים'].includes(c.role) && <div>
                   <Label>תפקיד</Label>
                   <Select disabled={['בעלים'].includes(c.role)} value={c.role} onValueChange={val => handleContactChange(phone, 'role', val)}>
                     <SelectTrigger>
@@ -404,7 +404,7 @@ export default function ContactsPage() {
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
+                </div>}
                 <div>
                   <Label>אימייל</Label>
                   <Input

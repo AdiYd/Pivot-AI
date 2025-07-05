@@ -207,7 +207,7 @@ export async function callOpenAIDataAnalysis(
             type: "boolean",
             description: "True *only* if the user explicitly requested to edit supplier data (Allowed *only* for the following supplier fields: name, email, cutoff hours and product list - including adding or removing products, their units or editing the base quantity values, Also known as 'מצבת בסיס' - those are the values for each product representing the reccomended quantity for midweek and for weekend), double check, verify and get the user's explicit approval for the changes before setting this field to true (setting this field to true will change the supplier data)"
           },
-          supplierEdit: {
+          supplierData: {
             ...supplierEditJsonSchema,
             description: "The structured supplier data to be edited, provide an exact, accurate and verified data by the client. Use the existing (accurate) values for items and fields that should not changed. only present if editSupplier is true"
           }
@@ -275,9 +275,10 @@ export async function callOpenAIDataAnalysis(
         if (toolCall.function.name === "data_analysis_response") {
           // Parse and return the result
           const result = JSON.parse(toolCall.function.arguments);
-          if (result.editSupplier){
-            try{
-              let supplierData = JSON.parse(result.supplierData) as Supplier;
+          if (result?.editSupplier && result?.supplierData && conversation.context?.isManager) {
+            try {
+              let supplierData = (typeof result.supplierData === "string" ? JSON.parse(result.supplierData)  : result.supplierData) as Supplier;
+              console.log(`[Firestore] 📦 Supplier data to be edited:`, supplierData);
               const supplierWhatsApp = supplierData?.whatsapp;
               const dbSupplierData = await getSupplierDataFromDb(supplierWhatsApp, restaurantId, conversation.context.isSimulator || false);
               if (dbSupplierData) {
@@ -370,8 +371,8 @@ export async function callOpenAIDataAnalysis(
 
         // Parse the final JSON response
         const finalResult = JSON.parse(toolCall.function.arguments);
-        if (finalResult.editSupplier){
-          let supplierData = JSON.parse(finalResult.supplierData) as Supplier;
+        if (finalResult?.editSupplier && finalResult?.supplierData && conversation.context?.isManager) {
+          let supplierData = (typeof finalResult.supplierData === "string" ? JSON.parse(finalResult.supplierData)  : finalResult.supplierData) as Supplier;
           const supplierWhatsApp = supplierData?.whatsapp;
           const dbSupplierData = await getSupplierDataFromDb(supplierWhatsApp, restaurantId, conversation.context.isSimulator || false);
           if (dbSupplierData) {
@@ -431,7 +432,7 @@ export async function callOpenAIAssistant(
 ): Promise<AssistantResponse> {
   try {
     const openai = getOpenAIClient();
-    const isHelping = assistType === 'help';
+    const isHelping = (assistType === 'help' && conversation.context?.isManager);
     const AI_CONFIGURATIONS = await getAIConfigurations();
     const supplierEditJsonSchema = zodToJsonSchema(SupplierSchema);
     const restaurantId = conversation.restaurantId  || conversation.context.legalId || conversation.context?.restaurantId;
@@ -465,7 +466,7 @@ export async function callOpenAIAssistant(
             type: "boolean",
             description: "True *only* if the user explicitly requested to edit supplier data (Allowed *only* for the following supplier fields: name, email, cutoff hours and product list - including adding or removing products, their units or editing the base quantity values, Also known as 'מצבת בסיס' - those are the values for each product representing the reccomended quantity for midweek and for weekend), double check, verify and get the user's explicit approval for the changes before setting this field to true (setting this field to true will change the supplier data)"
           },
-          supplierEdit: {
+          supplierData: {
             ...supplierEditJsonSchema,
             description: "The structured supplier data to be edited, provide an exact, accurate and verified data by the client. Use the existing (accurate) values for items and fields that should not changed. The object must contain *all* supplier's fields to be edited and the exact values of the unchanged fields, do not skip or miss them!. only present if editSupplier is true"
           }}: {})
@@ -509,9 +510,10 @@ export async function callOpenAIAssistant(
       const toolCall = initialChoice.message.tool_calls?.[0];
       if (toolCall?.function.name === "data_asistance_response") {
         const result = JSON.parse(toolCall.function.arguments);
-        if (result?.editSupplier && isHelping){
+        if (result?.editSupplier && result?.supplierData && isHelping) {
           try{
-            let supplierData = JSON.parse(result.supplierData) as Supplier;
+            let supplierData = (typeof result.supplierData === "string" ? JSON.parse(result.supplierData)  : result.supplierData) as Supplier;
+            console.log(`[Firestore] 📦 Supplier data to be edited:`, supplierData);
             const supplierWhatsApp = supplierData?.whatsapp;
             const dbSupplierData = await getSupplierDataFromDb(supplierWhatsApp, restaurantId, conversation.context.isSimulator || false);
             if (dbSupplierData) {

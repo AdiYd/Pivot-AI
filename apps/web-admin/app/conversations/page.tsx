@@ -50,12 +50,11 @@ interface EnhancedConversation extends Conversation {
   stateCategory: 'onboarding' | 'setup' | 'inventory' | 'order' | 'delivery' | 'idle' | 'other';
 }
 
-const stateNames: Record<string, string> = {
+const stateNames: Partial<Record<BotState, string>> = {
   'INIT': 'התחלה',
   'ONBOARDING_COMPANY_NAME': 'שם חברה',
   'ONBOARDING_LEGAL_ID': 'מספר ח.פ',
   'ONBOARDING_RESTAURANT_NAME': 'שם מסעדה',
-  'ONBOARDING_YEARS_ACTIVE': 'שנות פעילות',
   'ONBOARDING_CONTACT_NAME': 'שם איש קשר',
   'ONBOARDING_CONTACT_EMAIL': 'אימייל',
   'ONBOARDING_PAYMENT_METHOD': 'אמצעי תשלום',
@@ -70,7 +69,9 @@ const stateNames: Record<string, string> = {
   'RESTAURANT_FINISHED': 'סיום הגדרת מסעדה',
   'RESTAURANT_INFO': 'פרטי מסעדה',
   'ORDERS_INFO': 'פרטי הזמנות',
-  'IDLE': 'תפריט'
+  'IDLE': 'תפריט',
+  'HELP': 'עזרה',
+  'INTERESTED': 'מעוניין'
 };
 
 const getStateCategory = (state: BotState): 'onboarding' | 'setup' | 'inventory' | 'order' | 'delivery' | 'idle' | 'other' => {
@@ -475,7 +476,7 @@ const filteredConversations = useMemo(() => {
 
 
 
-  const ChatBubble = useCallback(({ message, isBot, index }: { message: any; isBot: boolean, index: number }) => {
+  const ChatBubble = useCallback(({ message, isBot, index, context }: { message: any; isBot: boolean, index: number, context: Record<string, any> }) => {
   // Ensure we have a proper date
   const messageDate = message.createdAt instanceof Date ? 
     message.createdAt : 
@@ -496,12 +497,12 @@ const filteredConversations = useMemo(() => {
               ? "bg-white dark:bg-zinc-800 rounded-bl-none" 
               : "text-start bg-[#DCF8C6] rounded-br-none backdrop-blur-md text-black dark:bg-[#005C4B] dark:text-[#E9EDEF]"
           )}>
-            {message.hasTemplate ? <WhatsAppTemplateRenderer message={message} context={{}} onSelect={()=>{}} /> : 
+            {message.hasTemplate ? <WhatsAppTemplateRenderer message={message} context={context} onSelect={()=>{}} /> : 
               <p className="text-sm whitespace-pre-wrap">
                      {(() => {
                             // First, replace URLs with placeholders to preserve them during bold processing
                             const urlRegex = /(https?:\/\/[^\s]+)/g;
-                            const textWithPlaceholders = (message.body || '').replace(urlRegex, '###URL$1###');
+                            const textWithPlaceholders = (message.body.replace('user_confirmed', '*אישור*') || '').replace(urlRegex, '###URL$1###');
                             
                             // Then process bold formatting
                             const partsWithPlaceholders = textWithPlaceholders.split(/(\*[^*]+\*)/g);
@@ -733,6 +734,7 @@ const filteredConversations = useMemo(() => {
                             <ChatBubble 
                               key={index} 
                               index={index}
+                              context={selectedConversation.context || {}}
                               message={message} 
                               isBot={message.role === 'assistant'} 
                             />

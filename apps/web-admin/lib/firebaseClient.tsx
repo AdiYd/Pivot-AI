@@ -71,7 +71,7 @@ const emptyDatabase: DataBase = {
 export function FirebaseAppProvider({ children }: { children: ReactNode }) {
   const [database, setDatabase] = useState<DataBase>(emptyDatabase);
   const [databaseLoading, setDatabaseLoading] = useState(true);
-  const [source, setSource] = useState<string>('_simulator');
+  const [source, setSource] = useState<string>('');
 
 
   // Helper function to fetch all collections and build database object

@@ -580,7 +580,7 @@ export default function SimulatorPage() {
                           {(() => {
                             // First, replace URLs with placeholders to preserve them during bold processing
                             const urlRegex = /(https?:\/\/[^\s]+)/g;
-                            const textWithPlaceholders = (message.body || '').replace(urlRegex, '###URL$1###');
+                            const textWithPlaceholders = (message.body.replace('user_confirmed', '*אישור*') || '').replace(urlRegex, '###URL$1###');
                             
                             // Then process bold formatting
                             const partsWithPlaceholders = textWithPlaceholders.split(/(\*[^*]+\*)/g);
