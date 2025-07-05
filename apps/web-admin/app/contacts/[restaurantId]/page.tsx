@@ -33,7 +33,7 @@ const roleOrder = [
   'כללי',
 ];
 
-const restaurantCollection = 'restaurants_simulator';
+const restaurantCollection = 'restaurants';
 
 export default function ContactsPage() {
   const { restaurantId } = useParams();
@@ -248,7 +248,7 @@ export default function ContactsPage() {
               return (
                 <div
                   key={option.value}
-                  className={`flex items-center px-2 py-1.5 rounded cursor-pointer hover:bg-accent ${checked ? "bg-accent" : ""}`}
+                  className={`flex items-center px-2 my-1 py-1.5 rounded cursor-pointer hover:bg-accent ${checked ? "bg-accent" : ""}`}
                   onClick={() => {
                     if (checked) {
                       onChange(value.filter(v => v !== option.value));
@@ -257,7 +257,7 @@ export default function ContactsPage() {
                     }
                   }}
                 >
-                  <span className="mr-2">
+                  <span className="ml-2">
                     {checked ? <Check className="h-4 w-4 text-primary" /> : <span className="inline-block w-4" />}
                   </span>
                   <span className="flex-1">{renderOption ? renderOption(option) : option.label}</span>
@@ -308,7 +308,9 @@ export default function ContactsPage() {
           ניהול אנשי קשר למסעדה
         </h1>
         <p className="text-muted-foreground mb-2">
-          דף זה מאפשר להגדיר, לערוך ולמחוק אנשי קשר עבור המסעדה, להגדיר את תפקידם, מספר הטלפון, אימייל, ולבחור אילו ספקים ישלחו אליהם תזכורות להזמנה.
+          דף זה מאפשר לנהל אנשי קשר עבור המסעדה, מי שמוגדר בתור &apos;בעלים&apos; או &apos;מנהל&apos; יקבל הרשאות מלאות לניהול, עריכה וצפייה בנתונים.
+          <br/>
+          שאר אנשי הקשר יקבלו תזכורות לווצאפ ויתבקשו לבצע הזמנות מהספקים שהוגדרו להם
         </p>
         {restaurant && (
           <div className="flex flex-wrap gap-4 items-center bg-muted/40 p-3 rounded-lg">
@@ -335,7 +337,7 @@ export default function ContactsPage() {
               <div className="flex items-center gap-2">
                 <User className="w-5 h-5" />
                 <CardTitle className="text-lg">{c.name || <span className="text-muted-foreground">שם לא מוגדר</span>}</CardTitle>
-                <Badge variant="outline">{c.role}</Badge>
+                <Badge variant={c.role === 'בעלים' ? 'gradient4' : c.role === 'מנהל' ? 'gradient3' : 'default'}>{c.role}</Badge>
               </div>
               <div className="flex gap-2">
                 {['בעלים', 'מנהל'].includes(c.role) ? (
@@ -419,6 +421,9 @@ export default function ContactsPage() {
               {suppliers.length > 0 && 
               <div>
                 <Label className='mb-4'>ספקים מהם יתקבלו תזכורות</Label>
+                <Button variant='default' className='h-5 px-2 mr-2 relative -top-1 !text-[10px]' size='sm' title='all' onClick={() => handleRemindersChange(phone, availableSuppliers(phone).map(s => s.whatsapp))}>
+                  בחר הכל
+                </Button>
                 <div className="max-h-60 w-full z-[100] overflow-y-auto">
                 <MultiSelect
                   options={availableSuppliers(phone).map(s => ({
@@ -500,7 +505,31 @@ export default function ContactsPage() {
                   />
                 </div>
               </div>
-              <div className="flex flex-row-reverse gap-2 justify-between mt-4">
+              <div className='mt-2 flex justify-start'>
+                  {suppliers.length > 0 && 
+                    <div className='flex-1 max-w-full overflow-x-auto overflow-y-visible'>
+                        <Label className='mb-4'>ספקים מהם יתקבלו תזכורות</Label>
+                        <Button variant='default' className='h-5 px-2 mr-2 relative -top-1 !text-[10px]' size='sm' title='all' onClick={() => setNewContact(n => ({ ...n, remindersForSuppliers: availableSuppliers(newContact.whatsapp).map(s => s.whatsapp) }))}>
+                        בחר הכל 
+                        </Button>
+                        <div className="max-h-60 w-full z-[100] overflow-y-auto">
+                        <MultiSelect
+                        options={availableSuppliers(newContact.whatsapp).map(s => ({
+                            value: s.whatsapp,
+                            label: supplierOption(s),
+                        }))}
+                        value={newContact.remindersForSuppliers || []}
+                        onChange={vals => setNewContact(n => ({ ...n, remindersForSuppliers: vals }))}
+                        placeholder="בחר ספקים"
+                        renderOption={opt => opt.label}
+                        />
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                        כל ספק יכול להישלח רק לאיש קשר אחד. בחר את הספקים עבור איש קשר זה.
+                        </div>
+                    </div>}
+              </div>
+              <div className="flex flex-row-reverse gap-2 justify-between mt-8">
                 <Button variant="default" onClick={handleAddContact}>
                   <Save className="w-4 h-4 ml-1" />
                   הוסף

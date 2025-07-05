@@ -283,12 +283,15 @@ export async function callOpenAIDataAnalysis(
               const dbSupplierData = await getSupplierDataFromDb(supplierWhatsApp, restaurantId, conversation.context.isSimulator || false);
               if (dbSupplierData) {
                 // If we found the supplier in the database, we can use it
-                supplierData = { ...dbSupplierData, ...supplierData, products: supplierData.products };
-                  const finalSupplierData = SupplierSchema.parse(supplierData);
-                  const isUpdated = await setSupplierDataInDb(supplierWhatsApp, restaurantId, finalSupplierData, conversation.context.isSimulator || false);
-                  if (!isUpdated) {
-                    console.error(`[Firestore] ❌ Failed to update supplier data for WhatsApp: ${supplierWhatsApp}`);
-                  }
+                supplierData = { ...dbSupplierData, ...supplierData, products: supplierData.products } ;
+                if (supplierData.email === null || supplierData.email === undefined) {
+                  delete supplierData.email;
+                }
+                const finalSupplierData = SupplierSchema.parse(supplierData);
+                const isUpdated = await setSupplierDataInDb(supplierWhatsApp, restaurantId, finalSupplierData, conversation.context.isSimulator || false);
+                if (!isUpdated) {
+                  console.error(`[Firestore] ❌ Failed to update supplier data for WhatsApp: ${supplierWhatsApp}`);
+                }
               }
             } catch (error) {
               console.error(`[Firestore] ❌ Error processing supplier data:`, error);
@@ -378,6 +381,9 @@ export async function callOpenAIDataAnalysis(
           if (dbSupplierData) {
             // If we found the supplier in the database, we can use it
             supplierData = { ...dbSupplierData, ...supplierData, products: supplierData.products };
+            if (supplierData.email === null || supplierData.email === undefined) {
+                  delete supplierData.email;
+            }
             try {
               const finalSupplierData = SupplierSchema.parse(supplierData);
               const isUpdated = await setSupplierDataInDb(supplierWhatsApp, restaurantId, finalSupplierData, conversation.context.isSimulator || false);
@@ -519,11 +525,14 @@ export async function callOpenAIAssistant(
             if (dbSupplierData) {
               // If we found the supplier in the database, we can use it
               supplierData = { ...dbSupplierData, ...supplierData, products: supplierData.products };
-                const finalSupplierData = SupplierSchema.parse(supplierData);
-                const isUpdated = await setSupplierDataInDb(supplierWhatsApp, restaurantId, finalSupplierData, conversation.context.isSimulator || false);
-                if (!isUpdated) {
-                  console.error(`[Firestore] ❌ Failed to update supplier data for WhatsApp: ${supplierWhatsApp}`);
-                }
+              if (supplierData.email === null || supplierData.email === undefined) {
+                  delete supplierData.email;
+              }
+              const finalSupplierData = SupplierSchema.parse(supplierData);
+              const isUpdated = await setSupplierDataInDb(supplierWhatsApp, restaurantId, finalSupplierData, conversation.context.isSimulator || false);
+              if (!isUpdated) {
+                console.error(`[Firestore] ❌ Failed to update supplier data for WhatsApp: ${supplierWhatsApp}`);
+              }
             }
           } catch (error) {
             console.error(`[Firestore] ❌ Error processing supplier data:`, error);

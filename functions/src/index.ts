@@ -313,14 +313,14 @@ async function sendOrderRequestNotifications(order: Order, restaurant: Restauran
   try {
     // 1. Send notification to restaurant owner
     const ownerContact = Object.values(restaurant.contacts)
-      .find((contact: any) => contact.role === 'owner');
+      .find((contact: any) => contact.role === 'בעלים');
     
     if (ownerContact) {
       const ownerMessage = `שלום ${ownerContact.name},
-ההזמנה שלך מ${order.supplier.name} נשלחה לספק. 
-סטטוס: ממתין לאישור
-מספר הזמנה: ${order.id}
-לצפייה בהזמנה: ${orderUrl}`;
+ההזמנה שלך מ${order.supplier.name} נשלחה לספק. 👇 
+*סטטוס:* ממתין לאישור הספק
+*מספר הזמנה:* ${order.id}
+*לצפייה בהזמנה:* ${orderUrl}`;
 
       await sendWhatsAppMessage(
         ownerContact.whatsapp,
@@ -338,11 +338,11 @@ async function sendOrderRequestNotifications(order: Order, restaurant: Restauran
       let supplierMessage = `שלום ${order.supplier.name},
 התקבלה הזמנה חדשה ממסעדת ${restaurant.name}.
 
-*פרטי ההזמנה*:
+*פרטי ההזמנה*: 👇
 מספר הזמנה: ${order.id}
 מסעדה: ${restaurant.name}
-סטטוס: ממתין לאישור
-מוצרים:
+סטטוס: ממתין לאישור שלך
+סיכום מוצרים:
 `;
       // Add ordered items
       order.items.forEach((item: any) => {
@@ -351,13 +351,20 @@ async function sendOrderRequestNotifications(order: Order, restaurant: Restauran
 
       supplierMessage += `\nהערות: ${order.restaurantNotes || 'אין'}
 
-לצפייה ולעדכון ההזמנה: ${orderUrl}
+לצפייה ועדכון סטטוס ההזמנה: 
+${orderUrl}
 
-תודה!`;
+נא לאשר בהקדם, תודה!`;
 
       await sendWhatsAppMessage(
-        supplierNumber, // Convert local format to international
+        supplierNumber, 
         supplierMessage
+      );
+
+      await sendWhatsAppMessage(
+        '0547513346', 
+`****  ככה הספק יקבל את ההודעה 👇   *****
+${supplierMessage}`
       );
 
       console.log(`[OrderSync] ✅ Sent detailed order to supplier: ${supplierNumber}`);
