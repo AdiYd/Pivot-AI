@@ -403,11 +403,11 @@ export default function RestaurantsPage() {
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Users className="w-4 h-4" />
-            <span>{`${Object.values(restaurant.contacts).find(contact => contact.role ==='מנהל')?.name} - ${Object.values(restaurant.contacts).find(contact => contact.role === 'בעלים')?.role}`}</span>
+            <span>{`${Object.values(restaurant.contacts).find(contact => contact.role ==='בעלים')?.name} - ${Object.values(restaurant.contacts).find(contact => contact.role === 'בעלים')?.role}`}</span>
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Phone className="w-4 h-4" />
-            <span>{`${Object.values(restaurant.contacts).find(contact => contact.role === 'מנהל')?.whatsapp}`}</span>
+            <span>{`${Object.values(restaurant.contacts).find(contact => contact.role === 'בעלים')?.whatsapp}`}</span>
           </div>
 
           {/* Quick Stats */}
@@ -576,8 +576,8 @@ export default function RestaurantsPage() {
                   <div className="text-xs text-muted-foreground">{restaurant.legalName}</div>
                 </TableCell>
                 <TableCell>
-                  <div className="text-sm">{Object.values(restaurant.contacts).find(contact=> contact.role ==='מנהל')?.name}</div>
-                  <div className="text-xs text-muted-foreground">{Object.values(restaurant.contacts).find(contact=> contact.role ==='מנהל')?.whatsapp}</div>
+                  <div className="text-sm">{Object.values(restaurant.contacts).find(contact=> contact.role ==='בעלים')?.name}</div>
+                  <div className="text-xs text-muted-foreground">{Object.values(restaurant.contacts).find(contact=> contact.role ==='בעלים')?.whatsapp}</div>
                 </TableCell>
                 <TableCell>
                   {getStatusBadge(restaurant)}

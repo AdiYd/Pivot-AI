@@ -14,7 +14,8 @@ import {
   Search, Filter, Package, ShoppingCart, CheckCircle, Clock, 
   TrendingUp, Truck, Store, X, Eye, ArrowUpDown, 
   Calendar, User, PackageOpen,
-  RefreshCw, ExternalLink, MessageSquare, Phone, Mail
+  RefreshCw, ExternalLink, MessageSquare, Phone, Mail,
+  Link
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { format } from 'date-fns';
@@ -46,7 +47,6 @@ const STATUS_DICT: Record<OrderStatus, { name: string, variant: string, icon: Re
 
 export default function OrdersPage() {
   const {database, refreshDatabase} = useFirebase();
-  const [data, setData] = useState(exampleDatabase);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedRestaurant, setSelectedRestaurant] = useState<string>('all');
@@ -62,9 +62,9 @@ export default function OrdersPage() {
   // Extract and enhance order data from the actual database
   const enhancedOrders = useMemo((): EnhancedOrder[] => {
     try {
-      return Object.values(data.orders).map(order => {
-        // Calculate total items and products
+      return Object.values(database.orders).map(order => {
         order = OrderSchema.parse(order); // Validate order structure
+        // Calculate total items and products
         const totalItems = order.items.reduce((sum, item) => sum + item.qty, 0);
         const totalProducts = order.items.length;
         
@@ -82,7 +82,7 @@ export default function OrdersPage() {
       console.error('Error processing orders:', error);
       return [];
     }
-  }, [data]);
+  }, [database]);
 
   // Filter orders based on search and filters
   const filteredOrders = useMemo(() => {
@@ -409,7 +409,7 @@ export default function OrdersPage() {
           </Tooltip>
           
           <div className="text-xs text-muted-foreground ml-auto flex items-center">
-            ID: <span className="font-mono ml-1">{order.id.substring(0, 8)}</span>
+            ID: <span className="font-mono ml-1">{order.id.replace(`${order.restaurant.legalId}_`, '').substring(0, 8)}</span>
           </div>
         </div>
       </CardContent>
@@ -486,7 +486,7 @@ export default function OrdersPage() {
               <TableRow   
                 onClick={() => handleOrderClick(order)} 
                 key={order.id} className="hover:bg-gray-50 cursor-pointer dark:hover:bg-gray-900/50">
-                <TableCell className="font-mono min-w-[150px] text-xs">{order.id.substring(0, 8)}</TableCell>
+                <TableCell className="font-mono min-w-[150px] text-xs">{order.id.replace(`${order.restaurant.legalId}_`, '').substring(0, 8)}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{order.restaurant.name}</span>
@@ -496,7 +496,27 @@ export default function OrdersPage() {
                   <div className="flex items-center gap-2">
                     <span>{order.supplier.name}</span>
                     {(order.restaurantNotes || order.supplierNotes) && (
-                      <MessageSquare className="w-3 h-3 text-blue-500" />
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="flex items-center">
+                            <MessageSquare className="w-3 h-3 text-blue-500" />
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs whitespace-pre-line">
+                          {order.restaurantNotes && (
+                            <div>
+                              <span className="font-semibold">הערות מסעדה: </span>
+                              {order.restaurantNotes}
+                            </div>
+                          )}
+                          {order.supplierNotes && (
+                            <div>
+                              <span className="font-semibold">הערות ספק: </span>
+                              {order.supplierNotes}
+                            </div>
+                          )}
+                        </TooltipContent>
+                      </Tooltip>
                     )}
                   </div>
                 </TableCell>
@@ -507,7 +527,7 @@ export default function OrdersPage() {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <div className="flex flex-wrap gap-1 max-w-xs">
+                  <div className="flex flex-wrap gap-2 max-w-xs">
                     {order.category.slice(0, 2).map((cat, idx) => (
                       getCategoryBadge(cat)
                     ))}
@@ -527,7 +547,7 @@ export default function OrdersPage() {
                 <TableCell>
                   <div className="flex items-center">
                     <span className="font-medium">{order.totalItems}</span>
-                    <span className="text-sm text-muted-foreground mr-1">({order.totalProducts})</span>
+                    {/* <span className="text-sm text-muted-foreground mr-1">({order.totalProducts})</span> */}
                   </div>
                     {order.hasShortages && (
                       <span className="text-red-500 text-xs">
@@ -535,8 +555,11 @@ export default function OrdersPage() {
                       </span>
                     )}
                 </TableCell>
-                <TableCell>
+                <TableCell className='flex gap-2 items-center'>
                   {getStatusBadge(order.status)}
+                   <Button size='sm' variant='ghost' title='link to order' onClick={(e) => {e.stopPropagation(); window.open(`https://pivot.webly.digital/orders/${order.id}`, '_blank')}}>
+                    <ExternalLink className="h-4 w-4" />
+                  </Button>
                 </TableCell>
               </TableRow>
             ))}
@@ -586,7 +609,6 @@ export default function OrdersPage() {
   const handleOrderClick = (order: EnhancedOrder) => {
     setSelectedOrder(order);
     setIsDialogOpen(true);
-    window.open(`https://pivot.webly.digital/orders/${order.id}`, '_blank');
   };
 
 
@@ -667,7 +689,7 @@ export default function OrdersPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">כל המסעדות</SelectItem>
-              {Object.values(data.restaurants).map((restaurant) => (
+              {Object.values(database.restaurants).map((restaurant) => (
                 <SelectItem key={restaurant.legalId} value={restaurant.legalId}>
                   {restaurant.name}
                 </SelectItem>
@@ -735,7 +757,7 @@ export default function OrdersPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handleOrderClick(selectedOrder)}
+                    onClick={() =>  window.open(`https://pivot.webly.digital/orders/${selectedOrder.id}`, '_blank')}
                     className="flex items-center gap-2"
                   >
                     <ExternalLink className="w-4 h-4" />

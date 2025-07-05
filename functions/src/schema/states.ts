@@ -472,7 +472,7 @@ export const stateObject: (conversation: Conversation) => Promise<StateObject> =
             delete context.supplierWhatsapp;
             delete context.supplierCategories;
             delete context.supplierProducts;
-            delete context.supplierReminders;
+            delete context.supplierCutoff;
             delete context.dataToApprove; // Clear any pending approval data
           },
           nextState: {
@@ -808,7 +808,7 @@ ${conversation.context.supplierProducts.map((product : any, index:number) => `- 
               delete context.supplierWhatsapp;
               delete context.supplierCategories;
               delete context.supplierProducts;
-              delete context.supplierReminders;
+              delete context.supplierCutoff;
               delete context.dataToApprove; // Clear any pending approval data
           },
           nextState:{

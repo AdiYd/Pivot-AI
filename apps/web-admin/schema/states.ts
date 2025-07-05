@@ -427,7 +427,7 @@ export const stateObject: (conversation: Conversation) => StateObject = (convers
             delete context.supplierWhatsapp;
             delete context.supplierCategories;
             delete context.supplierProducts;
-            delete context.supplierReminders;
+            delete context.supplierCutoff;
             delete context.dataToApprove; // Clear any pending approval data
           },
           nextState: {
@@ -765,7 +765,7 @@ ${Object.values(CATEGORIES_DICT).find((cat) => (cat.name.includes(conversation.c
               delete context.supplierWhatsapp;
               delete context.supplierCategories;
               delete context.supplierProducts;
-              delete context.supplierReminders;
+              delete context.supplierCutoff;
               delete context.dataToApprove; // Clear any pending approval data
           },
           nextState:{

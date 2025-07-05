@@ -22,7 +22,7 @@ export const escapeDict: Record<string, BotState> = {
  'menu': 'IDLE',
  'תפריט': 'IDLE',
  'תפריט ראשי': 'IDLE',
- 'עזרה': 'IDLE',
+ 'עזרה': 'HELP',
  'reset_conversation_pivot': 'INIT',
 };
 

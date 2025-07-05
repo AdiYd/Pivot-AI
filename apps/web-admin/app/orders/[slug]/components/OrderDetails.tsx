@@ -3,7 +3,7 @@
 import { Order, Restaurant, Supplier } from '@/schema/types';
 import { motion } from 'framer-motion';
 import { CATEGORIES_DICT } from '@/schema/states';
-import { Calendar, Check, Download, Phone, Mail, ArrowLeft, Loader } from 'lucide-react';
+import { Calendar, Check, Download, Phone, Mail, ArrowLeft, Loader, Clock } from 'lucide-react';
 import { Button } from '@/components/ui';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -269,16 +269,24 @@ export default function OrderDetails({ order }: OrderDetailsProps) {
         <h3 className="text-base font-medium mb-4">סטטוס הזמנה</h3>
         
         <div className="flex justify-between items-center max-w-2xl mx-auto">
-          <div className={`flex flex-col items-center ${order.status === 'pending' || order.status === 'confirmed' ? 'text-green-600' : 'text-gray-400'}`}>
-            <div className={`w-8 h-8 rounded-full ${order.status === 'pending' || order.status === 'confirmed' ? 'bg-green-100' : 'bg-gray-100'} flex items-center justify-center`}>
-              <Check className="w-5 h-5" />
+          <div className={`flex flex-col items-center ${order.status === 'pending' ? 'text-amber-600' : order.status === 'confirmed' ? 'text-green-600' : 'text-gray-400'}`}>
+            <div className={`w-8 h-8 rounded-full ${order.status === 'pending' ? 'bg-amber-100' : order.status === 'confirmed' ? 'bg-green-100' : 'bg-gray-100'} flex items-center justify-center`}>
+              {order.status === 'pending' ? <Clock className="w-5 h-5" /> : <Check className="w-5 h-5" />}
             </div>
-            <p className="mt-2 text-xs">אושר</p>
+            <p className="mt-2 text-xs">{order.status === 'pending' ? 'ממתין לאישור ספק' : 'מאושר'}</p>
           </div>
+
+          <div className={`flex-1 rounded-full -top-1 relative h-1 ${order.status === 'confirmed' ? 'bg-green-500' : 'bg-gray-200'}`} />
           
-          <div className={`flex-1 h-1 ${order.status === 'confirmed' ? 'bg-green-500' : 'bg-gray-200'}`} />
+          {order.status === 'confirmed'  &&
+          <div className={`flex flex-col items-center text-green-600`}>
+            <div className={`w-8 h-8 rounded-full bg-green-100 flex items-center justify-center`}>
+               <Check className="w-5 h-5" />
+            </div>
+            <p className="mt-2 text-xs">מאושר</p>
+          </div>}
           
-        
+
         </div>
         
         {order.deliveredAt && (
