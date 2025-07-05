@@ -1,11 +1,12 @@
-import { Conversation } from "../schema/types";
+import { Conversation, Supplier } from "../schema/types";
 import OpenAI from "openai";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { getConfig } from "./config";
 import { stateObject } from "../schema/states";
 import { ChatCompletionMessageParam } from "openai/resources/index";
-import { getAIConfigurations, getOrdersDatafromDb, getRestaurantDatafromDb } from "./firestore";
+import { getAIConfigurations, getOrdersDatafromDb, getRestaurantDatafromDb, getSupplierDataFromDb, setSupplierDataInDb } from "./firestore";
+import { SupplierSchema } from "../schema/schemas";
 // Load environment variables for local development
 if (process.env.NODE_ENV !== 'production' && process.env.FUNCTIONS_EMULATOR === 'true') {
   require('dotenv').config();
@@ -179,6 +180,7 @@ export async function callOpenAIDataAnalysis(
   try {
     const openai = getOpenAIClient();
     const AI_CONFIGURATIONS = await getAIConfigurations();
+    const supplierEditJsonSchema = zodToJsonSchema(SupplierSchema);
     const restaurantId = conversation.restaurantId  || conversation.context.legalId || conversation.context?.restaurantId;
     let mainData = {}; 
       if (analysisType === 'restaurant') {
@@ -200,9 +202,17 @@ export async function callOpenAIDataAnalysis(
           is_finished: {
             type: "boolean",
             description: "True only if the user has explicitly indicated they are done with their queries or have received all the information they needed"
+          },
+          editSupplier: {
+            type: "boolean",
+            description: "True *only* if the user explicitly requested to edit supplier data (Allowed *only* for the following supplier fields: name, email, cutoff hours and product list - including adding or removing products, their units or editing the base quantity values, Also known as 'מצבת בסיס' - those are the values for each product representing the reccomended quantity for midweek and for weekend), double check, verify and get the user's explicit approval for the changes before setting this field to true (setting this field to true will change the supplier data)"
+          },
+          supplierEdit: {
+            ...supplierEditJsonSchema,
+            description: "The structured supplier data to be edited, provide an exact, accurate and verified data by the client. Use the existing (accurate) values for items and fields that should not changed. only present if editSupplier is true"
           }
         },
-        required: ["response", "is_finished"]
+        required: ["response", "is_finished", "editSupplier"]
       }
     };
 
@@ -265,6 +275,24 @@ export async function callOpenAIDataAnalysis(
         if (toolCall.function.name === "data_analysis_response") {
           // Parse and return the result
           const result = JSON.parse(toolCall.function.arguments);
+          if (result.editSupplier){
+            try{
+              let supplierData = JSON.parse(result.supplierData) as Supplier;
+              const supplierWhatsApp = supplierData?.whatsapp;
+              const dbSupplierData = await getSupplierDataFromDb(supplierWhatsApp, restaurantId, conversation.context.isSimulator || false);
+              if (dbSupplierData) {
+                // If we found the supplier in the database, we can use it
+                supplierData = { ...dbSupplierData, ...supplierData, products: supplierData.products };
+                  const finalSupplierData = SupplierSchema.parse(supplierData);
+                  const isUpdated = await setSupplierDataInDb(supplierWhatsApp, restaurantId, finalSupplierData, conversation.context.isSimulator || false);
+                  if (!isUpdated) {
+                    console.error(`[Firestore] ❌ Failed to update supplier data for WhatsApp: ${supplierWhatsApp}`);
+                  }
+              }
+            } catch (error) {
+              console.error(`[Firestore] ❌ Error processing supplier data:`, error);
+            }
+           }
           return {
             response: result.response,
             is_finished: result.is_finished,
@@ -342,6 +370,24 @@ export async function callOpenAIDataAnalysis(
 
         // Parse the final JSON response
         const finalResult = JSON.parse(toolCall.function.arguments);
+        if (finalResult.editSupplier){
+          let supplierData = JSON.parse(finalResult.supplierData) as Supplier;
+          const supplierWhatsApp = supplierData?.whatsapp;
+          const dbSupplierData = await getSupplierDataFromDb(supplierWhatsApp, restaurantId, conversation.context.isSimulator || false);
+          if (dbSupplierData) {
+            // If we found the supplier in the database, we can use it
+            supplierData = { ...dbSupplierData, ...supplierData, products: supplierData.products };
+            try {
+              const finalSupplierData = SupplierSchema.parse(supplierData);
+              const isUpdated = await setSupplierDataInDb(supplierWhatsApp, restaurantId, finalSupplierData, conversation.context.isSimulator || false);
+              if (!isUpdated) {
+                console.error(`[Firestore] ❌ Failed to update supplier data for WhatsApp: ${supplierWhatsApp}`);
+              }
+            } catch (error) {
+              console.error(`[Firestore] ❌ Error parsing supplier data:`, error);
+            }
+          }
+        }
         
         console.log("\n📊 ==================== FINAL DATA ANALYSIS RESPONSE ====================\n", 
           finalResult, 
@@ -385,7 +431,9 @@ export async function callOpenAIAssistant(
 ): Promise<AssistantResponse> {
   try {
     const openai = getOpenAIClient();
+    const isHelping = assistType === 'help';
     const AI_CONFIGURATIONS = await getAIConfigurations();
+    const supplierEditJsonSchema = zodToJsonSchema(SupplierSchema);
     const restaurantId = conversation.restaurantId  || conversation.context.legalId || conversation.context?.restaurantId;
     let mainData;
     if (restaurantId){
@@ -411,9 +459,18 @@ export async function callOpenAIAssistant(
           is_finished: {
             type: "boolean",
             description: "True only if the user has explicitly indicated they are done with their queries or have received all the information they needed, or type \"רישום\" or \"סיום\" or \"סיום שיחה\" or \"התחל\""
-          }
+          },
+          ...(isHelping ? {  
+          editSupplier: {
+            type: "boolean",
+            description: "True *only* if the user explicitly requested to edit supplier data (Allowed *only* for the following supplier fields: name, email, cutoff hours and product list - including adding or removing products, their units or editing the base quantity values, Also known as 'מצבת בסיס' - those are the values for each product representing the reccomended quantity for midweek and for weekend), double check, verify and get the user's explicit approval for the changes before setting this field to true (setting this field to true will change the supplier data)"
+          },
+          supplierEdit: {
+            ...supplierEditJsonSchema,
+            description: "The structured supplier data to be edited, provide an exact, accurate and verified data by the client. Use the existing (accurate) values for items and fields that should not changed. The object must contain *all* supplier's fields to be edited and the exact values of the unchanged fields, do not skip or miss them!. only present if editSupplier is true"
+          }}: {})
         },
-        required: ["response", "is_finished"]
+        required: ["response", "is_finished", ...(isHelping ? ["editSupplier"] : [])]
       }
     };
 
@@ -452,6 +509,24 @@ export async function callOpenAIAssistant(
       const toolCall = initialChoice.message.tool_calls?.[0];
       if (toolCall?.function.name === "data_asistance_response") {
         const result = JSON.parse(toolCall.function.arguments);
+        if (result?.editSupplier && isHelping){
+          try{
+            let supplierData = JSON.parse(result.supplierData) as Supplier;
+            const supplierWhatsApp = supplierData?.whatsapp;
+            const dbSupplierData = await getSupplierDataFromDb(supplierWhatsApp, restaurantId, conversation.context.isSimulator || false);
+            if (dbSupplierData) {
+              // If we found the supplier in the database, we can use it
+              supplierData = { ...dbSupplierData, ...supplierData, products: supplierData.products };
+                const finalSupplierData = SupplierSchema.parse(supplierData);
+                const isUpdated = await setSupplierDataInDb(supplierWhatsApp, restaurantId, finalSupplierData, conversation.context.isSimulator || false);
+                if (!isUpdated) {
+                  console.error(`[Firestore] ❌ Failed to update supplier data for WhatsApp: ${supplierWhatsApp}`);
+                }
+            }
+          } catch (error) {
+            console.error(`[Firestore] ❌ Error processing supplier data:`, error);
+          }
+        }
         return {
           response: result.response,
           is_finished: result.is_finished,

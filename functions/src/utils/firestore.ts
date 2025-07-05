@@ -721,6 +721,33 @@ export async function getRestaurantDatafromDb(
   }
 }
 
+
+export async function getSupplierDataFromDb(supplierWhatsApp: string, restaurantId: string, isSimulator: boolean = false): Promise<Supplier | null> {
+  try {
+    console.log(`[Firestore] Fetching supplier data for WhatsApp: ${supplierWhatsApp}`);
+    // Get the supplier document from 'suppliers' collection at the restaurant level
+    const collectionName = getCollectionName('restaurants', isSimulator);
+    const supplierDoc = await firestore.collection(collectionName).doc(restaurantId).collection('suppliers').doc(supplierWhatsApp).get();
+    return supplierDoc.exists ? (supplierDoc.data() as Supplier) : null;
+  } catch (error) {
+    console.error(`[Firestore] ❌ Error fetching supplier data:`, error);
+    return null;
+  }
+}
+
+export const setSupplierDataInDb = async (supplierWhatsApp: string, restaurantId: string, data: Supplier, isSimulator: boolean = false): Promise<boolean> => {
+  try {
+    console.log(`[Firestore] Setting supplier data for WhatsApp: ${supplierWhatsApp}`);
+    const collectionName = getCollectionName('restaurants', isSimulator);
+    const supplierData = SupplierSchema.parse(data); // Validate data with Zod schema
+    await firestore.collection(collectionName).doc(restaurantId).collection('suppliers').doc(supplierWhatsApp).set(supplierData);
+    return true;
+  } catch (error) {
+    console.error(`[Firestore] ❌ Error setting supplier data:`, error);
+    return false;
+  }
+}
+
 /**
  * Helper function to calculate most ordered products
  * @param orders Array of orders

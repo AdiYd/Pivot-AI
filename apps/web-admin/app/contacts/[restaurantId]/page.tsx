@@ -11,6 +11,7 @@ import { Plus, Save, Trash2, RefreshCw, User, Phone, Mail, Store, ChevronDown, C
 import * as PopoverPrimitive from "@radix-ui/react-popover";
 import { Check } from "lucide-react";
 import { ThemeToggle } from '@/components/theme-toggle';
+import { Icon } from '@iconify/react/dist/iconify.js';
 
 const contactRoles = [
 //   { value: 'בעלים', label: 'בעלים' },
@@ -79,6 +80,7 @@ export default function ContactsPage() {
       setLoading(false);
     }
     if (databaseLoading) return;
+    
     fetchData();
   }, [restaurantId, database, databaseLoading, toast]);
 
@@ -274,6 +276,26 @@ export default function ContactsPage() {
         <Skeleton className="h-10 w-48 mb-6" />
         <Skeleton className="h-8 w-full mb-4" />
         <Skeleton className="h-40 w-full mb-4" />
+      </div>
+    );
+  }
+
+//   Fallback UI for not found restaurant
+  if (!restaurant){
+    return (
+      <div className="max-w-3xl flex flex-col items-center justify-center mx-auto p-12">
+        <Icon icon="mdi:alert-circle-outline" className="w-16 h-16 text-red-400 mb-4" />
+        <h2 className="text-3xl font-extrabold mb-3 text-center">מסעדה לא נמצאה 😕</h2>
+        <p className="text-lg text-muted-foreground mb-2 text-center">
+        לא הצלחנו למצוא את פרטי המסעדה שביקשת.
+        </p>
+        <p className="text-base text-muted-foreground text-center mb-4">
+          ודא שהקישור תקין או נסה לרענן את הדף.<br />
+          אם הבעיה נמשכת, פנה לתמיכה הטכנית.
+        </p>
+        <Button variant="default" onClick={() => window.location.reload()}>
+          🔄 רענן דף
+        </Button>
       </div>
     );
   }
