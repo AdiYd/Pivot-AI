@@ -205,7 +205,7 @@ export async function callOpenAIDataAnalysis(
           },
           editSupplier: {
             type: "boolean",
-            description: "True *only* if the user explicitly requested to edit supplier data (Allowed *only* for the following supplier fields: name, email, cutoff hours and product list - including adding or removing products, their units or editing the base quantity values, Also known as 'מצבת בסיס' - those are the values for each product representing the reccomended quantity for midweek and for weekend), double check, verify and get the user's explicit approval for the changes before setting this field to true (setting this field to true will change the supplier data)"
+            description: "True *only* if the user explicitly requested to edit supplier data (Allowed *only* one supplier edit at a time, and can edit *only* the following supplier fields: name, email (if not provided, ignore), cutoff hours and product list - including adding or removing products, their units or editing the base quantity values, Also known as 'מצבת בסיס' - those are the values for each product representing the reccomended quantity for midweek and for weekend), double check, verify and get the user's explicit approval for the changes before setting this field to true (setting this field to true will change the supplier data)"
           },
           supplierData: {
             ...supplierEditJsonSchema,
@@ -470,7 +470,7 @@ export async function callOpenAIAssistant(
           ...(isHelping ? {  
           editSupplier: {
             type: "boolean",
-            description: "True *only* if the user explicitly requested to edit supplier data (Allowed *only* for the following supplier fields: name, email, cutoff hours and product list - including adding or removing products, their units or editing the base quantity values, Also known as 'מצבת בסיס' - those are the values for each product representing the reccomended quantity for midweek and for weekend), double check, verify and get the user's explicit approval for the changes before setting this field to true (setting this field to true will change the supplier data)"
+            description: "True *only* if the user explicitly requested to edit supplier data (Allowed *only* one supplier edit at a time, and can edit *only* the following supplier fields: name, email, cutoff hours and product list - including adding or removing products, their units or editing the base quantity values, Also known as 'מצבת בסיס' - those are the values for each product representing the reccomended quantity for midweek and for weekend), double check, verify and get the user's explicit approval for the changes before setting this field to true (setting this field to true will change the supplier data)"
           },
           supplierData: {
             ...supplierEditJsonSchema,

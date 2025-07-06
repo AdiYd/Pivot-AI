@@ -24,6 +24,12 @@ export async function generateOrderPdf(elementId: string, filename: string): Pro
       emoji.textContent = ''; // Replace emojis with bullet points
     });
 
+    const whatsAppIcons = clone.querySelectorAll('#whatsAppIcon');
+    whatsAppIcons.forEach(icon => {
+      // Remove WhatsApp icon
+      icon.remove();
+    });
+
     // Generate canvas from the element
     const canvas = await html2canvas(clone, {
       scale: 2, // Higher scale for better quality

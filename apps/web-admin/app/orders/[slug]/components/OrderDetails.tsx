@@ -120,7 +120,7 @@ export default function OrderDetails({ order }: OrderDetailsProps) {
               </p>
               
               <div className="flex items-center gap-2 mt-1">
-                {/* <Icon icon="mdi:whatsapp" /> */}
+                <Icon className='text-green-600' id='whatsAppIcon' icon="mdi:whatsapp" />
                 <p className="text-sm">{order.restaurant.contact.whatsapp}</p>
               </div>
               
@@ -141,7 +141,7 @@ export default function OrderDetails({ order }: OrderDetailsProps) {
             <p className="font-medium">{order.supplier.name}</p>
             
             <div className="flex items-center gap-2 mt-1">
-              {/* <Icon icon="mdi:whatsapp" /> */}
+              <Icon className='text-green-600' id='whatsAppIcon' icon="mdi:whatsapp" />
               <p className="text-sm">{order.supplier.whatsapp}</p>
             </div>
             

@@ -940,8 +940,8 @@ function OrderSummary({
                   onChange={(e) => handleNotesChange(e.target.value)}
                   rows={3}
                   placeholder="הוסף הערות למשלוח כאן..."
-                  className="w-full p-2 border rounded-md"
-                  maxLength={500}
+                  className={`${editedOrder.restaurantNotes.length > 800 ? 'border-red-500' : ''} w-full p-2 border rounded-md`}
+                  maxLength={800}
                 />
              
             </motion.div>
