@@ -232,7 +232,7 @@ export const stateObject: (conversation: Conversation) => Promise<StateObject> =
             id: "init_template",
             sid: 'HX397f201cb42563786ffbba32d3838932',
             type: "button",
-            body: `🍽️ *ברוכים הבאים ל ✨ P-vot ✨, מערכת ניהול מלאי והזמנות למסעדות!*
+            body: `🍽️ *ברוכים הבאים ל ✨ Pivot ✨, מערכת ניהול מלאי והזמנות למסעדות!*
             בכמה צעדים פשוטים נרשום את המסעדה שלך ונגדיר את הספקים והמוצרים שלך (פעם אחת).
             לאחר מכן תוכל להתחיל לנהל את ההזמנות שלך מול הספקים בקלות וביעילות 😊.
             
@@ -385,7 +385,7 @@ export const stateObject: (conversation: Conversation) => Promise<StateObject> =
           whatsappTemplate: {
             id: "simulator_template",
             type: "button",
-            body: `⚡ *ברוכים הבאים לסימולטור P-vot!*
+            body: `⚡ *ברוכים הבאים לסימולטור Pivot!*
             זהו תהליך מהיר לרישום מסעדה חדשה עם הגדרות בסיסיות.
             פרטי המסעדה החדשה הם:
             *שם המסעדה*: {restaurantName}
@@ -826,7 +826,7 @@ ${conversation.context.supplierProducts.map((product : any, index:number) => `- 
           message: `
 🔹 *תפריט עזרה – מדריך למשתמשי המערכת*
 
-ברוכים הבאים ל-P-vot – מערכת ניהול מלאי והזמנות חכמה למסעדות, הכל דרך WhatsApp!
+ברוכים הבאים ל-Pivot – מערכת ניהול מלאי והזמנות חכמה למסעדות, הכל דרך WhatsApp!
 
 *מה אפשר לעשות כאן?*
 1. *יצירת הזמנה חדשה*: בצעו ספירת מלאי, קבלו המלצה לכמויות, ושלחו הזמנה לספק בלחיצת כפתור.

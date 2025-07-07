@@ -648,7 +648,7 @@ export const exampleConversations: Record<string, Conversation> = {
       },
       {
         role: "assistant",
-        body: "שלום! ברוך הבא ל-P-vot. אני אעזור לך להגדיר את המסעדה שלך. מה שם החברה או העסק שלך?",
+        body: "שלום! ברוך הבא ל - Pivot. אני אעזור לך להגדיר את המסעדה שלך. מה שם החברה או העסק שלך?",
         messageState: "ONBOARDING_COMPANY_NAME",
          hasTemplate: false,
         createdAt: daysAgo(5, 23.9)

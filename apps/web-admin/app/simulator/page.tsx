@@ -511,7 +511,6 @@ export default function SimulatorPage() {
                     <PivotAvatar />
                   </div>
                   <div className="flex gap-2">
-                    {/* <CardTitle className="text-sm max-sm:hidden">P-vot</CardTitle> */}
                     <div className="text-sm text-muted-foreground">
                       {session.isConnected && `${session.phoneNumber} • `}
                       {session.currentState && session.isConnected && 

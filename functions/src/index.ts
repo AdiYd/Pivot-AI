@@ -253,7 +253,7 @@ exports.whatsappWebhook = functions.region('europe-central2').https.onRequest(as
 *לידור זינו*:  0547513346
 *במייל*: lidor.zenou@gmail.com
 
-צוות P-vot 😊`;
+צוות Pivot 😊`;
         const currentState = conversationDoc.data()?.currentState || 'INIT';
         await conversationRef.collection('messages').add({
             body: messageBody,
