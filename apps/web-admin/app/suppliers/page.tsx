@@ -14,7 +14,8 @@ import {
   Plus, Search, Truck, Calendar, Clock, Phone, Star, Package, 
   Eye, Store, Filter, TrendingUp, X, Table as TableIcon,
   RefreshCw,
-  Trash2
+  Trash2,
+  ClipboardCheck
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -68,7 +69,7 @@ export default function SuppliersPage() {
         restaurant.suppliers.forEach(supplier => {
 
           // Count recent orders for this supplier
-          const recentOrdersCount = restaurant.orders.length;
+          const recentOrdersCount = restaurant.orders.filter(order=> database.orders[order].supplier.whatsapp === supplier.whatsapp).length;
           suppliersCategoriesList.push(...supplier.category);
 
           suppliers.push({
@@ -687,7 +688,7 @@ export default function SuppliersPage() {
                   <TabsContent dir='rtl' value="cutoff" className="space-y-6 mt-6">
                     <div className="space-y-6">
                       <div>
-                        <h3 className="text-lg font-medium mb-4">לוח זמני תזכורות שבועי</h3>
+                        <h3 className="text-lg font-medium mb-4">לוח זמני חיתוך שבועי</h3>
                         <div className="border rounded-xl overflow-hidden shadow-sm">
                           <div className="grid grid-cols-7 bg-muted/20">
                             {Object.entries(WEEKDAYS_DICT).map(([key, value], index) => (
@@ -710,17 +711,14 @@ export default function SuppliersPage() {
                                 >
                                   {isDeliveryDay ? (
                                     <>
-                                      <Truck className="w-8 h-8 text-green-600 dark:text-green-400 mb-2" />
-                                      <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border-green-200">
-                                        תזכורת
-                                      </Badge>
+                                      <ClipboardCheck className="w-8 h-8 text-green-600 dark:text-green-400 mb-2" />
                                       <div className="text-sm mt-2">
                                         {isDeliveryDay.time}
                                       </div>
 
                                     </>
                                   ) : (
-                                    <span className="text-muted-foreground text-sm">אין תזכורות</span>
+                                    <></>
                                   )}
                                 </div>
                               );
