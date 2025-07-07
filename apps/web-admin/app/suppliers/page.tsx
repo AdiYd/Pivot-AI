@@ -69,7 +69,7 @@ export default function SuppliersPage() {
         restaurant.suppliers.forEach(supplier => {
 
           // Count recent orders for this supplier
-          const recentOrdersCount = restaurant.orders.filter(order=> database.orders[order].supplier.whatsapp === supplier.whatsapp).length;
+          const recentOrdersCount = restaurant.orders.filter(order=> database.orders[order].supplier?.whatsapp === supplier.whatsapp).length;
           suppliersCategoriesList.push(...supplier.category);
 
           suppliers.push({

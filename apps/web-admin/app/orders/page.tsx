@@ -557,7 +557,7 @@ export default function OrdersPage() {
                 </TableCell>
                 <TableCell className='flex gap-2 items-center'>
                   {getStatusBadge(order.status)}
-                   <Button size='sm' variant='ghost' title='link to order' onClick={(e) => {e.stopPropagation(); window.open(`https://pivot.webly.digital/orders/${order.id}`, '_blank')}}>
+                   <Button size='sm' variant='ghost' title='link to order' onClick={(e) => {e.stopPropagation(); window.open(`https://pivott.digital/orders/${order.id}`, '_blank')}}>
                     <ExternalLink className="h-4 w-4" />
                   </Button>
                 </TableCell>
@@ -757,7 +757,7 @@ export default function OrdersPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() =>  window.open(`https://pivot.webly.digital/orders/${selectedOrder.id}`, '_blank')}
+                    onClick={() =>  window.open(`https://pivott.digital/orders/${selectedOrder.id}`, '_blank')}
                     className="flex items-center gap-2"
                   >
                     <ExternalLink className="w-4 h-4" />

@@ -417,8 +417,8 @@ export async function conversationStateReducer(
         createdAt: FieldValue.serverTimestamp(),
       });
 
-      // const url = `https://pivot.webly.digital/snapshots/${shortId}`;
-      const url = `https://pivot.webly.digital/snapshots/${shortId}`;
+      // const url = `https://pivott.digital/snapshots/${shortId}`;
+      const url = `https://pivott.digital/snapshots/${shortId}`;
       result.actions.push({
         type: 'SEND_MESSAGE',
         payload: {
@@ -446,7 +446,7 @@ export async function conversationStateReducer(
     if (userInput === "manage_contacts"){
       const restaurantId = conversation.restaurantId|| conversation.context.legalId || conversation.context.restaurantId;
       if (restaurantId) {
-        const url = 'https://pivot.webly.digital/contacts/' + restaurantId;
+        const url = 'https://pivott.digital/contacts/' + restaurantId;
         result.actions.push({
           type: 'SEND_MESSAGE',
           payload: {

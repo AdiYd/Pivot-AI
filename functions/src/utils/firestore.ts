@@ -89,13 +89,13 @@ const AI_CONFIGURATIONS_FALLBACK: AIConfigurationsInterface = {
       name: "ניתוח נתוני הזמנות",
       description: "הגדרת הקשר לניתוח נתוני הזמנות",
       prompt: `You're analyzing the restaurant order data including order history, statuses, and performance metrics. 
-For each order id in the restaurant orders list - you can re-direct the client to the full document at: https://pivot.webly.digital/orders/\${orderId}`
+For each order id in the restaurant orders list - you can re-direct the client to the full document at: https://pivott.digital/orders/\${orderId}`
     },
     restaurantDataContext: {
       name: "ניתוח נתוני מסעדה",
       description: "הגדרת הקשר לניתוח נתוני מסעדה",
       prompt: `You're analyzing the restaurant data including details about the restaurant, its contacts, orders, suppliers, and products.
- For each order id in the restaurant orders list - you can re-direct the client to the full document at: https://pivot.webly.digital/orders/\${orderId}`
+ For each order id in the restaurant orders list - you can re-direct the client to the full document at: https://pivott.digital/orders/\${orderId}`
     },
     systemCorePrompt: {
       name: "הגדרת מערכת בסיסית",

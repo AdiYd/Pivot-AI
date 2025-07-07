@@ -530,7 +530,7 @@ function createOrderHandler(collectionPath: string) {
         }
 
         // Define the order URL (for tracking)
-        const orderUrl = `https://pivot.webly.digital/orders/${orderId}`;
+        const orderUrl = `https://pivott.digital/orders/${orderId}`;
 
         // Different notification based on status change
         switch(newValue.status) {
