@@ -11,12 +11,12 @@ export const PivotAvatar = ({float=false, rotate=false, className='', ...props})
       // background: 'radial-gradient(circle at 30% 40%, rgba(255, 255, 255, 0.4) 0%, transparent 60%)',
       animation: float ? 'float 8s ease-in-out infinite': ''}}>
       <div 
-      className={`relative rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center ${className}`}
+      className={`relative rounded-full hover:shadow-amber-400 flex-shrink-0 overflow-hidden flex items-center justify-center ${className}`}
       style={{
         // background: 'conic-gradient(from 225deg at 50% 50%, #FF5E5E, #4DA6FF, #A44DFF)',
         animation: rotate ? 'rotate 20s linear infinite' : '',
       }}>
-        <Image src={pivotImage} alt="Pivot Logo" width={30} height={30} className='z-1 rounded-full hover:shadow-amber-400 bg-transparent' />
+        <Image src={pivotImage} alt="Pivot Logo" width={30} height={30} className='z-1 rounded-full bg-transparent' />
       </div>
     </div>
     );
