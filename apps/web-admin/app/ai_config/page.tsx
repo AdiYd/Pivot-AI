@@ -139,10 +139,10 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto p-8 space-y-8">
+    <div className="max-w-3xl mx-auto p-4 max-sm:p-2 space-y-8 max-sm:!px-2">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">הגדרות AI (OpenAI)</h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={handleReload} disabled={saving}>
             <RefreshCw className="w-4 h-4 ml-2" />
             רענן
@@ -155,7 +155,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Model Params */}
-      <Card>
+      <Card className=''>
         <CardHeader>
           <CardTitle className='text-xl text-transparent bg-clip-text bg-gradient-to-r from-amber-500 via-orange-500 to-red-600'>הגדרות מודל</CardTitle>
         </CardHeader>
@@ -185,7 +185,7 @@ export default function SettingsPage() {
             />
           </div>
           <div>
-            <Label>Max Tokens</Label>
+            <Label className='text-nowrap'>Max Tokens</Label>
             <Input
               type="number"
               min={1}
@@ -198,11 +198,11 @@ export default function SettingsPage() {
       </Card>
 
       {/* Prompts */}
-      <Card>
+      <Card className=''>
         <CardHeader>
           <CardTitle className='text-xl text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-purple-500 to-orange-600'>הגדרות פרומפטים</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-8">
+        <CardContent className="space-y-8 max-sm:!px-2">
           {orderedPrompts.map((key, index) => (
             <div key={index} className="border-b pb-6 mb-4">
               <Label className="font-bold">{config.prompts[key].name} 

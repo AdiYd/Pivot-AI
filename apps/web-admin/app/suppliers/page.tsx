@@ -477,7 +477,7 @@ export default function SuppliersPage() {
           </CardContent>
         </Card>
         
-        {/* <Card>
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <Star className="w-4 h-4" />
@@ -492,7 +492,7 @@ export default function SuppliersPage() {
               {getRatingStars(stats.averageRating)}
             </div>
           </CardContent>
-        </Card> */}
+        </Card>
         
         <Card>
           <CardHeader className="pb-2">
@@ -514,7 +514,7 @@ export default function SuppliersPage() {
 
       {/* Search and Filters */}
       <div className="flex flex-wrap items-center gap-4 mb-6">
-        <div className="relative max-w-md flex-1">
+        <div className="relative max-w-md flex-2">
           <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
           <Input
             placeholder="חיפוש לפי שם ספק, מסעדה או מספר WhatsApp..."
@@ -523,8 +523,8 @@ export default function SuppliersPage() {
             className="pr-10"
           />
         </div>
-        <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-muted-foreground" />
+        <div className="flex flex-1 flex-wrap items-center gap-2">
+          <Filter className="w-4 max-sm:hidden h-4 text-muted-foreground" />
           <Select value={selectedCategory} onValueChange={setSelectedCategory}>
             <SelectTrigger className="w-48">
               <SelectValue placeholder="כל הקטגוריות" />

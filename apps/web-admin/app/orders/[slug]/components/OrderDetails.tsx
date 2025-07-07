@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { generateOrderPdf } from './pdfConverter';
 import { Icon } from '@iconify/react/dist/iconify.js';
+import { formatFirebaseTimestamp } from '@/lib/firebaseClient';
 
 // Hebrew translations for fields
 const hebrewFields = {
@@ -76,23 +77,24 @@ export default function OrderDetails({ order }: OrderDetailsProps) {
       className="space-y-6"
     >
       {/* Header with order number and status */}
-      <div className="flex flex-col sm:flex-row justify-between items-center pb-4 border-b">
+      <div className="flex flex-wrap gap-2 justify-between items-center pb-4 border-b">
         <div>
           <div className="flex items-center gap-2 mb-2">
             {getStatusBadge(order.status)}
           </div>
-          <h1 className="text-2xl font-bold">הזמנה מספר {order.id.slice(order.id.indexOf('_')+1)}</h1>
+          <h1 className="text-xl font-bold">הזמנה מספר {order.id.slice(order.id.indexOf('_')+1)}</h1>
            נוצר בתאריך: {formatFirebaseTimestamp(order.createdAt)}
         </div>
         
         <div className="mt-4 sm:mt-0">
            <Button 
             className="flex items-center gap-2" 
+            size={"sm"}
             onClick={handleDownloadPdf}
             disabled={isGeneratingPdf}
           >
-            {isGeneratingPdf ? <Loader className='animate-spin duration-1000'  /> : <Download size={16} />}
-            {isGeneratingPdf ? 'מכין PDF...' : 'הורד PDF'}
+            {isGeneratingPdf ? <Loader className='animate-spin duration-1000'  /> : <Download />}
+            {isGeneratingPdf ? 'מכין PDF...' : ''}
           </Button>
         </div>
       </div>
@@ -103,7 +105,7 @@ export default function OrderDetails({ order }: OrderDetailsProps) {
         {/* Restaurant info */}
         <div className="space-y-2">
           <h3 className="text-base font-medium text-muted-foreground">פרטי מסעדה</h3>
-          <div className="bg-card p-4 rounded-lg border*">
+          <div className="bg-muted/30 p-4 rounded-lg border*">
             <p className="font-medium">{order.restaurant.name}</p>
             {/* {restaurant && <p className="text-sm text-muted-foreground">{restaurant.legalName}</p>} */}
             <p className="text-sm text-muted-foreground">מספר ח.פ: {order.restaurant.legalId}</p>
@@ -137,7 +139,7 @@ export default function OrderDetails({ order }: OrderDetailsProps) {
         {/* Supplier info */}
         <div className="space-y-2">
           <h3 className="text-base font-medium text-muted-foreground">פרטי ספק</h3>
-          <div className="bg-card p-4 rounded-lg border*">
+          <div className="bg-muted/30 p-4 rounded-lg border*">
             <p className="font-medium">{order.supplier.name}</p>
             
             <div className="flex items-center gap-2 mt-1">
@@ -250,14 +252,14 @@ export default function OrderDetails({ order }: OrderDetailsProps) {
       {(order.restaurantNotes || order.supplierNotes) && (
         <div className="space-y-4 mt-6">
           {order.restaurantNotes && (
-            <div className="bg-muted/20 p-4 rounded-lg border* border-blue-200">
+            <div className="bg-muted/30 p-4 rounded-lg border* border-blue-200">
               <h3 className="text-base font-medium text-blue-800 mb-2">הערות מסעדה</h3>
               <p className="text-sm whitespace-pre-wrap">{order.restaurantNotes}</p>
             </div>
           )}
           
           {order.supplierNotes && (
-            <div className="bg-muted/20 p-4 rounded-lg border* border-green-200">
+            <div className="bg-muted/30 p-4 rounded-lg border* border-green-200">
               <h3 className="text-base font-medium text-green-800 mb-2">הערות ספק</h3>
               <p className="text-sm whitespace-pre-wrap">{order.supplierNotes}</p>
             </div>
@@ -304,22 +306,3 @@ export default function OrderDetails({ order }: OrderDetailsProps) {
   );
 }
 
-
-const formatFirebaseTimestamp = (timestamp: any) => {
-  if (!timestamp) return 'תאריך לא זמין';
-  
-  try {
-    // If it's a Firebase Timestamp
-    if (typeof timestamp.toDate === 'function') {
-      const date = timestamp.toDate();
-      return `${date.toLocaleDateString('he-IL')}, ${date.toLocaleTimeString('he-IL').slice(0, -3)}`;
-    }
-    
-    // Try regular Date constructor as fallback
-    const date = new Date(timestamp);
-    if (isNaN(date.getTime())) return 'תאריך לא תקין';
-    return `${date.toLocaleDateString('he-IL')}, ${date.toLocaleTimeString('he-IL').slice(0, -3)}`;
-  } catch {
-    return 'תאריך לא תקין';
-  }
-};

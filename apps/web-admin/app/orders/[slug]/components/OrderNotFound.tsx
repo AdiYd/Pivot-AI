@@ -46,11 +46,11 @@ export default function OrderNotFound({ error }: OrderNotFoundProps) {
                 נסה שנית
               </Button>
               
-              <Link href="/orders" className="w-full">
+              {/* <Link href="/orders" className="w-full">
                 <Button variant="default" className="w-full">
                   חזרה לרשימת ההזמנות
                 </Button>
-              </Link>
+              </Link> */}
             </div>
           </CardContent>
         </Card>

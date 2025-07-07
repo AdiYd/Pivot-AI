@@ -880,7 +880,7 @@ export default function RestaurantsPage() {
       {/* Search and Filters */}
       <div className="flex flex-wrap items-center gap-4 mb-6">
       
-        <div className="relative max-w-md flex-1">
+        <div className="relative max-w-md flex-2">
           <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
           <Input
             placeholder="חיפוש לפי שם, ח.פ, שם עסקי או איש קשר..."
@@ -890,8 +890,8 @@ export default function RestaurantsPage() {
           />
         </div>
         
-        <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-muted-foreground" />
+        <div className="flex flex-1 items-center gap-2">
+          <Filter className="w-4 h-4 max-sm:hidden text-muted-foreground" />
           <Select value={statusFilter} onValueChange={(value: any) => setStatusFilter(value)}>
             <SelectTrigger className="w-40">
               <SelectValue placeholder="כל הסטטוסים" />

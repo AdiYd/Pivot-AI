@@ -16,7 +16,7 @@ export default function OrderLayout({
       <div className="absolute top-4 left-4">
         <ThemeToggle />
       </div>
-      <div className="max-w-5xl mx-auto px-4 py-8">
+      <div className="max-w-5xl mx-auto py-8">
         {children}
       </div>
     </div>

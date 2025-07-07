@@ -229,3 +229,23 @@ export function FirebaseAppProvider({ children }: { children: ReactNode }) {
 
 // Simple hook to access Firebase context
 export const useFirebase = () => useContext(FirebaseContext as React.Context<FirebaseContextValue>);
+
+
+export const formatFirebaseTimestamp = (timestamp: any) => {
+  if (!timestamp) return 'תאריך לא זמין';
+  
+  try {
+    // If it's a Firebase Timestamp
+    if (typeof timestamp.toDate === 'function') {
+      const date = timestamp.toDate();
+      return `${date.toLocaleDateString('he-IL')}, ${date.toLocaleTimeString('he-IL').slice(0, -3)}`;
+    }
+    
+    // Try regular Date constructor as fallback
+    const date = new Date(timestamp);
+    if (isNaN(date.getTime())) return 'תאריך לא תקין';
+    return `${date.toLocaleDateString('he-IL')}, ${date.toLocaleTimeString('he-IL').slice(0, -3)}`;
+  } catch {
+    return 'תאריך לא תקין';
+  }
+};

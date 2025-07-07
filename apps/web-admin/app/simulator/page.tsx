@@ -130,6 +130,7 @@ export default function SimulatorPage() {
       toast({
         title: "שגיאה",
         description: "אנא הזן מספר טלפון",
+        variant: "destructive"
       });
       return;
     }
@@ -138,6 +139,7 @@ export default function SimulatorPage() {
       toast({
         title: "מספר טלפון לא תקין",
         description: "אנא הזן מספר טלפון ישראלי תקין (05xxxxxxxxx)",
+        variant: "destructive"
       });
       return;
     }
@@ -298,6 +300,7 @@ export default function SimulatorPage() {
       toast({
         title: "שגיאה בשליחת הודעה",
         description: errorMessage,
+        variant: "destructive"
       });
     }
   };
@@ -344,6 +347,7 @@ export default function SimulatorPage() {
     toast({
       title: "השיחה נוקתה",
       description: "כל ההודעות נמחקו",
+      variant: "success"
     });
   };
 
@@ -370,6 +374,7 @@ export default function SimulatorPage() {
     toast({
       title: "התנתקת",
       description: "הסימולטור נותק בהצלחה",
+      variant: "success"
     });
   };
 

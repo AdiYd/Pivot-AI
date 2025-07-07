@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { arrayUnion, collection, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebaseClient';
+import { db, formatFirebaseTimestamp } from '@/lib/firebaseClient';
 import { Order, Restaurant, Supplier} from '@/schema/types';
 import InventorySnapshotForm from './components/InventorySnapshotForm';
 import ErrorState from './components/ErrorState';
@@ -81,9 +81,10 @@ export default function OrderPage() {
         const hasOrder = await getDoc(doc(db, isSimulator ? 'orders_simulator' : 'orders', orderLinkData.orderId));
         if (hasOrder.exists()) {
           const orderData = hasOrder.data();
+          orderData.id = orderData.id.slice(orderData.id.indexOf('_') + 1); // Remove prefix
           toast({
             title: 'ההזמנה נמצאה',
-            description: `ההזמנה שלך עם ID ${orderData.id} נמצאה בהצלחה.`,
+            description: `הזמנה: ${orderData.id} נטענה בהצלחה.`,
             variant: 'success',
           });
           setOrder(orderData as Order);
@@ -934,12 +935,12 @@ function OrderSummary({
               transition={{ duration: 0.3 }}
               className="bg-card p-4 rounded-lg overflow-hidden"
             >
-              <h2 className="text-base font-medium text-muted-foreground mb-2">הערות למשלוח</h2>
+              <h2 className="text-base font-medium text-muted-foreground mb-2">הערות לספק</h2>
                 <textarea
                   value={editedOrder.restaurantNotes || ''}
                   onChange={(e) => handleNotesChange(e.target.value)}
                   rows={3}
-                  placeholder="הוסף הערות למשלוח כאן..."
+                  placeholder="הוסף הערות לספק כאן..."
                   className={`${editedOrder.restaurantNotes.length > 800 ? 'border-red-500' : ''} w-full p-2 border rounded-md`}
                   maxLength={800}
                 />
@@ -1001,16 +1002,16 @@ function OrderConfirmation({
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ type: "spring", stiffness: 300, damping: 15 }}
-          className="mx-auto bg-green-100 w-24 h-24 rounded-full flex items-center justify-center mb-4"
+          className="mx-auto bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mb-4"
         >
-          <Check className="h-12 w-12 text-green-600" />
+          <Check className="h-8 w-8 text-green-600" />
         </motion.div>
         
         <h1 className="text-2xl font-bold text-green-800 mb-2">
           ההזמנה נשלחה בהצלחה!
         </h1>
         <p className="text-green-700">
-          מספר הזמנה: <span className="font-semibold">{orderData.id}</span>
+          מספר הזמנה: <span className="font-semibold">{orderData.id.slice(orderData.id.indexOf('_')+1)}</span>
         </p>
         <p className="text-gray-600 mt-2">
           הזמנתך נשלחה ל{supplier.name} והיא בתהליך טיפול
@@ -1027,7 +1028,7 @@ function OrderConfirmation({
         {/* Restaurant info */}
         <div className="space-y-2">
           <h3 className="text-base font-medium text-muted-foreground">פרטי מסעדה</h3>
-          <div className="bg-card p-4 rounded-lg shadow-sm*">
+          <div className="bg-muted/30 p-4 rounded-lg shadow-sm*">
             <p className="font-medium">{restaurant.name}</p>
             <p className="text-sm text-muted-foreground">{restaurant.legalName}</p>
             <p className="text-sm text-muted-foreground">מספר ח.פ: {restaurant.legalId}</p>
@@ -1046,7 +1047,7 @@ function OrderConfirmation({
         {/* Supplier info */}
         <div className="space-y-2">
           <h3 className="text-base font-medium text-muted-foreground">פרטי ספק</h3>
-          <div className="bg-card p-4 rounded-lg shadow-sm*">
+          <div className="bg-muted/30 p-4 rounded-lg shadow-sm*">
             <p className="font-medium">{supplier.name}</p>
             <p className="text-sm">{supplier.whatsapp}</p>
             {supplier.email && <p className="text-sm">{supplier.email}</p>}
@@ -1102,7 +1103,7 @@ function OrderConfirmation({
       
       {/* Notes section if there are any */}
       {orderData.restaurantNotes && (
-        <div className="bg-muted/20 p-4 rounded-lg">
+        <div className="bg-muted/30 p-4 rounded-lg">
           <h3 className="text-base font-medium mb-2">הערות להזמנה</h3>
           <p className="text-sm whitespace-pre-wrap">{orderData.restaurantNotes}</p>
         </div>
@@ -1110,7 +1111,9 @@ function OrderConfirmation({
       
       {/* Timestamp info */}
       <div className="text-center mt-8 pt-4 border-t text-muted-foreground text-sm">
-        <p>הזמנה נוצרה ב-{new Date(orderData.createdAt).toLocaleDateString('he-IL')}, {new Date(orderData.createdAt).toLocaleTimeString('he-IL')}</p>
+        <p>הזמנה נוצרה ב-{formatFirebaseTimestamp(
+          orderData.createdAt
+        )} על ידי {restaurant.name}</p>
         <div className="flex items-center justify-center mt-2 gap-2">
           <Calendar className="h-4 w-4" />
           <p>סטטוס: ממתין לאישור ספק</p>
@@ -1133,3 +1136,5 @@ function getDayName(day: string): string {
   };
   return dayNames[day] || day;
 }
+
+

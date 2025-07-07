@@ -422,7 +422,7 @@ export default function OrdersPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[80px] text-right">מזהה</TableHead>
+              <TableHead className="text-right">מזהה</TableHead>
               <TableHead className="text-right">
                 <div className="flex items-center cursor-pointer" onClick={() => {
                   if (sortBy === 'restaurant') {
@@ -486,7 +486,7 @@ export default function OrdersPage() {
               <TableRow   
                 onClick={() => handleOrderClick(order)} 
                 key={order.id} className="hover:bg-gray-50 cursor-pointer dark:hover:bg-gray-900/50">
-                <TableCell className="font-mono min-w-[150px] text-xs">{order.id.replace(`${order.restaurant.legalId}_`, '').substring(0, 8)}</TableCell>
+                <TableCell className="font-mono text-xs">{order.id.replace(`${order.restaurant.legalId}_`, '').substring(0, 8)}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{order.restaurant.name}</span>
@@ -665,7 +665,7 @@ export default function OrdersPage() {
           />
         </div>
         
-        <div className="flex flex-wrap  items-center gap-2">
+        <div className="flex-wrap hidden sm:flex items-center gap-2">
           <div className="flex items-center gap-2">
             <Filter className="w-4 h-4 text-muted-foreground" />
             <Select value={selectedStatus} onValueChange={setSelectedStatus}>

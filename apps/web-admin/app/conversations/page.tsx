@@ -640,7 +640,7 @@ const filteredConversations = useMemo(() => {
           />
         </div>
         <div className="flex items-center max-sm:flex-row-reverse gap-2">
-          <Filter className="w-4 h-4 text-muted-foreground" />
+          <Filter className="w-4 max-sm:hidden h-4 text-muted-foreground" />
           <Select value={selectedCategory} onValueChange={setSelectedCategory}>
             <SelectTrigger className="w-40">
               <SelectValue placeholder="כל הקטגוריות" />

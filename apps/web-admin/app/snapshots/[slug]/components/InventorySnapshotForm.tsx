@@ -302,7 +302,7 @@ export default function InventorySnapshotForm({
           <Card className="mb-6 p-2 max-sm:p-0">
             <CardHeader className='max-sm:!px-2'>
               <div className="flex justify-between items-center mb-4">
-                <Button
+                {/* <Button
                   type="button"
                   variant="ghost"
                   size="sm"
@@ -311,7 +311,7 @@ export default function InventorySnapshotForm({
                 >
                   <ChevronRight className="h-4 w-4" />
                   חזרה לרשימת הספקים
-                </Button>
+                </Button> */}
                 
                 {/* Order type indicator and toggle */}
                 <div className="mr-auto justify-end flex flex-wrap items-center gap-2">
