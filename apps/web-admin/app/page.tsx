@@ -416,7 +416,7 @@ function DashboardPage() {
       {/* Header */}
       <div style={{marginTop: '0px'}}>
         <div className="w-full flex justify-center">
-          <PivotAvatar rotate float className="h-[50px] w-[50px]" />
+          <PivotAvatar float className="h-[50px] w-[50px]" />
         </div>
         <h1 className="text-3xl font-bold tracking-tight">דף הבית</h1>
         <p className="text-muted-foreground">

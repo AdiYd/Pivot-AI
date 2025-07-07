@@ -130,7 +130,7 @@ export default function LoginPage() {
         <CardHeader className="max-sm:p-4 text-center space-y-6 pb-8">
           {/* Logo */}
           <div className="flex justify-center">
-            <PivotAvatar float rotate className="!w-12 !h-12 max-sm:!w-8 max-sm:!h-8" style={{ display: 'block' }} />
+            <PivotAvatar float className="!w-12 !h-12 max-sm:!w-8 max-sm:!h-8" style={{ display: 'block' }} />
           </div>
           
           {/* Title */}

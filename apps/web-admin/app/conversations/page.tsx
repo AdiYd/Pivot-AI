@@ -179,16 +179,6 @@ const enhancedConversations = useMemo((): EnhancedConversation[] => {
   }
 }, [database]);
 
-const pivotAvatar = useMemo(() => {
-  return (
-    <Avatar
-        size={32}
-        name={'P-vote'}
-        variant="beam"
-        colors={["#FFB9B9", "#FFDA77", "#B9E4FF", "#FFB9F1"]}
-      />
-      )
-    }, []);
 
   // Filter conversations based on search and filters
 const filteredConversations = useMemo(() => {
@@ -486,7 +476,7 @@ const filteredConversations = useMemo(() => {
       <div className={`flex my-2 items-end gap-2 max-w-[70%]* ${isBot ? 'flex-row' : 'flex-row-reverse'}`}>
         <div className={`p-2 max-sm:hidden rounded-full ${isBot ? '' : 'bg-blue-100 dark:bg-blue-900'}`}>
           {isBot ? (
-            pivotAvatar
+            <PivotAvatar />
           ) : (
             <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
           )}
@@ -547,7 +537,7 @@ const filteredConversations = useMemo(() => {
       </div>
     </div>
   );
-  }, [pivotAvatar]);
+  }, []);
 
   if (isLoading) {
     return (

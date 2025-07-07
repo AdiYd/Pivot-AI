@@ -571,7 +571,7 @@ export default function SimulatorPage() {
                         )}
                       >
                         {message.role === 'assistant' && (
-                          <PivotAvatar float rotate/>
+                          <PivotAvatar/>
                         )}
                         
                        {!message.hasTemplate ? (
