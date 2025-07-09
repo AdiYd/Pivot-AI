@@ -149,7 +149,7 @@ Private
 
 - [x] Setup project structure
 - [x] Implement WhatsApp webhook endpoint
-- [ ] Complete conversation state machine
-- [ ] Build admin dashboard
-- [ ] Add supplier management
+- [x] Complete conversation state machine
+- [x] Build admin dashboard
+- [x] Add supplier management
 - [ ] Integrate payment processing

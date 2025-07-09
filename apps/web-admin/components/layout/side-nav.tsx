@@ -313,7 +313,7 @@ export function SideNav() {
           <div className="h-16 flex items-center justify-between px-6 border-b">
             <div className="flex items-center gap-2">
               <PivotAvatar style={{display:'block'}}  />
-              <h3 className="font-semibold text-sm truncate">P-vot</h3>
+              <h3 className="font-semibold text-sm truncate">Pivot</h3>
             </div>
             <ThemeToggle />
           </div>
