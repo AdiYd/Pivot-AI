@@ -34,6 +34,7 @@ const ALLOWED_USERNAMES = [
 
 const ALLOWED_EMAILS = [
   "lidor.zenou@gmail.com",
+  " support@pivott.digital",
   "demo@pivot.com",
   "demo@gmail.com",
   "admin@webly.digital"

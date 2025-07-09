@@ -249,9 +249,8 @@ exports.whatsappWebhook = functions.region('europe-central2').https.onRequest(as
         console.log(`[${isSimulator ? 'Simulator' : 'WhatsApp'}] ❗ Restaurant is not activated: ${restaurant.name} (${restaurant.legalId})`);
         const messageBody = `📌 המסעדה: ${restaurant.name} לא פעילה במערכת.
 
-על מנת לאתחל את השירות יש לפנות ל:
-*לידור זינו*:  0547513346
-*במייל*: lidor.zenou@gmail.com
+על מנת לאתחל את השירות יש לפנות:
+*במייל*: support@pivott.digital
 
 צוות Pivot 😊`;
         const currentState = conversationDoc.data()?.currentState || 'INIT';
