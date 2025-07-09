@@ -34,8 +34,6 @@ functions/lib
 .env.production.local
 functions/.env
 
-# Functions (all)
-functions/**
 
 # Debug
 npm-debug.log*
