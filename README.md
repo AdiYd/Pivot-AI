@@ -92,7 +92,7 @@ Cloud Functions running a sophisticated state machine that powers the WhatsApp i
 /
 ├── apps/
 │   └── web-admin/      # Next.js admin panel
-├── functions/          # Firebase Cloud Functions
+├── functions/          # Firebase Cloud Functions (Masked)
     └──src/
         ├── types/          # Shared TypeScript types
         ├── utils/          # Twilio and Firestore functions
